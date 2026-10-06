@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#080a09" />
+    <title>Offline · Our Place</title>
+    <style>
+      :root { color-scheme: dark; }
+      html, body { height: 100%; margin: 0; }
+      body {
+        display: grid;
+        place-items: center;
+        background: #080a09;
+        color: #f5f5f2;
+        font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+        text-align: center;
+        padding: calc(env(safe-area-inset-top, 0px) + 24px) calc(env(safe-area-inset-right, 0px) + 24px)
+          calc(env(safe-area-inset-bottom, 0px) + 24px) calc(env(safe-area-inset-left, 0px) + 24px);
+        box-sizing: border-box;
+      }
+      h1 { font-weight: 600; letter-spacing: -0.02em; font-size: 28px; margin: 0 0 8px; }
+      p { margin: 0 0 20px; color: #a8ada5; }
+      button {
+        font: 600 15px system-ui, sans-serif;
+        background: #596b40;
+        color: #ffffff;
+        border: 0;
+        border-radius: 10px;
+        padding: 12px 20px;
+        min-height: 44px;
+        cursor: pointer;
+      }
+      button:focus-visible { outline: 2px solid #66764a; outline-offset: 3px; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>You're offline</h1>
+      <p>Our Place needs a connection to bring you two together.</p>
+      <button type="button" onclick="location.reload()">Try again</button>
+    </main>
+  </body>
+</html>

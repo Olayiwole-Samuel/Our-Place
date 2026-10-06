@@ -1,0 +1,480 @@
+@import "tailwindcss";
+
+/* ──────────────────────────────────────────────────────────────────────────
+   Our Place — official visual identity
+   Black establishes the world. Army green establishes the brand.
+   Pink establishes the relationship. Sky blue establishes realtime play.
+   Red establishes intensity. White establishes clarity.
+
+   Every color, font, size and radius in the UI comes from this file.
+   `@theme` exposes them as Tailwind utilities (bg-black-900, text-pink-400,
+   text-heading, rounded-md …) and CSS variables (var(--color-green-600)).
+   Keep lib/design/tokens.js (three.js / manifest copy) in sync.
+   See docs/design-system.md.
+   ────────────────────────────────────────────────────────────────────────── */
+@theme {
+  /* Only Our Place colors exist — Tailwind's default palette is removed. */
+  --color-*: initial;
+  --color-transparent: transparent;
+  --color-current: currentColor;
+
+  /* Black — the foundation (never pure #000) */
+  --color-black-950: #080a09;
+  --color-black-900: #101310;
+  --color-black-800: #171a17;
+  --color-black-700: #202420;
+
+  /* Army green — the brand */
+  --color-green-700: #4f5f3a;
+  --color-green-600: #596b40;
+  --color-green-500: #66764a;
+
+  /* Soft pink — the relationship */
+  --color-pink-400: #f3a6b9;
+  --color-pink-500: #e889a2;
+  --color-pink-600: #d96f8d;
+
+  /* Sky blue — realtime / play: "something is happening right now" */
+  --color-blue-400: #7dd3fc;
+  --color-blue-500: #67c7f2;
+  --color-blue-600: #4fb6e8;
+
+  /* Red — intensity, warnings, destructive (accent only) */
+  --color-red-500: #ef4444;
+  --color-red-600: #e5484d;
+
+  /* White / neutrals — clarity */
+  --color-white: #ffffff;
+  --color-white-soft: #f5f5f2;
+  --color-text-secondary: #d6d8d2;
+  --color-text-muted: #a8ada5;
+
+  /* Fonts — loaded with next/font in app/layout.js */
+  --font-sans: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+
+  /* Type scale. Fluid sizes key off the SHORTER screen side (vmin): in landscape
+     the height is the constraint, so vw-based sizes would overwhelm phones. */
+  --text-display: clamp(2.25rem, 1.4rem + 4vmin, 4rem);
+  --text-display--line-height: 1;
+  --text-display--letter-spacing: -0.035em;
+  --text-display--font-weight: 600;
+  --text-heading: clamp(1.5rem, 1.05rem + 2.4vmin, 2.5rem);
+  --text-heading--line-height: 1.1;
+  --text-heading--letter-spacing: -0.025em;
+  --text-heading--font-weight: 600;
+  --text-subheading: clamp(1.0625rem, 0.95rem + 0.7vmin, 1.375rem);
+  --text-subheading--line-height: 1.3;
+  --text-subheading--letter-spacing: -0.01em;
+  --text-subheading--font-weight: 500;
+  --text-body: clamp(0.9375rem, 0.9rem + 0.25vmin, 1.0625rem);
+  --text-body--line-height: 1.55;
+  --text-caption: 0.8125rem;
+  --text-caption--line-height: 1.45;
+  --text-micro: 0.6875rem;
+  --text-micro--line-height: 1.2;
+  --text-micro--letter-spacing: 0.18em;
+  /* Game HUD numerals and the invite code — use with tabular figures */
+  --text-hud: clamp(1.25rem, 0.9rem + 2vmin, 2.25rem);
+  --text-hud--line-height: 1;
+  --text-code: clamp(1.625rem, 1.15rem + 3vmin, 2.5rem);
+  --text-code--line-height: 1;
+
+  /* Radii by purpose — tactile, never pill-everything */
+  --radius-xs: 4px; /* small controls, chips */
+  --radius-sm: 8px; /* inputs, code cells */
+  --radius-md: 12px; /* buttons, cards */
+  --radius-lg: 20px; /* major surfaces */
+
+  /* Breakpoints (min-width). Landscape-first device classes:
+     sm  small phone landscape   (iPhone SE 568×320)
+     md  large phone landscape   (≥ 740×360)
+     lg  tablet                  (≥ 1024)
+     xl  desktop                 (≥ 1280)
+     2xl large desktop           (≥ 1600)
+     Pair with `short:` (height ≤ 480) for compact landscape phones. */
+  --breakpoint-*: initial;
+  --breakpoint-sm: 568px;
+  --breakpoint-md: 740px;
+  --breakpoint-lg: 1024px;
+  --breakpoint-xl: 1280px;
+  --breakpoint-2xl: 1600px;
+
+  /* Motion */
+  --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
+  --animate-pulse-live: pulse-live 1.8s ease-in-out infinite;
+  --animate-drift: drift 18s ease-in-out infinite alternate;
+
+  @keyframes pulse-live {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.35; transform: scale(0.8); }
+  }
+
+  @keyframes panel-in {
+    from { opacity: 0; transform: translateX(6px); }
+    to { opacity: 1; transform: none; }
+  }
+
+  @keyframes drift {
+    from { transform: translate3d(-2%, 1%, 0) scale(1); }
+    to { transform: translate3d(2%, -1%, 0) scale(1.06); }
+  }
+}
+
+/* Compact landscape phones (height-constrained), independent of width. */
+@custom-variant short (@media (max-height: 480px));
+
+/* ── Semantic tokens: components prefer these over raw palette steps ───── */
+:root {
+  --surface-base: var(--color-black-950);
+  --surface-panel: color-mix(in oklab, var(--color-black-900) 86%, transparent);
+  --surface-raised: var(--color-black-800);
+  --surface-sunken: var(--color-black-950);
+  --border-subtle: color-mix(in oklab, var(--color-white) 9%, transparent);
+  --border-strong: color-mix(in oklab, var(--color-white) 18%, transparent);
+  --text-primary: var(--color-white-soft);
+  --text-secondary: var(--color-text-secondary);
+  --text-muted: var(--color-text-muted);
+  --focus-ring: var(--color-green-500);
+  --glow-brand: color-mix(in oklab, var(--color-green-600) 38%, transparent);
+  --glow-relationship: color-mix(in oklab, var(--color-pink-500) 16%, transparent);
+  /* Tactile depth: a top highlight plus one soft drop — no stacked shadows. */
+  --shadow-tactile: inset 0 1px 0 color-mix(in oklab, var(--color-white) 12%, transparent),
+    0 10px 24px -14px var(--color-black-950);
+
+  /* Safe areas — notches, rounded corners, home indicator (viewport-fit=cover). */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  /* Breathing room for UI pinned to screen edges (HUD, menus). */
+  --edge-gap: clamp(12px, 2.5vmin, 28px);
+  /* Minimum touch target; HUD controls in later phases scale from this. */
+  --control-size: 44px;
+
+  color-scheme: dark;
+}
+
+@media (min-width: 1024px) {
+  :root {
+    --control-size: 48px;
+  }
+}
+
+/* ── Base ──────────────────────────────────────────────────────────────── */
+@layer base {
+  html,
+  body {
+    height: 100%;
+    background: var(--surface-base);
+    color: var(--text-primary);
+  }
+
+  body {
+    font-family: var(--font-sans);
+    font-size: var(--text-body);
+    line-height: var(--text-body--line-height);
+    -webkit-font-smoothing: antialiased;
+    -webkit-tap-highlight-color: transparent;
+    overscroll-behavior: none;
+  }
+
+  h1, h2, h3 {
+    text-wrap: balance;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 3px;
+  }
+
+  /* The 3D view owns its touch gestures; the browser must not pan/zoom it. */
+  canvas {
+    touch-action: none;
+  }
+
+  ::selection {
+    background: var(--color-green-600);
+    color: var(--color-white);
+  }
+}
+
+/* ── Utilities ─────────────────────────────────────────────────────────── */
+@utility app-viewport {
+  position: fixed;
+  inset: 0;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+@utility safe-inset {
+  padding: calc(var(--safe-top) + var(--edge-gap)) calc(var(--safe-right) + var(--edge-gap))
+    calc(var(--safe-bottom) + var(--edge-gap)) calc(var(--safe-left) + var(--edge-gap));
+}
+
+@utility micro-caps {
+  font-size: var(--text-micro);
+  line-height: var(--text-micro--line-height);
+  letter-spacing: var(--text-micro--letter-spacing);
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+@utility hud-numeral {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+@utility panel {
+  /* Standard overlay: dark, mostly opaque, hairline edge, restrained blur. */
+  background: var(--surface-panel);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  backdrop-filter: blur(12px);
+}
+
+/* ── Orientation ───────────────────────────────────────────────────────── */
+/* Landscape-first: upright phones see RotateDevicePrompt; tablets/desktops are
+   fine either way. Hidden content stops participating (visibility: hidden). */
+.rotate-prompt {
+  display: none;
+}
+
+@media (orientation: portrait) and (max-width: 600px) and (pointer: coarse) {
+  .rotate-prompt {
+    display: flex;
+  }
+  .landscape-content {
+    visibility: hidden;
+  }
+}
+
+/* ── Reduced motion ────────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ── Communication HUD (Phase 4) ───────────────────────────────────────── */
+/* The chat panel floats above the bottom-right dock and below the top-right
+   controls, so it never covers the joystick (bottom-left) or the top HUD. */
+.chat-panel {
+  right: calc(var(--safe-right) + var(--edge-gap));
+  bottom: calc(var(--safe-bottom) + var(--edge-gap) + var(--control-size) + 12px);
+  width: min(22rem, calc(100vw - var(--safe-left) - var(--safe-right) - 2 * var(--edge-gap) - 160px));
+  height: min(
+    30rem,
+    calc(100dvh - var(--safe-top) - var(--safe-bottom) - 2 * var(--edge-gap) - 2 * var(--control-size) - 24px)
+  );
+  min-height: 11rem;
+}
+
+@media (max-width: 567px) {
+  .chat-panel {
+    width: calc(100vw - var(--safe-left) - var(--safe-right) - 2 * var(--edge-gap));
+  }
+}
+
+@keyframes emote-shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-3px);
+  }
+  75% {
+    transform: translateX(3px);
+  }
+}
+
+.emote-shake {
+  animation: emote-shake 180ms ease-in-out 2;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .emote-shake {
+    animation: none;
+  }
+}
+
+/* ── Game menu & game stage (Phase 5) ───────────────────────────────────── */
+/* The rail floats on the right edge, under the top-right controls. Tall
+   screens: one column of ten. Short landscape phones: two columns of five,
+   so it never reaches the bottom-right dock. */
+:root {
+  --game-rail-button: var(--control-size);
+  --game-rail-width: calc(var(--game-rail-button) + 14px);
+}
+
+@media (max-height: 619px) {
+  :root {
+    --game-rail-button: 40px;
+    --game-rail-width: calc(2 * var(--game-rail-button) + 18px);
+  }
+}
+
+.game-rail-anchor {
+  position: absolute;
+  right: calc(var(--safe-right) + var(--edge-gap));
+  top: calc(var(--safe-top) + var(--edge-gap) + var(--control-size) + 12px);
+}
+
+.game-rail {
+  display: grid;
+  grid-auto-flow: column;
+  grid-template-rows: repeat(10, var(--game-rail-button));
+  grid-auto-columns: var(--game-rail-button);
+  gap: 4px;
+}
+
+@media (max-height: 619px) {
+  .game-rail {
+    grid-template-rows: repeat(5, var(--game-rail-button));
+  }
+}
+
+.game-rail-button {
+  width: var(--game-rail-button);
+  height: var(--game-rail-button);
+}
+
+/* The drawer opens to the rail's left and stops above the bottom HUD row. */
+.game-drawer {
+  width: min(20rem, calc(100vw - var(--safe-left) - var(--safe-right) - 2 * var(--edge-gap) - var(--game-rail-width) - 16px));
+  max-height: calc(100dvh - var(--safe-top) - var(--safe-bottom) - 2 * var(--edge-gap) - 2 * var(--control-size) - 36px);
+}
+
+/* Chat sits left of the rail so the two never overlap. */
+.chat-panel {
+  right: calc(var(--safe-right) + var(--edge-gap) + var(--game-rail-width) + 8px);
+}
+
+/* The game shell floats over the room's centre; the bottom HUD row stays clear. */
+.game-shell {
+  width: min(34rem, calc(100vw - var(--safe-left) - var(--safe-right) - 2 * var(--edge-gap) - 2 * var(--game-rail-width)));
+  max-height: calc(100dvh - var(--safe-top) - var(--safe-bottom) - 2 * var(--edge-gap) - var(--control-size) - 16px);
+  margin-bottom: calc(var(--control-size) + 8px);
+}
+
+/* Board games (definition.layout = "board"): a wider stage where the board
+   is the dominant element and is sized by the space actually available —
+   on a short landscape phone the height decides. */
+.game-shell[data-layout="board"] {
+  --board-header: 44px;
+  --board-pad: clamp(8px, 1.8vmin, 16px);
+  width: min(50rem, calc(100vw - var(--safe-left) - var(--safe-right) - 2 * var(--edge-gap) - 2 * var(--game-rail-width)));
+}
+.game-shell[data-layout="board"] > header {
+  min-height: var(--board-header);
+  padding-block: 2px;
+}
+.game-shell[data-layout="board"] .game-body {
+  padding: var(--board-pad);
+}
+.ludo-board {
+  /* What the shell leaves for the board: its max-height − header − padding. */
+  --board-room: calc(100dvh - var(--safe-top) - var(--safe-bottom) - 2 * var(--edge-gap) - var(--control-size) - 16px);
+  width: min(32rem, calc(100% - var(--board-aside, 0px)), calc(var(--board-room) - var(--board-header) - 2 * var(--board-pad) - 4px)); /* 4px: shell borders */
+  aspect-ratio: 1;
+  touch-action: manipulation;
+}
+/* Side by side (≥ 640px wide), the board leaves room for the turn panel beside it. */
+@media (min-width: 640px) {
+  .ludo {
+    --board-aside: calc(8rem + clamp(10px, 2vmin, 20px));
+  }
+}
+/* Short landscape (phones): height is what the board needs most. The shell
+   uses the full height and is narrowed to stay clear of the bottom-right
+   chat/voice/emote dock and the game rail, so it never covers them. */
+@media (max-height: 619px) {
+  .game-shell[data-layout="board"] {
+    --hud-dock-width: calc(3 * var(--control-size) + 16px);
+    margin-bottom: 0;
+    max-height: calc(100dvh - var(--safe-top) - var(--safe-bottom) - 2 * var(--edge-gap));
+    width: min(50rem, calc(100vw - var(--safe-left) - var(--safe-right) - 2 * var(--edge-gap) - 2 * (var(--hud-dock-width) + 12px)));
+  }
+  .game-shell[data-layout="board"] .ludo-board {
+    --board-room: calc(100dvh - var(--safe-top) - var(--safe-bottom) - 2 * var(--edge-gap));
+  }
+}
+.ludo-piece {
+  -webkit-tap-highlight-color: transparent;
+}
+/* A legal piece: a breathing ring, and a hit area larger than the piece. */
+.ludo-piece-legal::before {
+  content: "";
+  position: absolute;
+  inset: -55%;
+}
+.ludo-piece-legal::after {
+  content: "";
+  position: absolute;
+  inset: -22%;
+  border-radius: inherit;
+  border: 0.45cqw solid var(--color-white-soft);
+  animation: ludo-pulse 1.1s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes ludo-pulse {
+  0%, 100% { opacity: 0.95; transform: scale(1); }
+  50% { opacity: 0.35; transform: scale(1.18); }
+}
+.ludo-piece-selected::after {
+  animation: none;
+  opacity: 1;
+  border-width: 0.7cqw;
+  inset: -30%;
+}
+/* The dice choice beside a tapped piece: thumb-sized on any board. */
+.ludo-board {
+  --choice-size: clamp(40px, 11cqw, 52px);
+  --choice-gap: calc(var(--choice-size) * 0.95);
+}
+.ludo-choice {
+  width: var(--choice-size);
+  height: var(--choice-size);
+  font-size: clamp(0.9375rem, 4.4cqw, 1.25rem);
+}
+/* Photos printed into the board: a thin print border, slight tilt, set-in shadow. */
+.ludo-print {
+  border: 0.45cqw solid var(--color-white-soft);
+  border-radius: 0.7cqw;
+  box-shadow: 0 0.5cqw 1.2cqw rgba(0, 0, 0, 0.5), inset 0 0 0 0.15cqw rgba(0, 0, 0, 0.25);
+  background: var(--color-black-800);
+}
+.ludo-print-placeholder {
+  background: repeating-linear-gradient(135deg, rgba(102, 118, 74, 0.08) 0 0.6cqw, transparent 0.6cqw 1.8cqw), var(--color-black-800);
+}
+/* The dice tray sits on the together photo: dark enough to read on any image. */
+.ludo-tray {
+  background: rgba(8, 10, 9, 0.84);
+  box-shadow: 0 0.4cqw 1.2cqw rgba(0, 0, 0, 0.45);
+}
+.ludo-turn {
+  box-shadow: 0 0 0 0.55cqw var(--ring), 0 0 2.5cqw -0.3cqw var(--ring);
+}
+@media (prefers-reduced-motion: reduce) {
+  .ludo-piece-legal::after { animation: none; }
+}
+
+.game-invite {
+  top: calc(var(--safe-top) + var(--edge-gap) + var(--control-size) + 12px);
+  max-width: calc(100vw - 2 * var(--edge-gap) - 2 * var(--game-rail-width));
+}
+
+/* Short landscape: the interact prompt sits beside the dock, not above it,
+   leaving the right edge to the game rail. */
+@media (max-height: 619px) {
+  .hud-actions {
+    flex-direction: row;
+    align-items: flex-end;
+  }
+}

@@ -1,0 +1,50 @@
+{
+  "name": "our-place",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A private 3D shared space for exactly two people.",
+  "engines": {
+    "node": ">=20.9.0"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "check": "npm run lint && npm run test && npm run build",
+    "gallery:build": "node scripts/build-character-gallery.mjs",
+    "optimize:character": "node scripts/optimize-character.mjs"
+  },
+  "dependencies": {
+    "@daily-co/daily-js": "^0.93.0",
+    "@react-three/drei": "10.7.9",
+    "@react-three/fiber": "9.8.1",
+    "@supabase/ssr": "0.12.7",
+    "@supabase/supabase-js": "2.117.2",
+    "lucide-react": "^1.52.0",
+    "motion": "14.0.0",
+    "next": "15.5.27",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "three": "0.186.1",
+    "zustand": "5.0.15"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "0.5.8",
+    "@eslint/eslintrc": "3.3.7",
+    "@tailwindcss/postcss": "4.3.3",
+    "@testing-library/dom": "10.4.2",
+    "@testing-library/react": "16.3.3",
+    "@testing-library/user-event": "14.6.7",
+    "eslint": "9.39.5",
+    "eslint-config-next": "15.5.27",
+    "jsdom": "30.1.2",
+    "tailwindcss": "4.3.3",
+    "vitest": "5.0.3"
+  },
+  "overrides": {
+    "postcss": "8.5.28"
+  }
+}

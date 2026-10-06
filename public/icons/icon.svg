@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Source artwork for the PWA icons: black foundation, army-green home, pink heart.
+       Same mark as components/brand/BrandMark.jsx, scaled from its 32-unit grid. -->
+  <rect width="512" height="512" fill="#080a09"/>
+  <g transform="translate(256 262) scale(10.5) translate(-16 -16)">
+    <path d="M15.1 3.7a1.4 1.4 0 0 1 1.8 0l10.6 9.1c.3.3.5.7.5 1.1V26a2.6 2.6 0 0 1-2.6 2.6H6.6A2.6 2.6 0 0 1 4 26V13.9c0-.4.2-.8.5-1.1Z" fill="#596b40"/>
+    <path d="M16 24.2c-.4 0-5-3-5-6.3a2.8 2.8 0 0 1 5-1.7 2.8 2.8 0 0 1 5 1.7c0 3.3-4.6 6.3-5 6.3Z" fill="#f3a6b9"/>
+  </g>
+</svg>
