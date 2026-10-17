@@ -108,7 +108,12 @@ export const useGameStore = create((set, get) => ({
       set({ pending: null });
     }
     if (response.ok) {
-      if (response.data.session !== undefined) get().receive({ session: response.data.session, view: response.data.view ?? get().view });
+      if (response.data.session !== undefined) {
+        // Keep the board we have only for the same session: another game's view
+        // (e.g. a Ludo board while a new Tic Tac Toe starts) would crash its client.
+        const sameSession = response.data.session?.id === get().session?.id;
+        get().receive({ session: response.data.session, view: response.data.view ?? (sameSession ? get().view : null) });
+      }
       return response.data;
     }
     // Rules mark idempotent duplicates (a double tap) with codes starting

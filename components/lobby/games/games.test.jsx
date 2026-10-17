@@ -179,6 +179,16 @@ describe("launch → play → result", () => {
     expect(useGameStore.getState().error).toMatchObject({ code: "unavailable" });
   });
 
+  it("a reply without a board never carries another game's board over to a new session", async () => {
+    act(() => useGameStore.getState().receive({ session: session({ id: "55555555-5555-4555-8555-555555555555", status: "completed", players: [ME.id, PARTNER.id] }), view: { seats: [], pieces: {} } }));
+    fetchMock.mockImplementation(async () => new Response(JSON.stringify({ session: session({ createdBy: ME.id, players: [ME.id] }) }), { status: 200 }));
+    await act(async () => {
+      await useGameStore.getState().launch("tic_tac_toe");
+    });
+    expect(useGameStore.getState().session.id).toBe(SESSION_ID);
+    expect(useGameStore.getState().view).toBeNull();
+  });
+
   it("a move sent a version behind (the partner just moved) is retried once with the fresh version", async () => {
     act(() => useGameStore.getState().receive({ session: session({ players: [ME.id, PARTNER.id], ready: [ME.id, PARTNER.id], status: "active", version: 1 }), view: board() }));
     fetchMock.mockImplementation(async (url, init) => {
