@@ -1,5 +1,5 @@
 import { GAME_ERROR, gameError } from "@/lib/game/errors";
-import { HOME, SEATS, START_SQUARES, YARD, isPieceId, isSafeSquare, pieceIds, seatOfPiece, squareOf } from "./board";
+import { HOME, SEATS, YARD, isPieceId, pieceIds, seatOfPiece, squareOf } from "./board";
 
 /**
  * Naija Ludo — two players, two dice, server-authoritative. Pure rules run by
@@ -15,21 +15,15 @@ import { HOME, SEATS, START_SQUARES, YARD, isPieceId, isSafeSquare, pieceIds, se
  *   a piece, the other on another (split), or both on one piece (combine).
  * - A yard piece comes out only with a 6, onto its start tile. A 6 may instead
  *   move a piece already out — nobody is forced to bring a piece out.
- * - A combined move is two hops (one die, then the other, in whichever order
- *   is legal). Each hop obeys the normal path rules, so a total can't jump a
- *   house, and a yard piece can come out with the 6 and run on with the other die.
- *   Only the final landing kills.
- * - House: two or more pieces of one player on the same track square. The
- *   opponent can neither land on nor pass through it — except a house on its
- *   owner's START tile, which a hop made with a 6 may pass (never land on).
- * - Kill: landing exactly on a lone opponent piece on a non-safe square sends it
- *   back to the yard and earns a bonus roll. Safe squares protect lone pieces.
+ * - A combined move is two hops (one die, then the other), so a yard piece can
+ *   come out with the 6 and run on with the other die. Only the final landing kills.
+ * - Kill: landing exactly on opponent pieces sends them back to the yard AND
+ *   takes the killing piece straight home (it leaves the board, counted as
+ *   home). A kill earns no bonus roll. No square is safe and nothing blocks
+ *   the track — Naija Ludo has no safe squares and no houses/barriers.
  * - Home is by exact count (no overshoot); a single die can take a piece home.
- * - Double six (6+6) earns a bonus roll once the dice are used. Bonus rolls
- *   stack: a double six and a kill in the same roll earn two more rolls.
- * - Three double sixes in a row (counted across consecutive rolls of one turn):
- *   the third 6+6 is void and the turn passes at once (Variant A — "the turn is
- *   cancelled"). Moves already made stand; pending bonus rolls are dropped.
+ * - Double six (6+6) earns a bonus roll once the dice are used, for as long as
+ *   the 6+6s keep coming. `doubleSixes` counts the run (display only).
  * - Dice that can't legally be used are forfeited automatically; if none can be
  *   used the turn resolves by itself (bonus roll if one is owed, else next player).
  * - The physical "fly" rule (a die leaving the board) can't happen with digital
@@ -39,7 +33,7 @@ import { HOME, SEATS, START_SQUARES, YARD, isPieceId, isSafeSquare, pieceIds, se
  * State (server-only; each player gets view()):
  *   { seats, pieces: { A1: progress, … }, current, phase: "awaiting_roll" |
  *     "awaiting_move" | "finished", dice: [{ value, used }, { value, used }] | null,
- *     rolls, moves, turn, doubleSixes, bonus: ["double_six" | "capture"],
+ *     rolls, moves, turn, doubleSixes, bonus: ["double_six"],
  *     extraRoll, lastRoll, lastMove, forfeited, captures: { [playerId]: n }, winnerId }
  */
 export const USES = Object.freeze(["die0", "die1", "both"]);
@@ -53,41 +47,22 @@ export function piecesOn(state, seat, square) {
   return pieceIds(seat).filter((id) => squareOf(seat, state.pieces[id]) === square);
 }
 
-/** True when `seat` has a house (2+ pieces) on `square`. */
-export const isHouse = (state, seat, square) => piecesOn(state, seat, square).length >= 2;
 
-/**
- * One die's hop for a `seat` piece at progress `from`, or null when illegal.
- * Checks every square passed and the landing square. Returns { to, path }.
- */
+/** One die's hop for a `seat` piece at progress `from`, or null when illegal. Returns { to, path }. */
 export function hop(state, seat, from, value) {
-  const opponent = 1 - seat;
-  const blockedLanding = (square) => square !== null && isHouse(state, opponent, square);
-  if (from === YARD) {
-    if (value !== 6) return null;
-    return blockedLanding(squareOf(seat, 0)) ? null : { to: 0, path: [0] };
-  }
+  if (from === YARD) return value === 6 ? { to: 0, path: [0] } : null;
   if (from >= HOME) return null;
   const to = from + value;
   if (to > HOME) return null; // exact count home
   const path = [];
-  for (let p = from + 1; p <= to; p += 1) {
-    path.push(p);
-    const square = squareOf(seat, p);
-    if (square === null || !isHouse(state, opponent, square)) continue;
-    if (p === to) return null; // never land on a house
-    // Passing a house: only a house on its owner's start tile, and only with a 6.
-    if (!(square === START_SQUARES[opponent] && value === 6)) return null;
-  }
+  for (let p = from + 1; p <= to; p += 1) path.push(p);
   return { to, path };
 }
 
 /** Opponent pieces killed by a `seat` piece landing on progress `to`. */
 export function capturesAt(state, seat, to) {
   const square = squareOf(seat, to);
-  if (square === null || isSafeSquare(square)) return [];
-  const victims = piecesOn(state, 1 - seat, square);
-  return victims.length === 1 ? victims : []; // a house can't be landed on (hop() refuses)
+  return square === null ? [] : piecesOn(state, 1 - seat, square);
 }
 
 /**
@@ -219,10 +194,6 @@ const rules = {
       const doubleSixes = doubleSix ? state.doubleSixes + 1 : 0;
       const rolls = state.rolls + 1;
       const lastRoll = { number: rolls, by: playerId, values, doubleSix, doubleSixes, outcome: "play" };
-      if (doubleSixes >= 3) {
-        // Third double six in a row: the roll is void and the turn is over.
-        return passTurn({ ...state, rolls, forfeited: values, lastRoll: { ...lastRoll, outcome: "three_double_sixes" } });
-      }
       const rolled = {
         ...state,
         phase: "awaiting_move",
@@ -241,8 +212,9 @@ const rules = {
     // move — everything below is computed here, never read from the payload.
     const { pieceId, use } = action.payload;
     const chosen = getMoveOptions(state, playerId).find((o) => o.pieceId === pieceId && o.use === use);
-    const pieces = { ...state.pieces, [pieceId]: chosen.to };
     const captured = chosen.captures.map((id) => ({ pieceId: id, from: state.pieces[id] }));
+    // A killer leaves the board for home; `lastMove.to` keeps the square it landed on.
+    const pieces = { ...state.pieces, [pieceId]: captured.length ? HOME : chosen.to };
     for (const victim of captured) pieces[victim.pieceId] = YARD;
     const dice = state.dice.map((die, i) => (dieIndexes[use].includes(i) ? { ...die, used: true } : die));
     const moves = state.moves + 1;
@@ -252,7 +224,6 @@ const rules = {
       dice,
       moves,
       forfeited: [],
-      bonus: captured.length ? [...state.bonus, "capture"] : state.bonus,
       captures: { ...state.captures, [playerId]: state.captures[playerId] + captured.length },
       lastMove: {
         number: moves,
@@ -265,7 +236,7 @@ const rules = {
         to: chosen.to,
         hops: chosen.hops,
         captured,
-        home: chosen.to >= HOME,
+        home: pieces[pieceId] >= HOME,
         enters: chosen.enters,
       },
     };

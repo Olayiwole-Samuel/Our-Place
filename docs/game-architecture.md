@@ -5,7 +5,7 @@ Our Place hosts fundamentally different experiences — Ludo, Scrabble, a realti
 **Current state (Phase 5):** the full product roster (≈80 games, ten categories) is registered in `lib/game/catalog.js`. Three games are implemented end to end:
 - **Tic Tac Toe**, the platform test (turn-based, competitive).
 - **Would You Rather** (Phase 6A): the reference conversation game — no winner.
-- **Naija Ludo** (Phase 6B): the reference state-heavy, turn-based competitive game — two dice, houses, kills, bonus rolls, a winner and win streaks.
+- **Naija Ludo** (Phase 6B): the reference state-heavy, turn-based competitive game — two dice, kills (the killer goes home), double-six rolls, a winner and win streaks.
 
 Every other game is honestly `coming_soon` (shown as such in the menu; the server refuses to start it). Flirty / Spicy games are 18+, opt-in, off by default and therefore `locked`.
 
@@ -296,7 +296,7 @@ answering ──both answered──▶ revealing ──both tapped Next──▶
 
 | File | Runs on | What it is |
 | --- | --- | --- |
-| `board.js` | both | the logical board: progress model, start tiles, safe squares — no pixels |
+| `board.js` | both | the logical board: progress model and start tiles — no pixels |
 | `rules.js` | server | `setup / validate / apply / getResult / view` + `hop` (one die, path-checked), `capturesAt`, `getMoveOptions` |
 | `layout.js` | client | logical positions → 15×15 board coordinates (the only place with geometry) |
 | `client.jsx` | client | the board, dice, pieces, choices, animations |
@@ -305,7 +305,6 @@ answering ──both answered──▶ revealing ──both tapped Next──▶
 - Two players, four pieces each (`A1–A4` pink, `B1–B4` blue), all starting in the yard.
 - One shared loop of 52 squares. A's start tile is square 0 and B's is square 26.
 - A piece's position is its progress: `-1` yard · `0–50` track (square = `(start + progress) % 52`) · `51–55` private home lane · `56` home. The yard and home are different states.
-- Safe squares: `0, 8, 13, 21, 26, 34, 39, 47` (the start tiles and stars).
 
 **Rules (exactly what `rules.js` does):**
 1. **Two dice per roll**, thrown by the server (`ctx.random`). They are movement resources for the turn, `dice: [{ value, used }, { value, used }]`.
@@ -314,12 +313,12 @@ answering ──both answered──▶ revealing ──both tapped Next──▶
    - Combine: both dice on one piece. This is allowed whether one piece or several are out.
    - A spent die can't be used again.
 3. **Leaving the yard** needs a 6. The piece lands on its start tile and the whole 6 is used. Nobody is forced to bring a piece out: a 6 can move a piece that is already out. Combined dice can bring a piece out with the 6 and run it on with the other die (6 + 3 from the yard → progress 3).
-4. **Combined moves are two hops**: one die, then the other, in whichever order is legal. Each hop is checked square by square by `hop()`, so a combined total can never jump a house that either hop would have to cross. Only the final landing kills; passing over a lone piece doesn't.
-5. **Houses (barriers)**: two or more pieces of one player on one track square. The opponent can't land on a house or pass through it. **Start-tile exception**: a house on its owner's start tile may be passed (never landed on) by a hop made with a 6. Your own pieces may stack and pass your own houses freely.
-6. **Kill**: landing exactly on a lone opponent piece on a non-safe square sends it to the yard and earns a **bonus roll**. Lone pieces on safe squares share them; houses can't be landed on, so they can't be killed.
+4. **Combined moves are two hops**: one die, then the other. Only the final landing kills; passing over a piece doesn't.
+5. **No houses, barriers or safe squares** (Naija Ludo): pieces of either player may share or pass any square. Your own pieces may stack.
+6. **Kill**: landing exactly on opponent pieces (one or more) sends them to the yard **and takes the killing piece straight home** (it leaves the board and counts as home; a kill can win the game). A kill earns **no bonus roll**. `lastMove.to` is the square it landed on, so the board can show the walk there before the piece steps off to home. Entering with a 6 onto an opponent on your start tile is a kill too.
 7. **Home** is by exact count (no overshoot). A single die can take a piece home while the other die moves another piece.
-8. **Double six** (6+6) is used like any roll, including bringing two pieces out or any other allocation, and then earns a **bonus roll** of two fresh dice. Bonus rolls stack: a double six plus a kill earns two more rolls (`bonus: ["double_six", "capture"]`, taken in order).
-9. **Consecutive double sixes** are counted server-side (`doubleSixes`). **Three-double-six penalty (Variant A, chosen because the repository had no earlier decision):** the third consecutive 6+6 is void and the turn passes immediately. Moves already made stand, and pending bonus rolls are dropped. The counter resets on any other roll and when the turn passes.
+8. **Double six** (6+6) is used like any roll, including bringing two pieces out or any other allocation, and then earns a **bonus roll** of two fresh dice.
+9. **Consecutive double sixes** keep earning rolls with no limit. `doubleSixes` counts the run, for display only.
 10. **Unusable dice** are forfeited automatically (`forfeited`). If neither die can be used, the turn resolves at once: an owed bonus roll is taken, otherwise the turn passes. A game can never get stuck.
 11. **Win**: all four pieces home. Result `{ outcome: "win", winnerId, scores: null, summary: { headline: "Home Sweet Home 🏆", line, lines: { winner, loser } } }`; the shell shows the line for the side the viewer is on.
 12. **Fly rule**: in the physical game a die can fly off the board. Digital dice can't, so there is no random "fly" event and every roll counts.
@@ -330,7 +329,7 @@ answering ──both answered──▶ revealing ──both tapped Next──▶
 { seats: [playerA, playerB], pieces: { A1: progress, … B4 }, current: playerId,
   phase: "awaiting_roll" | "awaiting_move" | "finished",
   dice: [{ value, used }, { value, used }] | null, rolls, moves, turn,
-  doubleSixes, bonus: ["double_six" | "capture"], extraRoll,
+  doubleSixes, bonus: ["double_six"], extraRoll,
   lastRoll: { number, by, values, doubleSix, doubleSixes, outcome: "play"|"no_move"|"three_double_sixes" },
   lastMove: { number, roll, by, pieceId, use, values, from, to, hops, captured: [{ pieceId, from }], home, enters },
   forfeited, captures: { [playerId]: n }, winnerId }
@@ -343,7 +342,7 @@ answering ──both answered──▶ revealing ──both tapped Next──▶
 
 **Authority:**
 - The client sends only `roll`, or `pieceId` plus which dice to use.
-- Dice values, paths, house checks, destinations, kills, bonus rolls, the double-six count and penalty, turn order and the winner are computed by `apply`. Any `values`, `to`, `captures`, `bonus` or `winnerId` in a payload is ignored.
+- Dice values, paths, destinations, kills, bonus rolls, the double-six count, turn order and the winner are computed by `apply`. Any `values`, `to`, `captures`, `bonus` or `winnerId` in a payload is ignored.
 - Concurrent or duplicate requests are refused by the rules (`already_*`, quiet in the client) or by the version check (`conflict`).
 
 **View:** Ludo has no hidden information, so `view` returns the board, dice (with `used`), the server's `options` for the current dice (equal dice listed once), `bonus`, `extraRoll`, `doubleSixes`, `lastRoll`, `lastMove` (with `hops`), `forfeited`, `winnerId` and `mySeat`. The seed and RNG never leave the server.
@@ -352,7 +351,7 @@ answering ──both answered──▶ revealing ──both tapped Next──▶
 - Each player sees their own yard bottom-left (seat B's board is drawn turned 180°); the logical board is the same.
 - Your corner holds your two dice. On your turn the whole corner is the Roll button, and the dice shake briefly before the server's values land.
 - Pieces that can use the dice breathe and are buttons (with a larger hit area). Tap one: if the server lists one option it moves at once; if several (e.g. 5, 3 or 8), a small choice appears at the piece. The single dice sit above and below it and the combined total beside it, with 💥 when that option kills. Hover or focus previews the landing square.
-- "5 used · 3 left" shows what's been spent. Houses are outlined in their owner's colour.
+- "5 used · 3 left" shows what's been spent.
 - Pieces walk the server's `hops`; a killed piece pops and returns to the yard. A move from before a reload isn't replayed, and reduced motion jumps straight to the position.
 - Keyboard: `R`/Space rolls, `1–4` taps a piece, Escape closes a choice.
 - Dice and kill sounds go through `lib/ui/sounds.js`.

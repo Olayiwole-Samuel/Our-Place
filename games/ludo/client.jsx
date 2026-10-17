@@ -21,7 +21,7 @@ import { PhotoLayer } from "./PhotoLayer";
  *
  * Layers: the static board (BoardArt) → the couple's photos (PhotoLayer, a
  * separate memoised personalisation layer the rules know nothing about) →
- * houses, dice, pieces and choices (gameplay).
+ * dice, pieces and choices (gameplay).
  *
  * Everything around the board (session, header, leave, result, chat, voice,
  * emotes) is the game shell's.
@@ -117,7 +117,6 @@ export default function Ludo({ view, me, partner, names = {}, profiles = {}, sta
 
   const { pieces, lastMove } = view;
   const plans = useMemo(() => piecePlans({ pieces, lastMove }, mySeat, reduced, firstMove.current), [pieces, lastMove, mySeat, reduced]);
-  const houses = useMemo(() => findHouses(pieces, mySeat), [pieces, mySeat]);
   const previewPoint = preview ? orient(piecePoint(mySeat, preview.to, Number(preview.pieceId[1]) - 1), mySeat) : null;
   const { line, event } = statusLines(view, me, partnerName);
   const homeCount = (seat) => pieceIds(seat).filter((id) => view.pieces[id] >= HOME).length;
@@ -141,16 +140,6 @@ export default function Ludo({ view, me, partner, names = {}, profiles = {}, sta
           mySeatColor={SEAT_STYLE[mySeat]}
           partnerSeatColor={SEAT_STYLE[partnerSeat]}
         />
-
-        {houses.map(({ key, point, seat }) => (
-          <span
-            key={key}
-            aria-hidden="true"
-            data-house={seat}
-            className="pointer-events-none absolute size-[6.4%] -translate-x-1/2 -translate-y-1/2 rounded-[22%] border-[0.5cqw]"
-            style={{ top: pct(point[0]), left: pct(point[1]), borderColor: SEAT_STYLE[seat].fill, background: SEAT_STYLE[seat].soft }}
-          />
-        ))}
 
         <PlayerCorner corner="top-left" name={partnerName} seat={partnerSeat} isTurn={active && view.current === partner} roll={view.lastRoll?.by === partner ? view.lastRoll : null} dice={partnerDice} reduced={reduced} />
         <PlayerCorner
@@ -179,13 +168,12 @@ export default function Ludo({ view, me, partner, names = {}, profiles = {}, sta
           pieceIds(seat).map((id) => {
             const canMove = movable.has(id) && !busy;
             const owner = seat === mySeat ? "Your" : `${partnerName}'s`;
-            const inHouse = houses.some((h) => h.ids.includes(id));
             return (
               <m.button
                 key={id}
                 type="button"
                 data-piece={id}
-                aria-label={canMove ? `Move piece ${id}` : `${owner} piece ${id}, ${ZONE_LABEL[zoneOf(view.pieces[id])]}${inHouse ? ", in a house" : ""}`}
+                aria-label={canMove ? `Move piece ${id}` : `${owner} piece ${id}, ${ZONE_LABEL[zoneOf(view.pieces[id])]}`}
                 aria-expanded={canMove ? selected === id : undefined}
                 disabled={!canMove}
                 onClick={() => tapPiece(id)}
@@ -339,7 +327,7 @@ export function statusLines(view, me, partnerName) {
   else if (view.current === me) {
     if (view.phase === "awaiting_move") line = roll?.doubleSix ? "Double six! Tap a piece" : `You rolled ${rolled} — tap a piece`;
     else if (view.extraRoll === "double_six") line = "Double six! Roll again.";
-    else if (view.extraRoll === "capture") line = "Nice! Roll again.";
+    else if (view.extraRoll === "capture") line = "Nice! Roll again."; // games started before kills stopped earning a roll
     else line = "Your turn — roll the dice";
   } else if (view.phase === "awaiting_move") line = `${partnerName} rolled ${rolled}`;
   else if (view.extraRoll) line = `${partnerName} rolls again`;
@@ -348,28 +336,11 @@ export function statusLines(view, me, partnerName) {
   let event = "";
   const move = view.lastMove;
   const latestMove = move && move.roll === view.rolls;
-  if (roll?.outcome === "three_double_sixes") event = `${mine ? "Your" : `${partnerName}'s`} third double six — turn over.`;
-  else if (roll?.outcome === "no_move") event = `${who} rolled ${rolled} — no move.`;
-  else if (latestMove && move.captured.length) event = move.by === me ? `You captured ${partnerName}'s piece 💥` : `${partnerName} captured your piece`;
+  if (roll?.outcome === "no_move") event = `${who} rolled ${rolled} — no move.`;
+  else if (latestMove && move.captured.length) event = move.by === me ? `You captured ${partnerName}'s piece 💥 — yours went home` : `${partnerName} captured your piece — theirs went home`;
   else if (latestMove && move.home) event = `${move.by === me ? "Your" : `${partnerName}'s`} piece made it home 🏠`;
   if (latestMove && view.forfeited?.length && roll?.outcome === "play") event = `${event ? `${event} ` : ""}${view.forfeited.join(" + ")} couldn't be used.`;
   return { line, event };
-}
-
-/** Houses: 2+ pieces of one seat on the same track square. */
-function findHouses(pieces, viewerSeat) {
-  const groups = new Map();
-  for (const seat of [0, 1]) {
-    pieceIds(seat).forEach((id) => {
-      if (zoneOf(pieces[id]) !== "track") return;
-      const point = orient(piecePoint(seat, pieces[id], 0), viewerSeat);
-      const key = `${seat}:${point[0].toFixed(2)}:${point[1].toFixed(2)}`;
-      const group = groups.get(key) ?? { key, seat, point, ids: [] };
-      group.ids.push(id);
-      groups.set(key, group);
-    });
-  }
-  return [...groups.values()].filter((g) => g.ids.length >= 2);
 }
 
 /**
@@ -413,12 +384,15 @@ export function piecePlans(view, viewerSeat, reduced, firstMove) {
     plans[id] = { point: [r, c], animate: { top: pct(r), left: pct(c), scale: offset[id] ? 0.86 : 1 }, transition: { duration: reduced ? 0 : 0.22, ease: [0.22, 1, 0.36, 1] } };
   }
   const move = view.lastMove;
-  if (!move || move.number <= firstMove || reduced || view.pieces[move.pieceId] !== move.to) return plans;
+  // A killer walks to the square it took, then steps off the board to home.
+  const killedHome = move?.captured?.length > 0 && view.pieces[move?.pieceId] >= HOME;
+  if (!move || move.number <= firstMove || reduced || (view.pieces[move.pieceId] !== move.to && !killedHome)) return plans;
 
   const seat = seatOfPiece(move.pieceId);
   const index = Number(move.pieceId[1]) - 1;
   const path = [piecePoint(seat, move.from, index), ...move.hops.map((p) => piecePoint(seat, p, index))].map((p) => orient(p, viewerSeat));
-  path[path.length - 1] = final(move.pieceId);
+  if (killedHome) path.push(final(move.pieceId));
+  else path[path.length - 1] = final(move.pieceId);
   const walk = Math.max(1, path.length - 1) * STEP;
   plans[move.pieceId] = {
     ...plans[move.pieceId],
@@ -440,7 +414,7 @@ export function piecePlans(view, viewerSeat, reduced, firstMove) {
   return plans;
 }
 
-/** The static board: track, safe squares, start tiles, lanes, yards and the home centre. */
+/** The static board: track, start tiles, lanes, yards and the home centre. */
 function BoardArt({ viewerSeat }) {
   const cell = (r, c) => (viewerSeat === 1 ? [GRID - 1 - r, GRID - 1 - c] : [r, c]);
   // In the viewer's frame your yard is bottom-left and your partner's top-right.
@@ -461,11 +435,6 @@ function BoardArt({ viewerSeat }) {
         return (
           <g key={`${r}-${c}`}>
             <rect x={x + 0.05} y={y + 0.05} width="0.9" height="0.9" rx="0.14" fill={fill} fillOpacity={opacity} stroke="var(--color-black-700)" strokeWidth="0.04" />
-            {(kind === "safe" || kind === "start") && (
-              <text x={x + 0.5} y={y + 0.69} textAnchor="middle" fontSize="0.56" fill={kind === "start" ? "var(--color-black-950)" : "var(--color-green-500)"} fillOpacity={kind === "start" ? 0.55 : 0.95}>
-                ★
-              </text>
-            )}
           </g>
         );
       })}

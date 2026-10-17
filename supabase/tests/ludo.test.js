@@ -108,7 +108,7 @@ describe("Naija Ludo via the game authority", () => {
     }
   });
 
-  it("server kills and the kill bonus survive a reconnect", async () => {
+  it("server kills (killer home, no bonus) survive a reconnect", async () => {
     const { a, b, id, first, second, seats, mine, theirs } = await startedGame();
     const victimSquare = 15;
     const theirProgress = (victimSquare - (letterOf(seats, second) === "A" ? 0 : 26) + TRACK_LENGTH) % TRACK_LENGTH;
@@ -124,14 +124,15 @@ describe("Naija Ludo via the game authority", () => {
     const killed = await service.action(first, id, { type: "move", payload: { pieceId: `${mine}1`, use: "die0" } });
     expect(killed.view.pieces[`${theirs}1`]).toBe(YARD);
     expect(killed.view.lastMove.captured).toEqual([{ pieceId: `${theirs}1`, from: theirProgress }]);
-    expect(killed.view.bonus).toEqual(["capture"]);
+    expect(killed.view.pieces[`${mine}1`]).toBe(HOME);
+    expect(killed.view.bonus).toEqual([]);
     for (const user of [a, b]) {
       const reloaded = await service.current(user);
-      expect(reloaded.view).toMatchObject({ bonus: ["capture"], dice: killed.view.dice, pieces: killed.view.pieces, current: first });
+      expect(reloaded.view).toMatchObject({ bonus: [], dice: killed.view.dice, pieces: killed.view.pieces, current: first });
     }
     const afterSecond = await service.action(first, id, { type: "move", payload: { pieceId: `${mine}2`, use: "die1" } });
-    expect(afterSecond.view).toMatchObject({ current: first, phase: "awaiting_roll", extraRoll: "capture" });
-    expect((await service.current(second)).view.extraRoll).toBe("capture");
+    expect(afterSecond.view).toMatchObject({ current: second, phase: "awaiting_roll", extraRoll: null });
+    expect((await service.current(second)).view.current).toBe(second);
   });
 
   it("duplicate requests don't corrupt state", async () => {

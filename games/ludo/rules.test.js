@@ -3,7 +3,7 @@ import { gameRegistry } from "@/lib/game/catalog";
 import { applyPlayerAction, createSession, getPlayerView } from "@/lib/game/engine";
 import { createRandom } from "@/lib/game/random";
 import { countsTowardWinStreak } from "@/lib/game/result";
-import { HOME, SAFE_SQUARES, TRACK_LENGTH, YARD, squareOf, zoneOf } from "./board";
+import { HOME, TRACK_LENGTH, YARD, squareOf, zoneOf } from "./board";
 import rules, { getMoveOptions, hop } from "./rules";
 
 const A = "11111111-1111-4111-8111-111111111111";
@@ -44,7 +44,6 @@ describe("board model", () => {
     expect(squareOf(1, 0)).toBe(26);
     expect(squareOf(1, b(15))).toBe(15);
     expect(squareOf(0, 51)).toBeNull(); // home lanes are private
-    expect(SAFE_SQUARES).toEqual(expect.arrayContaining([0, 26]));
   });
 });
 
@@ -132,9 +131,9 @@ describe("leaving the yard", () => {
     expect(again.state.dice.map((d) => d.value)).toEqual([4, 2]);
   });
 
-  it("an opponent house on your start tile keeps your pieces in the yard", () => {
-    const rolled = ok(roll(withBoard({ A1: 10, B1: b(0), B2: b(0) }), [6, 2]));
-    expect(options(rolled).filter((o) => o.startsWith("A2"))).toEqual([]);
+  it("a 6 brings a piece out even onto an opponent on your start tile — a kill: it goes back, yours goes home", () => {
+    const moved = ok(move(ok(roll(withBoard({ A2: 30, B1: b(0) }), [6, 2])), "A1", "die0"));
+    expect(moved.state.pieces).toMatchObject({ A1: HOME, B1: YARD });
   });
 });
 
@@ -176,78 +175,53 @@ describe("split and combine", () => {
   });
 });
 
-describe("houses (barriers)", () => {
-  // B's house of two on square 14: A can't land on it or pass it.
-  const house = { B1: b(14), B2: b(14) };
+describe("no houses or barriers (Naija Ludo)", () => {
+  const pair = { B1: b(14), B2: b(14) };
 
-  it("two pieces of one player on a square form a house; own pieces may stack", () => {
+  it("own pieces may share a square", () => {
     const moved = ok(move(ok(roll(withBoard({ A1: 10, A2: 12 }), [2, 1])), "A1", "die0"));
     expect(moved.state.pieces).toMatchObject({ A1: 12, A2: 12 });
   });
 
-  it("an opponent can't land on a house", () => {
-    const rolled = ok(roll(withBoard({ A1: 10, ...house }), [4, 1]));
-    expect(options(rolled)).not.toContain("A1:die0");
-    expect(codeOf(move(rolled, "A1", "die0"))).toBe("illegal_action");
-  });
-
-  it("an opponent can't pass a house — the path is checked square by square", () => {
-    const rolled = ok(roll(withBoard({ A1: 10, ...house }), [3, 5]));
-    expect(options(rolled)).toEqual(["A1:die0"]); // 3 stops short; 5 and 3+5 would cross square 14
-    expect(hop(rolled.state, 0, 10, 5)).toBeNull();
-  });
-
-  it("combining can't jump a house that each die would have to cross", () => {
-    const rolled = ok(roll(withBoard({ A1: 12, ...house }), [1, 5])); // 12 → 13 (+1) → 18 (+5) crosses 14
-    expect(options(rolled)).toEqual(["A1:die0"]); // only the 1 alone; neither 5 nor 1+5 can pass square 14
-    const stuck = ok(roll(withBoard({ A1: 13, ...house }), [5, 3]));
-    expect(stuck.state.current).toBe(B); // nothing usable: the turn passed by itself
-  });
-
-  it("start-tile exception: a house on its owner's start tile can be passed with a 6 only", () => {
-    const startHouse = { B1: b(26), B2: b(26) }; // B's start tile (square 26)
-    const withSix = ok(roll(withBoard({ A1: 24, ...startHouse }), [6, 1]));
-    expect(options(withSix)).toContain("A1:die0"); // 24 → 30 with the 6, passing 26
-    expect(hop(withSix.state, 0, 24, 4)).toBeNull(); // the same pass with a 4 is blocked
-    expect(hop(withSix.state, 0, 20, 6)).toBeNull(); // landing on it is never allowed, even with a 6
-    expect(hop(withSix.state, 0, 24, 6)).toEqual({ to: 30, path: [25, 26, 27, 28, 29, 30] });
-  });
-
-  it("start-tile exception with combined dice: the 6 must be the hop that passes", () => {
-    const rolled = ok(roll(withBoard({ A1: 25, B1: b(26), B2: b(26) }), [1, 6]));
-    // 1 first would land on the house; 6 first passes it, then 1 → 32.
-    expect(options(rolled)).toEqual(expect.arrayContaining(["A1:die1", "A1:both"]));
-    const moved = ok(move(rolled, "A1", "both"));
-    expect(moved.state.pieces.A1).toBe(32);
-    expect(moved.state.lastMove.values).toEqual([6, 1]);
-    const other = withBoard({ A1: 25, B1: b(14), B2: b(14), B3: b(27), B4: b(27) });
-    expect(hop(other.state, 0, 25, 6)).toBeNull(); // a house that isn't on a start tile still blocks a 6
+  it("two opponent pieces on a square don't block: passing is fine, landing kills both", () => {
+    const rolled = ok(roll(withBoard({ A1: 10, A2: 30, ...pair }), [4, 5]));
+    expect(hop(rolled.state, 0, 10, 5)).toEqual({ to: 15, path: [11, 12, 13, 14, 15] });
+    const killed = ok(move(rolled, "A1", "die0"));
+    expect(killed.state.pieces).toMatchObject({ A1: HOME, B1: YARD, B2: YARD });
+    expect(killed.state.captures[A]).toBe(2);
   });
 });
 
 describe("kills", () => {
-  it("landing exactly on a lone opponent sends it to the yard and earns a roll", () => {
+  it("landing exactly on a lone opponent sends it to the yard and the killer home — no bonus roll", () => {
     let session = ok(roll(withBoard({ A1: 10, A2: 30, B1: b(15) }), [5, 2]));
     session = ok(move(session, "A1", "die0"));
-    expect(session.state.pieces).toMatchObject({ A1: 15, B1: YARD });
-    expect(session.state.lastMove.captured).toEqual([{ pieceId: "B1", from: b(15) }]);
-    expect(session.state.bonus).toEqual(["capture"]);
+    expect(session.state.pieces).toMatchObject({ A1: HOME, B1: YARD });
+    expect(session.state.lastMove).toMatchObject({ to: 15, home: true, captured: [{ pieceId: "B1", from: b(15) }] });
+    expect(session.state.captures[A]).toBe(1);
+    expect(session.state.bonus).toEqual([]);
     session = ok(move(session, "A2", "die1"));
-    expect(session.state).toMatchObject({ current: A, phase: "awaiting_roll", extraRoll: "capture" });
+    expect(session.state).toMatchObject({ current: B, phase: "awaiting_roll", extraRoll: null });
+  });
+
+  it("a kill that brings the last piece home wins", () => {
+    const won = ok(move(ok(roll(withBoard({ A1: 10, A2: HOME, A3: HOME, A4: HOME, B1: b(15) }), [5, 2])), "A1", "die0"));
+    expect(won.state).toMatchObject({ phase: "finished", winnerId: A });
   });
 
   it("a kill works with combined dice too; passing over a lone piece doesn't kill", () => {
     const moved = ok(move(ok(roll(withBoard({ A1: 10, B1: b(12), B2: b(18) }), [3, 5])), "A1", "both"));
-    expect(moved.state.pieces).toMatchObject({ A1: 18, B1: b(12), B2: YARD });
+    expect(moved.state.pieces).toMatchObject({ A1: HOME, B1: b(12), B2: YARD });
     const short = ok(move(ok(roll(withBoard({ A1: 10, A2: 30, B1: b(15) }), [4, 2])), "A1", "die0"));
     expect(short.state.pieces.B1).toBe(b(15));
     expect(short.state.bonus).toEqual([]);
   });
 
-  it("a lone piece on a safe square can't be killed; they share it", () => {
+  it("there are no safe squares: start tiles and stars can be killed on", () => {
     const moved = ok(move(ok(roll(withBoard({ A1: 5, A2: 30, B1: b(8) }), [3, 1])), "A1", "die0"));
-    expect(moved.state.pieces).toMatchObject({ A1: 8, B1: b(8) });
-    expect(moved.state.bonus).toEqual([]);
+    expect(moved.state.pieces).toMatchObject({ A1: HOME, B1: YARD });
+    const onStart = ok(move(ok(roll(withBoard({ A1: 20, A2: 30, B1: b(26) }), [6, 1])), "A1", "die0"));
+    expect(onStart.state.pieces).toMatchObject({ A1: HOME, B1: YARD });
   });
 
   it("a client can't claim a kill or a bonus", () => {
@@ -293,35 +267,31 @@ describe("home", () => {
 });
 
 describe("double sixes", () => {
-  const useBoth = (session) => ok(move(session, "A1", "both"));
+  const playBoth = (session) => ok(move(session, "A1", "both"));
 
   it("consecutive double sixes are counted; each earns a roll of two fresh dice", () => {
-    let session = useBoth(ok(roll(withBoard({ A1: 0 }), [6, 6])));
+    let session = playBoth(ok(roll(withBoard({ A1: 0 }), [6, 6])));
     expect(session.state).toMatchObject({ current: A, phase: "awaiting_roll", doubleSixes: 1 });
-    session = useBoth(ok(roll(session, [6, 6])));
+    session = playBoth(ok(roll(session, [6, 6])));
     expect(session.state).toMatchObject({ current: A, doubleSixes: 2, pieces: expect.objectContaining({ A1: 24 }) });
-    session = useBoth(ok(roll(session, [4, 2])));
+    session = playBoth(ok(roll(session, [4, 2])));
     expect(session.state).toMatchObject({ current: B, doubleSixes: 0 });
   });
 
-  it("third double six in a row: that roll is void and the turn passes (Variant A)", () => {
-    let session = useBoth(ok(roll(withBoard({ A1: 0 }), [6, 6])));
-    session = useBoth(ok(roll(session, [6, 6])));
-    const piecesBefore = session.state.pieces;
-    session = ok(roll(session, [6, 6]));
-    expect(session.state).toMatchObject({ current: B, phase: "awaiting_roll", doubleSixes: 0, bonus: [], dice: null, lastRoll: { outcome: "three_double_sixes", doubleSixes: 3 } });
-    expect(session.state.pieces).toEqual(piecesBefore); // earlier moves stand, nothing else moves
-    expect(codeOf(move(session, "A1", "die0"))).toBe("not_your_turn");
+  it("double sixes keep earning rolls — no limit", () => {
+    let session = withBoard({ A1: 0 });
+    for (let i = 1; i <= 4; i += 1) {
+      session = playBoth(ok(roll(session, [6, 6])));
+      expect(session.state).toMatchObject({ current: A, extraRoll: "double_six", doubleSixes: i });
+    }
   });
 
-  it("bonuses stack: a double six plus a kill earns two more rolls", () => {
+  it("a double six plus a kill earns just the double six's roll", () => {
     let session = ok(roll(withBoard({ A1: 0, A2: 20, B1: b(6) }), [6, 6]));
-    session = ok(move(session, "A1", "die0")); // kills B1 on square 6
+    session = ok(move(session, "A1", "die0")); // kills B1 on square 6, A1 goes home
     session = ok(move(session, "A2", "die1"));
-    expect(session.state).toMatchObject({ current: A, extraRoll: "double_six", bonus: ["capture"] });
-    session = useBoth(ok(roll(session, [1, 2])));
-    expect(session.state).toMatchObject({ current: A, extraRoll: "capture", doubleSixes: 0 });
-    session = useBoth(ok(roll(session, [1, 2])));
+    expect(session.state).toMatchObject({ current: A, extraRoll: "double_six", bonus: [], pieces: expect.objectContaining({ A1: HOME }) });
+    session = ok(move(ok(roll(session, [1, 2])), "A2", "both"));
     expect(session.state.current).toBe(B);
   });
 });

@@ -133,10 +133,10 @@ describe("Naija Ludo board", () => {
     expect(piece(container, "A1").disabled).toBe(true);
   });
 
-  it("houses are drawn and announced", () => {
+  it("two pieces on a square are just two pieces (no houses in Naija Ludo)", () => {
     const { container } = renderLudo(baseView({ pieces: { A1: 12, A2: 12, B1: 3 } }));
-    expect(container.querySelectorAll("[data-house='0']")).toHaveLength(1);
-    expect(piece(container, "A1").getAttribute("aria-label")).toBe("Your piece A1, on the track, in a house");
+    expect(container.querySelectorAll("[data-house]")).toHaveLength(0);
+    expect(piece(container, "A1").getAttribute("aria-label")).toBe("Your piece A1, on the track");
   });
 
   it("home pieces sit in the centre and are counted", () => {
@@ -146,14 +146,13 @@ describe("Naija Ludo board", () => {
     expect(top > 40 && top < 60).toBe(true);
   });
 
-  it("bonus rolls, kills, the partner's dice and the third double six are announced briefly", () => {
+  it("bonus rolls, kills and the partner's dice are announced briefly", () => {
     expect(statusLines(baseView({ extraRoll: "double_six", rolls: 2 }), ME, "King").line).toBe("Double six! Roll again.");
     expect(statusLines(baseView({ extraRoll: "capture", rolls: 2 }), ME, "King").line).toBe("Nice! Roll again.");
     const kill = { number: 3, roll: 2, by: ME, pieceId: "A1", use: "die0", values: [5], from: 10, to: 15, hops: [11, 12, 13, 14, 15], captured: [{ pieceId: "B1", from: 41 }], home: false };
-    expect(statusLines(baseView({ rolls: 2, lastRoll: { number: 2, by: ME, values: [5, 2], outcome: "play" }, lastMove: kill }), ME, "King").event).toBe("You captured King's piece 💥");
-    expect(statusLines(baseView({ rolls: 2, lastRoll: { number: 2, by: PARTNER, values: [5, 2], outcome: "play" }, lastMove: { ...kill, by: PARTNER } }), ME, "King").event).toBe("King captured your piece");
+    expect(statusLines(baseView({ rolls: 2, lastRoll: { number: 2, by: ME, values: [5, 2], outcome: "play" }, lastMove: kill }), ME, "King").event).toBe("You captured King's piece 💥 — yours went home");
+    expect(statusLines(baseView({ rolls: 2, lastRoll: { number: 2, by: PARTNER, values: [5, 2], outcome: "play" }, lastMove: { ...kill, by: PARTNER } }), ME, "King").event).toBe("King captured your piece — theirs went home");
     expect(statusLines(rolledView([6, 6], [], { current: PARTNER, lastRoll: { number: 1, by: PARTNER, values: [6, 6], doubleSix: true, outcome: "play" } }), ME, "King").line).toBe("King rolled 6 + 6");
-    expect(statusLines(baseView({ current: PARTNER, rolls: 5, lastRoll: { number: 5, by: ME, values: [6, 6], doubleSix: true, outcome: "three_double_sixes" } }), ME, "King").event).toBe("Your third double six — turn over.");
     expect(statusLines(baseView({ current: PARTNER, rolls: 2, lastRoll: { number: 2, by: ME, values: [3, 4], outcome: "no_move" } }), ME, "King").event).toBe("You rolled 3 + 4 — no move.");
   });
 
@@ -182,6 +181,13 @@ describe("movement and kill animation (presentation only)", () => {
     expect(Array.isArray(plans.B1.animate.top)).toBe(true);
     expect(plans.B1.transition.duration).toBeGreaterThan(plans.A1.transition.duration);
     expect(typeof plans.A2.animate.top).toBe("string");
+  });
+
+  it("a killer walks to the square it took, then steps off to home", () => {
+    const plans = piecePlans({ ...moved, pieces: { ...moved.pieces, A1: HOME }, lastMove: { ...moved.lastMove, home: true } }, 0, false, 0);
+    expect(plans.A1.animate.top).toHaveLength(10); // from + 8 hops + home
+    expect(plans.A1.animate.top.at(-2)).not.toBe(plans.A1.animate.top.at(-1));
+    expect(Array.isArray(plans.B1.animate.top)).toBe(true);
   });
 
   it("reduced motion: pieces jump straight to the server position", () => {

@@ -1,4 +1,4 @@
-import { HOME, LANE_START, SAFE_SQUARES, TRACK_LENGTH, YARD, squareOf } from "./board";
+import { HOME, LANE_START, TRACK_LENGTH, YARD, squareOf } from "./board";
 
 /**
  * Logical positions → board coordinates (client only). The board is a 15×15
@@ -75,10 +75,9 @@ export function piecePoint(seat, progress, index) {
 
 /** Static board cells for the renderer: [{ r, c, kind, seat? }] in canonical orientation. */
 export const BOARD_CELLS = (() => {
-  const safe = new Set(SAFE_SQUARES);
   const cells = TRACK.map(([r, c], square) => {
     const startOf = square === 0 ? 0 : square === 26 ? 1 : null;
-    return { r, c, kind: startOf !== null ? "start" : safe.has(square) ? "safe" : "track", seat: startOf ?? undefined };
+    return { r, c, kind: startOf !== null ? "start" : "track", seat: startOf ?? undefined };
   });
   LANES.forEach((lane, seat) => lane.forEach(([r, c]) => cells.push({ r, c, kind: "lane", seat })));
   return cells;

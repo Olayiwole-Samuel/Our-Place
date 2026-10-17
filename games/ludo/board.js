@@ -26,12 +26,6 @@ export const SEATS = Object.freeze([
 ]);
 export const START_SQUARES = Object.freeze(SEATS.map((seat) => seat.start));
 
-/**
- * Safe squares (absolute): the four start tiles of a full board and the four
- * star squares. A lone piece on one can't be killed.
- */
-export const SAFE_SQUARES = Object.freeze([0, 8, 13, 21, 26, 34, 39, 47]);
-const SAFE = new Set(SAFE_SQUARES);
 
 export const pieceIds = (seat) => Array.from({ length: PIECES_PER_PLAYER }, (_, i) => `${SEATS[seat].letter}${i + 1}`);
 export const seatOfPiece = (pieceId) => SEATS.findIndex((seat) => seat.letter === pieceId?.[0]);
@@ -51,4 +45,3 @@ export function squareOf(seat, progress) {
   return (SEATS[seat].start + progress) % TRACK_LENGTH;
 }
 
-export const isSafeSquare = (square) => SAFE.has(square);
