@@ -28,6 +28,7 @@ const initialState = {
   rejection: null,
   connection: "connecting",
   dismissed: null,
+  declined: null,
 };
 
 let me = null;
@@ -57,6 +58,7 @@ export const useGameStore = create((set, get) => ({
 
   /** Accepts a server response unless it's older than what we already show. */
   receive({ session, view }) {
+    if (session && session.id === get().declined) return; // an invite we said "not now" to
     const current = get().session;
     if (session && current && session.id === current.id && session.version < current.version) return;
     // Dismissed: a finished game stays closed, and a declined invite stays hidden.
@@ -86,11 +88,25 @@ export const useGameStore = create((set, get) => ({
     get().refresh(event.id);
   },
 
-  async run(kind, request) {
+  async run(kind, request, { retryOnConflict = false } = {}) {
     if (get().pending) return null;
     set({ pending: kind, rejection: null, error: null });
-    const response = await request();
-    set({ pending: null });
+    let response;
+    try {
+      response = await request();
+      // The partner acted first and our view was a version behind: catch up, then
+      // send the same intent once more (the server re-validates it). Without this
+      // a tap made just as the partner's move landed was silently dropped.
+      if (!response.ok && response.code === "conflict" && retryOnConflict) {
+        await get().refresh();
+        response = await request();
+      }
+    } catch {
+      // Never leave `pending` stuck: it would block every later game action.
+      response = { ok: false, code: "unavailable", message: "Something went wrong. Try again." };
+    } finally {
+      set({ pending: null });
+    }
     if (response.ok) {
       if (response.data.session !== undefined) get().receive({ session: response.data.session, view: response.data.view ?? get().view });
       return response.data;
@@ -112,19 +128,40 @@ export const useGameStore = create((set, get) => ({
     const data = await get().run("create", () => gameApi.create(gameId));
     return Boolean(data);
   },
-  join: () => get().run("join", () => gameApi.join(get().session.id)),
-  setReady: (ready) => get().run("ready", () => gameApi.ready(get().session.id, ready)),
-  act: (type, payload) => {
-    const { session } = get();
-    return get().run("action", () => gameApi.action(session.id, { type, payload, version: session.version }));
-  },
+  // A tap on a panel that is already closing (its session gone) does nothing.
+  join: () => (get().session ? get().run("join", () => gameApi.join(get().session.id)) : null),
+  setReady: (ready) => (get().session ? get().run("ready", () => gameApi.ready(get().session.id, ready)) : null),
+  act: (type, payload) =>
+    get().session &&
+    get().run(
+      "action",
+      () => {
+        const { session } = get(); // read on each try, so a retry carries the fresh version
+        return gameApi.action(session.id, { type, payload, version: session.version });
+      },
+      { retryOnConflict: true },
+    ),
   async leave() {
     const id = get().session?.id;
     if (!id) return;
     await get().run("leave", () => gameApi.leave(id));
   },
 
-  /** Close a finished game (or decline an invite locally) and return to the room. */
+  /**
+   * "Not now" on an invite: close it here and tell the partner. Only players can
+   * cancel a session, so this joins and leaves at once (the session ends as
+   * cancelled and the partner sees "This game didn't start" instead of waiting).
+   */
+  async decline() {
+    const id = get().session?.id;
+    if (!id) return;
+    set({ declined: id });
+    get().dismiss();
+    const joined = await gameApi.join(id);
+    if (joined.ok) await gameApi.leave(id);
+  },
+
+  /** Close a finished game and return to the room. */
   dismiss() {
     const id = get().session?.id ?? null;
     set({ session: null, view: null, dismissed: id, error: null, rejection: null });

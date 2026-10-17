@@ -125,6 +125,16 @@ describe("launch → play → result", () => {
     expect(fetchMock).toHaveBeenCalledWith(`/api/games/sessions/${SESSION_ID}/join`, expect.objectContaining({ method: "POST" }));
   });
 
+  it("invite: Not now closes it here and cancels it for the partner (join + leave), and it stays closed", async () => {
+    act(() => useGameStore.getState().receive({ session: session({ createdBy: PARTNER.id, players: [PARTNER.id] }) }));
+    stage();
+    await act(async () => fireEvent.click(screen.getByRole("button", { name: "Not now" })));
+    const calls = fetchMock.mock.calls.map(([url]) => url);
+    expect(calls).toEqual([`/api/games/sessions/${SESSION_ID}/join`, `/api/games/sessions/${SESSION_ID}/leave`]);
+    act(() => useGameStore.getState().receive({ session: session({ players: [PARTNER.id, ME.id] }) })); // the join echoing back
+    expect(useGameStore.getState().session).toBeNull();
+  });
+
   it("lobby: shows both players and ready state; Ready is sent to the server", async () => {
     act(() => useGameStore.getState().receive({ session: session({ players: [ME.id, PARTNER.id], ready: [PARTNER.id] }) }));
     stage();
@@ -153,6 +163,39 @@ describe("launch → play → result", () => {
     expect(fetchMock).toHaveBeenCalledWith(`/api/games/sessions/${SESSION_ID}/action`, expect.objectContaining({ body: JSON.stringify({ type: "place", payload: { cell: 4 }, version: 1 }) }));
   });
 
+  it("a failed request or a tap on a closed panel never leaves the store stuck busy", async () => {
+    await act(async () => {
+      await useGameStore.getState().join(); // no session (the invite was already dismissed)
+    });
+    expect(useGameStore.getState().pending).toBeNull();
+    act(() => useGameStore.getState().receive({ session: session({ createdBy: PARTNER.id, players: [PARTNER.id] }) }));
+    fetchMock.mockImplementation(async () => {
+      throw new Error("network down");
+    });
+    await act(async () => {
+      await useGameStore.getState().run("join", () => Promise.reject(new Error("boom")));
+    });
+    expect(useGameStore.getState().pending).toBeNull();
+    expect(useGameStore.getState().error).toMatchObject({ code: "unavailable" });
+  });
+
+  it("a move sent a version behind (the partner just moved) is retried once with the fresh version", async () => {
+    act(() => useGameStore.getState().receive({ session: session({ players: [ME.id, PARTNER.id], ready: [ME.id, PARTNER.id], status: "active", version: 1 }), view: board() }));
+    fetchMock.mockImplementation(async (url, init) => {
+      if (init?.method !== "POST") return new Response(JSON.stringify({ session: session({ players: [ME.id, PARTNER.id], status: "active", version: 2 }), view: board() }), { status: 200 });
+      const { version } = JSON.parse(init.body);
+      if (version === 1) return new Response(JSON.stringify({ error: { code: "conflict", message: "Out of date." } }), { status: 409 });
+      return new Response(JSON.stringify({ session: session({ players: [ME.id, PARTNER.id], status: "active", version: 3 }), view: board() }), { status: 200 });
+    });
+    await act(async () => {
+      await useGameStore.getState().act("place", { cell: 4 });
+    });
+    const posts = fetchMock.mock.calls.filter(([, init]) => init?.method === "POST").map(([, init]) => JSON.parse(init.body).version);
+    expect(posts).toEqual([1, 2]);
+    expect(useGameStore.getState().session.version).toBe(3);
+    expect(useGameStore.getState().pending).toBeNull();
+  });
+
   it("result: a win celebrates with the existing emote system, then returns home", async () => {
     act(() =>
       useGameStore.getState().receive({
@@ -162,6 +205,7 @@ describe("launch → play → result", () => {
     );
     const onEmote = stage();
     expect(await screen.findByText("You won! 🎉")).toBeTruthy();
+    expect(screen.queryByText("012")).toBeNull(); // the winning cells are data, never shown as a sentence
     expect(onEmote).toHaveBeenCalledWith("dance");
     fireEvent.click(screen.getByRole("button", { name: "Return to Our Place" }));
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
@@ -179,6 +223,18 @@ describe("launch → play → result", () => {
     expect(await screen.findByText("King left the game")).toBeTruthy();
     expect(onEmote).not.toHaveBeenCalled();
     expect(screen.queryByRole("button", { name: /Play again/ })).toBeNull();
+  });
+
+  it("result: a game left mid-way (the server sends no board) shows the result, not an endless Loading…", async () => {
+    act(() =>
+      useGameStore.getState().receive({
+        session: session({ status: "abandoned", players: [ME.id, PARTNER.id], result: { outcome: "abandoned", summary: { reason: "left", by: PARTNER.id } }, version: 3 }),
+        view: null,
+      }),
+    );
+    stage();
+    expect(await screen.findByText("King left the game")).toBeTruthy();
+    expect(screen.queryByText("Loading…")).toBeNull();
   });
 });
 

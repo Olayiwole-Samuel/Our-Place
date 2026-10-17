@@ -62,7 +62,9 @@ export function EmoteControl({ onEmote, open, onOpenChange }) {
   };
 
   return (
-    <div className="relative">
+    // The tray opens to the left of the dock; on narrow phones it wraps into rows
+    // instead of running off the screen's left edge.
+    <div className="relative [--emote-tray-max:calc(100vw-var(--safe-left)-var(--safe-right)-2*var(--edge-gap)-3*var(--control-size)-24px)]">
       {open && (
         <div
           id={trayId}
@@ -70,7 +72,7 @@ export function EmoteControl({ onEmote, open, onOpenChange }) {
           aria-label="Emotes"
           aria-orientation="horizontal"
           onKeyDown={onTrayKey}
-          className={`panel absolute right-full bottom-0 mr-2 flex items-center gap-1 rounded-[var(--radius-lg)] p-1.5 [animation:panel-in_160ms_var(--ease-out-soft)] motion-reduce:animate-none ${cooling ? "emote-shake" : ""}`}
+          className={`panel absolute right-full bottom-0 mr-2 flex w-max max-w-[var(--emote-tray-max)] flex-wrap items-center justify-end gap-1 rounded-[var(--radius-lg)] p-1.5 [animation:panel-in_160ms_var(--ease-out-soft)] motion-reduce:animate-none ${cooling ? "emote-shake" : ""}`}
         >
           {EMOTE_LIST.map((emote, index) => (
             <button

@@ -8,6 +8,7 @@ import { useCoarsePointer } from "@/hooks/useMediaQuery";
 import { livingRoom } from "@/lib/world/rooms/livingRoom";
 import { createWorldRuntime } from "@/lib/world/runtime";
 import { useCharacterStore } from "@/store/characterStore";
+import { useChatStore } from "@/store/chatStore";
 import { useCoupleStore } from "@/store/coupleStore";
 import { useVoiceStore } from "@/store/voiceStore";
 import { useWorldStore } from "@/store/worldStore";
@@ -74,6 +75,7 @@ function LivingRoom({ me, partner, couple }) {
   // Games: the couple's sessions + live events (one subscription for the room's lifetime).
   useCoupleGames({ coupleId: couple.id, userId: me.id });
   const inGame = useWorldStore((state) => state.inGame);
+  const chatOpen = useChatStore((state) => state.open);
   const { interact, lookHandlers } = useWorldControls(runtime);
 
   // "Finding your person" ends when presence answers — or after a short wait, so
@@ -118,7 +120,8 @@ function LivingRoom({ me, partner, couple }) {
             {touch ? !inGame && <Joystick input={runtime.input} /> : <Wordmark size="sm" className="opacity-80" />}
           </div>
 
-          {!inGame && (
+          {/* Hidden while chatting: the chat panel covers the middle on most screens. */}
+          {!inGame && !chatOpen && (
             <div className="hud-center flex flex-col items-center gap-2">
               <ObjectCard />
               <SeatedHint touch={touch} />

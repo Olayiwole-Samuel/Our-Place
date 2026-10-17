@@ -86,7 +86,7 @@ function Invite({ partner, definition }) {
       <button type="button" onClick={() => useGameStore.getState().join()} disabled={pending === "join"} className="min-h-10 rounded-[var(--radius-md)] bg-green-600 px-4 text-caption font-semibold text-white">
         {pending === "join" ? "Joining…" : "Join"}
       </button>
-      <button type="button" onClick={() => useGameStore.getState().dismiss()} className="min-h-10 rounded-[var(--radius-md)] px-3 text-caption text-text-secondary hover:text-white-soft">
+      <button type="button" onClick={() => useGameStore.getState().decline()} className="min-h-10 rounded-[var(--radius-md)] px-3 text-caption text-text-secondary hover:text-white-soft">
         Not now
       </button>
     </m.div>
@@ -233,7 +233,8 @@ function resultLine(session, me, partnerName) {
   if (lines && session.winnerId) {
     return session.winnerId === me ? lines.winner : lines.loser?.replace("{winner}", partnerName);
   }
-  return summary?.line ?? null;
+  // Only a sentence: some games keep data under `line` (Tic Tac Toe: the winning cells).
+  return typeof summary?.line === "string" ? summary.line : null;
 }
 
 /** Both players on the finish screen: the winner is marked, with their win streak (from the server). */
@@ -361,7 +362,8 @@ function Shell({ me, partner, definition, session, phase, onEmote }) {
               </Suspense>
             </GameErrorBoundary>
           ) : (
-            <p className="py-10 text-center text-caption text-text-muted">{session.status === "cancelled" ? "This game was cancelled." : "Loading…"}</p>
+            // A game that ended early (left or cancelled) has no board; the result above says it all.
+            phase !== "result" && <p className="py-10 text-center text-caption text-text-muted">Loading…</p>
           )}
           {rejection && (
             <p role="alert" className="mt-3 text-center text-caption text-pink-400">
