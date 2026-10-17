@@ -91,10 +91,11 @@ const EMPTY_LOG = [];
  * "Connection log": what happened to this tab's live connections, for telling
  * us what went wrong on a real phone. Copy puts plain text on the clipboard.
  */
-function ConnectionLog() {
+export function ConnectionLog() {
   const entries = useSyncExternalStore(subscribeConnectionLog, connectionLog, () => EMPTY_LOG);
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [manual, setManual] = useState(null); // the log as text, when the clipboard is blocked
   const recent = entries.slice(-12).reverse();
   return (
     <div className="flex flex-col gap-1">
@@ -120,19 +121,32 @@ function ConnectionLog() {
           <button
             type="button"
             onClick={async () => {
+              const text = formatConnectionLog(entries, { userAgent: navigator.userAgent, online: navigator.onLine, visible: document.visibilityState });
               try {
-                await navigator.clipboard.writeText(
-                  formatConnectionLog(entries, { userAgent: navigator.userAgent, online: navigator.onLine, visible: document.visibilityState }),
-                );
+                await navigator.clipboard.writeText(text);
                 setCopied(true);
+                setManual(null);
               } catch {
+                // Some in-app and older phone browsers block the clipboard: show the
+                // text instead, selected, so it can be copied by hand.
                 setCopied(false);
+                setManual(text);
               }
             }}
             className="min-h-9 rounded-[var(--radius-sm)] bg-black-800 px-2 text-caption text-text-secondary hover:text-white-soft"
           >
             {copied ? "Copied — paste it to us" : "Copy log"}
           </button>
+          {manual && (
+            <textarea
+              readOnly
+              aria-label="Connection log text"
+              value={manual}
+              rows={6}
+              ref={(node) => node?.select()}
+              className="w-full resize-none rounded-[var(--radius-sm)] bg-black-900 p-2 font-mono text-[0.6875rem] leading-snug text-text-secondary"
+            />
+          )}
         </div>
       )}
     </div>
