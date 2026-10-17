@@ -28,7 +28,7 @@ export function PairingScreen() {
   return (
     <main className="app-viewport">
       <Atmosphere mood="relationship" />
-      <div className="relative flex h-full flex-col safe-inset">
+      <div className="relative flex h-full flex-col overflow-y-auto safe-inset">
         <header className="flex items-center justify-between gap-4">
           <Wordmark size="sm" />
           <div className="flex items-center gap-1">
@@ -37,7 +37,7 @@ export function PairingScreen() {
           </div>
         </header>
 
-        <div className="mx-auto grid w-full max-w-5xl flex-1 items-center gap-8 py-4 md:grid-cols-[1fr_minmax(0,26rem)] md:gap-12 short:py-2">
+        <div className="mx-auto grid w-full max-w-5xl flex-1 grid-cols-[minmax(0,1fr)] items-center gap-6 py-4 md:grid-cols-[1fr_minmax(0,26rem)] md:gap-12 short:py-2">
           <section className="flex flex-col gap-3 text-center md:text-left short:gap-2">
             <p className="micro-caps text-pink-400">Just the two of you</p>
             <h1 className="text-heading text-white-soft">Bring your person into Our Place.</h1>
@@ -47,7 +47,7 @@ export function PairingScreen() {
             </p>
           </section>
 
-          <section aria-live="polite" className="panel relative flex min-h-64 flex-col justify-center p-6 short:min-h-0 short:p-4">
+          <section aria-live="polite" className="panel relative flex min-h-64 flex-col justify-center p-4 sm:p-6 short:min-h-0 short:p-4">
             <AnimatePresence mode="wait" initial={false}>
               {mode === "choose" && (
                 <m.div key="choose" {...swap} className="flex flex-col gap-3">

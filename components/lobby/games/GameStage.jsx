@@ -299,11 +299,11 @@ function Shell({ me, partner, definition, session, phase, onEmote }) {
       <header className="flex items-center gap-3 border-b border-[var(--border-subtle)] py-2 pr-2 pl-4">
         <h2 className="flex-1 truncate text-caption font-semibold text-white-soft">{definition.name}</h2>
         {connection !== "live" && (
-          <span role="status" className="text-micro tracking-normal text-text-muted">
-            Connection interrupted. Reconnecting…
+          <span role="status" className="shrink-0 text-micro tracking-normal text-text-muted">
+            <span className="hidden sm:inline">Connection interrupted. </span>Reconnecting…
           </span>
         )}
-        <span className="flex items-center gap-1.5 text-micro tracking-normal text-text-secondary">
+        <span className="flex min-w-0 shrink items-center gap-1.5 truncate text-micro tracking-normal whitespace-nowrap text-text-secondary">
           <span aria-hidden="true" className={`size-1.5 rounded-full ${partnerStatus === "online" ? "bg-pink-400" : "bg-text-muted/60"}`} />
           {partnerName} {partnerStatus === "online" ? "is here" : partnerStatus === "away" ? "· reconnecting" : "· away"}
         </span>

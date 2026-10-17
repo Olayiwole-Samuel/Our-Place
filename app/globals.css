@@ -233,22 +233,6 @@
   backdrop-filter: blur(12px);
 }
 
-/* ── Orientation ───────────────────────────────────────────────────────── */
-/* Landscape-first: upright phones see RotateDevicePrompt; tablets/desktops are
-   fine either way. Hidden content stops participating (visibility: hidden). */
-.rotate-prompt {
-  display: none;
-}
-
-@media (orientation: portrait) and (max-width: 600px) and (pointer: coarse) {
-  .rotate-prompt {
-    display: flex;
-  }
-  .landscape-content {
-    visibility: hidden;
-  }
-}
-
 /* ── Reduced motion ────────────────────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
   *,
@@ -265,14 +249,16 @@
 /* The chat panel floats above the bottom-right dock and below the top-right
    controls, so it never covers the joystick (bottom-left) or the top HUD. */
 .chat-panel {
+  /* Fixed to the viewport (not the dock's corner box), so it never slides off-screen. */
+  position: fixed;
   right: calc(var(--safe-right) + var(--edge-gap));
   bottom: calc(var(--safe-bottom) + var(--edge-gap) + var(--control-size) + 12px);
-  width: min(22rem, calc(100vw - var(--safe-left) - var(--safe-right) - 2 * var(--edge-gap) - 160px));
+  width: min(22rem, calc(100vw - var(--safe-left) - var(--safe-right) - 2 * var(--edge-gap) - var(--game-rail-width) - 8px - 160px));
   height: min(
     30rem,
     calc(100dvh - var(--safe-top) - var(--safe-bottom) - 2 * var(--edge-gap) - 2 * var(--control-size) - 24px)
   );
-  min-height: 11rem;
+  min-height: min(11rem, calc(100dvh - var(--safe-top) - var(--safe-bottom) - 2 * var(--edge-gap) - 2 * var(--control-size) - 24px));
 }
 
 @media (max-width: 567px) {
@@ -304,19 +290,98 @@
   }
 }
 
+/* ── Lobby HUD layout ──────────────────────────────────────────────────── */
+/* Corners are pinned; nothing in the middle can push a control off-screen.
+   --hud-corner: the widest corner (joystick 132px / dock 3×44px + gaps) + room. */
+.hud {
+  --hud-corner: 172px;
+  --hud-bottom-reserve: var(--control-size);
+}
+.hud[data-touch="true"] {
+  --hud-bottom-reserve: 132px; /* the joystick */
+}
+.hud-corner-left {
+  position: absolute;
+  left: calc(var(--safe-left) + var(--edge-gap));
+  bottom: calc(var(--safe-bottom) + var(--edge-gap));
+}
+.hud-actions {
+  position: absolute;
+  right: calc(var(--safe-right) + var(--edge-gap));
+  bottom: calc(var(--safe-bottom) + var(--edge-gap));
+}
+/* Contextual cards: between the corners when there is room… */
+.hud-center {
+  --hud-center-bottom: calc(var(--safe-bottom) + var(--edge-gap));
+  position: absolute;
+  left: 50%;
+  bottom: var(--hud-center-bottom);
+  transform: translateX(-50%);
+  width: min(26rem, calc(100vw - var(--safe-left) - var(--safe-right) - 2 * var(--edge-gap) - 2 * var(--hud-corner)));
+  /* Never taller than the space under the top bar: tiny screens scroll the card. */
+  max-height: calc(100dvh - var(--hud-center-bottom) - var(--safe-top) - var(--edge-gap) - var(--control-size) - 12px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+/* …otherwise (phones held upright) above the corners, clear of the game rail. */
+@media (max-width: 639px) {
+  .hud-center {
+    left: calc(var(--safe-left) + var(--edge-gap));
+    right: calc(var(--safe-right) + var(--edge-gap) + var(--game-rail-width) + 8px);
+    --hud-center-bottom: calc(var(--safe-bottom) + var(--edge-gap) + var(--hud-bottom-reserve) + 12px);
+    transform: none;
+    width: auto;
+  }
+}
+/* Tiny landscape phones (narrow and short): no room above the corners, so the
+   cards use the gap between the joystick and the game rail instead. */
+@media (max-width: 639px) and (max-height: 479px) {
+  .hud-center {
+    --hud-center-bottom: calc(var(--safe-bottom) + var(--edge-gap));
+    left: calc(var(--safe-left) + var(--edge-gap) + var(--hud-bottom-reserve) + 12px);
+  }
+}
+/* Offline notice: centred under the top bar so it never squeezes it. */
+.offline-banner {
+  position: absolute;
+  left: 50%;
+  top: calc(var(--safe-top) + var(--edge-gap) + var(--control-size) + 12px);
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+
 /* ── Game menu & game stage (Phase 5) ───────────────────────────────────── */
-/* The rail floats on the right edge, under the top-right controls. Tall
-   screens: one column of ten. Short landscape phones: two columns of five,
-   so it never reaches the bottom-right dock. */
+/* The rail floats on the right edge, between the top-right controls and the
+   bottom-right dock. Its grid adapts to the height actually available, so it
+   never reaches the dock: tall screens one column of ten; shorter screens two
+   columns of five; landscape phones with browser bars three or four columns. */
 :root {
   --game-rail-button: var(--control-size);
+  --game-rail-rows: 10;
   --game-rail-width: calc(var(--game-rail-button) + 14px);
 }
 
 @media (max-height: 619px) {
   :root {
     --game-rail-button: 40px;
+    --game-rail-rows: 5;
     --game-rail-width: calc(2 * var(--game-rail-button) + 18px);
+  }
+}
+
+@media (max-height: 399px) {
+  :root {
+    --game-rail-button: 36px;
+    --game-rail-rows: 4;
+    --game-rail-width: calc(3 * var(--game-rail-button) + 22px);
+  }
+}
+
+@media (max-height: 299px) {
+  :root {
+    --game-rail-button: 34px;
+    --game-rail-rows: 3;
+    --game-rail-width: calc(4 * var(--game-rail-button) + 26px);
   }
 }
 
@@ -329,15 +394,9 @@
 .game-rail {
   display: grid;
   grid-auto-flow: column;
-  grid-template-rows: repeat(10, var(--game-rail-button));
+  grid-template-rows: repeat(var(--game-rail-rows), var(--game-rail-button));
   grid-auto-columns: var(--game-rail-button);
   gap: 4px;
-}
-
-@media (max-height: 619px) {
-  .game-rail {
-    grid-template-rows: repeat(5, var(--game-rail-button));
-  }
 }
 
 .game-rail-button {
@@ -351,9 +410,15 @@
   max-height: calc(100dvh - var(--safe-top) - var(--safe-bottom) - 2 * var(--edge-gap) - 2 * var(--control-size) - 36px);
 }
 
-/* Chat sits left of the rail so the two never overlap. */
+/* Chat sits left of the rail so the two never overlap — except on narrow
+   phones, where chat takes the full width (the rail can wait while you type). */
 .chat-panel {
   right: calc(var(--safe-right) + var(--edge-gap) + var(--game-rail-width) + 8px);
+}
+@media (max-width: 567px) {
+  .chat-panel {
+    right: calc(var(--safe-right) + var(--edge-gap));
+  }
 }
 
 /* The game shell floats over the room's centre; the bottom HUD row stays clear. */
@@ -403,6 +468,28 @@
   }
   .game-shell[data-layout="board"] .ludo-board {
     --board-room: calc(100dvh - var(--safe-top) - var(--safe-bottom) - 2 * var(--edge-gap));
+  }
+}
+/* Phones held upright: games use the full width between the top bar and the
+   bottom dock (the game rail is disabled while a game is open, so covering it
+   is fine). The board takes the width; the turn panel sits underneath. */
+@media (max-width: 639px) {
+  .game-shell,
+  .game-shell[data-layout="board"] {
+    width: calc(100vw - var(--safe-left) - var(--safe-right) - 2 * var(--edge-gap));
+    max-height: calc(100dvh - var(--safe-top) - var(--safe-bottom) - 2 * var(--edge-gap) - 2 * var(--control-size) - 24px);
+    margin-bottom: 0;
+  }
+  .game-shell[data-layout="board"] .ludo-board {
+    /* height left for the board: shell − header − padding − the turn panel below it */
+    width: min(
+      32rem,
+      100%,
+      calc(100dvh - var(--safe-top) - var(--safe-bottom) - 2 * var(--edge-gap) - 2 * var(--control-size) - 24px - var(--board-header) - 2 * var(--board-pad) - 4px - var(--ludo-aside-height))
+    );
+  }
+  .ludo {
+    --ludo-aside-height: 9.5rem;
   }
 }
 .ludo-piece {

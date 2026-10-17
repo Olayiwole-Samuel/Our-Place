@@ -10,7 +10,7 @@ export default function manifest() {
     start_url: "/",
     scope: "/",
     display: "standalone",
-    orientation: "landscape",
+    orientation: "any",
     background_color: palette.black950,
     theme_color: palette.black950,
     categories: ["lifestyle", "social", "games"],

@@ -30,15 +30,15 @@ export function PartnerStatus() {
             : { text: "Checking…", dot: "bg-text-muted/50 animate-pulse-live" };
 
   return (
-    <div role="status" aria-live="polite" className="panel pointer-events-auto flex items-center gap-3 rounded-[var(--radius-md)] py-2 pr-4 pl-2">
+    <div role="status" aria-live="polite" className="panel pointer-events-auto flex min-w-0 items-center gap-3 rounded-[var(--radius-md)] py-2 pr-4 pl-2">
       <ProfileAvatar profile={partner} size={34} ring="pink" />
-      <div className="flex flex-col">
-        <span className="flex items-center gap-1.5 text-caption font-semibold text-white-soft">
-          {name}
+      <div className="flex min-w-0 flex-col">
+        <span className="flex min-w-0 items-center gap-1.5 text-caption font-semibold text-white-soft">
+          <span className="truncate">{name}</span>
           <PartnerVoice />
         </span>
-        <span className="flex items-center gap-1.5 text-caption text-text-secondary">
-          <span aria-hidden="true" className={`size-1.5 rounded-full ${line.dot}`} />
+        <span className="flex items-center gap-1.5 text-caption whitespace-nowrap text-text-secondary">
+          <span aria-hidden="true" className={`size-1.5 shrink-0 rounded-full ${line.dot}`} />
           {line.text}
         </span>
       </div>
@@ -64,8 +64,10 @@ export function ConnectionStatus() {
       aria-label={`Connection: ${state.text}`}
       className="panel pointer-events-auto flex h-[var(--control-size)] items-center gap-2 rounded-[var(--radius-md)] px-3 text-caption text-text-secondary"
     >
-      <span aria-hidden="true" className={`size-2 rounded-full ${state.dot}`} />
-      {state.text}
+      <span aria-hidden="true" className={`size-2 shrink-0 rounded-full ${state.dot}`} />
+      <span aria-hidden="true" className="hidden whitespace-nowrap sm:inline">
+        {state.text}
+      </span>
     </div>
   );
 }

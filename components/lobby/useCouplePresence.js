@@ -63,11 +63,18 @@ export function useCouplePresence({ runtime, coupleId, userId, partnerId }) {
       });
 
     const onPageHide = () => presence?.leave();
+    // Restored from the back/forward cache (common on phones): this page already
+    // said goodbye on pagehide, so start fresh instead of staying "left".
+    const onPageShow = (event) => {
+      if (event.persisted) window.location.reload();
+    };
     window.addEventListener("pagehide", onPageHide);
+    window.addEventListener("pageshow", onPageShow);
 
     return () => {
       cancelled = true;
       window.removeEventListener("pagehide", onPageHide);
+      window.removeEventListener("pageshow", onPageShow);
       presence?.leave();
       runtime.presence = null;
     };

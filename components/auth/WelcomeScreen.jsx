@@ -1,7 +1,8 @@
 "use client";
 
 import { m } from "motion/react";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { isInAppBrowser } from "@/lib/browser/inAppBrowser";
 import { Atmosphere } from "@/components/brand/Atmosphere";
 import { Wordmark } from "@/components/brand/Wordmark";
 import { GoogleSignInButton } from "./GoogleSignInButton";
@@ -23,6 +24,10 @@ const rise = {
  */
 export function WelcomeScreen({ authError, unconfigured = false }) {
   const errorMessage = AUTH_ERRORS[authError] ?? (authError ? AUTH_ERRORS.failed : null);
+  const [inApp, setInApp] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => setInApp(isInAppBrowser()), []);
 
   useEffect(() => {
     // Drop ?auth_error from the address bar so a refresh doesn't repeat the message.
@@ -32,7 +37,7 @@ export function WelcomeScreen({ authError, unconfigured = false }) {
   return (
     <main className="app-viewport">
       <Atmosphere />
-      <div className="relative flex h-full flex-col items-center justify-center gap-7 text-center safe-inset short:gap-4">
+      <div className="relative flex h-full flex-col items-center justify-center-safe gap-7 overflow-y-auto text-center safe-inset short:gap-4">
         <m.div variants={rise} initial="hidden" animate="show" custom={0}>
           <Wordmark />
         </m.div>
@@ -48,6 +53,25 @@ export function WelcomeScreen({ authError, unconfigured = false }) {
             <p role="alert" className="max-w-sm text-caption text-red-500">
               {errorMessage}
             </p>
+          )}
+          {inApp && (
+            <div role="note" className="flex max-w-sm flex-col items-center gap-2 text-caption text-text-secondary">
+              <p>Google sign-in doesn&apos;t work inside this app&apos;s browser. Open Our Place in Chrome or Safari instead.</p>
+              <button
+                type="button"
+                className="min-h-10 rounded-[var(--radius-md)] border border-[var(--border-strong)] px-4 text-white-soft"
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(window.location.origin);
+                    setCopied(true);
+                  } catch {
+                    setCopied(false);
+                  }
+                }}
+              >
+                {copied ? "Link copied" : "Copy link"}
+              </button>
+            </div>
           )}
           {unconfigured && (
             <p id="signin-unavailable" className="max-w-sm text-caption text-text-muted">

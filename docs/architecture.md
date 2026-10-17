@@ -108,7 +108,7 @@ World (components/3d/World/World.jsx)
 
 - `app/manifest.js` → `/manifest.webmanifest`: `standalone`, `landscape`, theme/background `#120f0d`, 192/512 icons plus a 512 maskable icon (`public/icons`, generated from `icon.svg`).
 - `public/sw.js` is deliberately minimal: when a navigation fails offline it shows `public/offline.html`. It caches nothing else — no app code, API data or media — because Our Place is live and must not pretend to work offline. Registered in production only.
-- Orientation can only be locked by installed PWAs, so portrait phones get the CSS-driven `RotateDevicePrompt`.
+- Phones work upright and sideways. The lobby HUD pins its corners and places contextual cards where there is room (`.hud-*` in `app/globals.css`), and games use the full width when upright.
 
 ## Responsive and safe areas
 

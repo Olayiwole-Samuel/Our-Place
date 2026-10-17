@@ -4,6 +4,7 @@ import { AnimatePresence, m } from "motion/react";
 import Link from "next/link";
 import { useEffect, useId, useRef, useState, useSyncExternalStore } from "react";
 import { SignOutButton } from "@/components/auth/SignOutButton";
+import { connectionLog, formatConnectionLog, subscribeConnectionLog } from "@/lib/diagnostics/connectionLog";
 import { GRAPHICS_PREFERENCES } from "@/lib/performance/profiles";
 import { setSoundsEnabled, soundsEnabled, subscribeSounds } from "@/lib/ui/sounds";
 import { usePerformanceStore } from "@/store/performanceStore";
@@ -64,7 +65,7 @@ export function AccountMenu({ beforeSignOut }) {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -4, transition: { duration: 0.12 } }}
             transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
-            className="panel absolute top-full right-0 z-20 mt-2 flex w-60 origin-top-right flex-col gap-2 rounded-[var(--radius-md)] p-2"
+            className="panel absolute top-full right-0 z-20 mt-2 flex max-h-[calc(100dvh-var(--safe-top)-var(--safe-bottom)-2*var(--edge-gap)-var(--control-size)-16px)] w-60 origin-top-right flex-col gap-2 overflow-y-auto overscroll-contain rounded-[var(--radius-md)] p-2"
           >
             {email && <p className="truncate px-2 pt-1 text-caption text-text-muted">{email}</p>}
             <Link
@@ -75,10 +76,65 @@ export function AccountMenu({ beforeSignOut }) {
             </Link>
             <SoundToggle />
             <GraphicsSetting />
+            <ConnectionLog />
             <SignOutButton variant="secondary" size="md" className="w-full" beforeSignOut={beforeSignOut} />
           </m.div>
         )}
       </AnimatePresence>
+    </div>
+  );
+}
+
+const EMPTY_LOG = [];
+
+/**
+ * "Connection log": what happened to this tab's live connections, for telling
+ * us what went wrong on a real phone. Copy puts plain text on the clipboard.
+ */
+function ConnectionLog() {
+  const entries = useSyncExternalStore(subscribeConnectionLog, connectionLog, () => EMPTY_LOG);
+  const [open, setOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const recent = entries.slice(-12).reverse();
+  return (
+    <div className="flex flex-col gap-1">
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={() => setOpen((value) => !value)}
+        className="flex min-h-11 items-center justify-between rounded-[var(--radius-md)] px-3 text-body text-white-soft hover:bg-black-800"
+      >
+        Connection log
+        <span className="text-caption text-text-muted">{entries.length}</span>
+      </button>
+      {open && (
+        <div className="flex flex-col gap-2 px-3 pb-1">
+          <ol className="flex max-h-40 flex-col gap-0.5 overflow-y-auto font-mono text-[0.6875rem] leading-snug text-text-muted">
+            {recent.length === 0 && <li>Nothing yet — all quiet.</li>}
+            {recent.map((entry, index) => (
+              <li key={`${entry.at}-${index}`}>
+                {new Date(entry.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })} {entry.area}: {entry.event}
+              </li>
+            ))}
+          </ol>
+          <button
+            type="button"
+            onClick={async () => {
+              try {
+                await navigator.clipboard.writeText(
+                  formatConnectionLog(entries, { userAgent: navigator.userAgent, online: navigator.onLine, visible: document.visibilityState }),
+                );
+                setCopied(true);
+              } catch {
+                setCopied(false);
+              }
+            }}
+            className="min-h-9 rounded-[var(--radius-sm)] bg-black-800 px-2 text-caption text-text-secondary hover:text-white-soft"
+          >
+            {copied ? "Copied — paste it to us" : "Copy log"}
+          </button>
+        </div>
+      )}
     </div>
   );
 }

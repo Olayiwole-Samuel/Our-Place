@@ -35,6 +35,10 @@ const PRESENCE_WAIT_MS = 5000;
  *   right         the floating game menu (ten categories → drawer → game)
  *   bottom-left   joystick (touch)            bottom-right interact; emotes · chat · mic
  *   bottom-centre contextual cards (object info, first-visit hint, seated hint)
+ *
+ * Corners are pinned (absolutely positioned), so nothing in the middle can push
+ * a control off a narrow screen. Cards sit between the corners when there is
+ * room, otherwise above them (see `.hud-center` in globals.css).
  */
 export function Lobby() {
   const me = useCoupleStore((state) => state.me);
@@ -94,13 +98,13 @@ function LivingRoom({ me, partner, couple }) {
       </div>
 
       {ready && (
-        <div className="pointer-events-none absolute inset-0 z-20 flex flex-col justify-between safe-inset">
-          <header className="flex items-start justify-between gap-3">
-            <div className="flex items-start gap-3">
+        <div className="hud pointer-events-none absolute inset-0 z-20 safe-inset" data-touch={touch ? "true" : "false"}>
+          <header className="flex items-start justify-between gap-2">
+            <div className="flex min-w-0 items-start gap-3">
               <PartnerStatus />
             </div>
             <OfflineBanner />
-            <div className="pointer-events-auto flex items-center gap-2">
+            <div className="pointer-events-auto flex shrink-0 items-center gap-2">
               <ConnectionStatus />
               <AccountMenu
                 beforeSignOut={async () => {
@@ -110,21 +114,21 @@ function LivingRoom({ me, partner, couple }) {
             </div>
           </header>
 
-          <div className="flex items-end justify-between gap-3">
-            <div className="flex flex-col items-start gap-2">
-              {touch ? !inGame && <Joystick input={runtime.input} /> : <Wordmark size="sm" className="opacity-80" />}
-            </div>
+          <div className="hud-corner-left flex flex-col items-start gap-2">
+            {touch ? !inGame && <Joystick input={runtime.input} /> : <Wordmark size="sm" className="opacity-80" />}
+          </div>
 
-            <div className="flex flex-1 flex-col items-center gap-2 self-end">
+          {!inGame && (
+            <div className="hud-center flex flex-col items-center gap-2">
               <ObjectCard />
               <SeatedHint touch={touch} />
               <OnboardingHint touch={touch} partnerName={partnerName} ready={ready} />
             </div>
+          )}
 
-            <div className="hud-actions flex flex-col items-end gap-3">
-              {!inGame && <InteractPrompt onInteract={interact} touch={touch} />}
-              <CommsDock meId={me.id} partnerName={partnerName} runtime={runtime} onEmote={triggerEmote} />
-            </div>
+          <div className="hud-actions flex flex-col items-end gap-3">
+            {!inGame && <InteractPrompt onInteract={interact} touch={touch} />}
+            <CommsDock meId={me.id} partnerName={partnerName} runtime={runtime} onEmote={triggerEmote} />
           </div>
 
           {/* Right edge: the floating game menu (reserved for it since Phase 3). */}

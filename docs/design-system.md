@@ -84,7 +84,7 @@ Mobile-first, **landscape-first**.
 - `app-viewport` — full-screen `100dvh` surface.
 - `safe-inset` — safe-area inset + `--edge-gap` on all sides (notches, rounded corners, home indicator).
 - `--control-size` — minimum touch target (44px; 48px from `lg`) for HUD controls.
-- Portrait phones (≤600px wide, touch) get `RotateDevicePrompt`; tablets and desktop work in either orientation.
+- Every screen works upright and sideways, down to 320×568 and 568×260. Check layouts with `/dev/hud` (development only) at phone sizes.
 - Future HUD zones in the world: top-left brand, top-right couple badge and menu (exists), bottom-left context (exists), bottom-right reserved for movement and actions, with chat, voice and the game menu docking at the edges inside `safe-inset`.
 
 ## Surfaces, radius, depth

@@ -39,7 +39,7 @@ function FirstFrame({ onRendered }) {
  * the server render or the initial bundle. Other spaces (Range Room, game
  * rooms) will be separate World-level scenes loaded the same way.
  */
-export default function World({ runtime, partner, myCharacter, partnerCharacter, reducedMotion, onCreated, onFirstFrame }) {
+export default function World({ runtime, partner, myCharacter, partnerCharacter, reducedMotion, onCreated, onFirstFrame, onContextLost }) {
   // Quality: the tier's profile (lib/performance). Antialiasing and the initial
   // pixel ratio are fixed when the canvas is created; everything else adapts live.
   const tier = usePerformanceStore((state) => state.tier);
@@ -66,6 +66,16 @@ export default function World({ runtime, partner, myCharacter, partnerCharacter,
       onCreated={(state) => {
         // Development only: lets us read renderer stats (draw calls, triangles, programs).
         if (process.env.NODE_ENV !== "production") Object.assign(window, { __ourPlaceGl: state.gl, __ourPlaceScene: state.scene });
+        // The GPU context can be taken away (low memory, screen lock). The stage
+        // then rebuilds the canvas with a fresh context instead of freezing.
+        state.gl.domElement.addEventListener(
+          "webglcontextlost",
+          (event) => {
+            event.preventDefault();
+            onContextLost?.();
+          },
+          { once: true },
+        );
         onCreated?.(state);
       }}
       fallback={<p className="safe-inset">Our Place needs WebGL, which this browser doesn&apos;t support.</p>}

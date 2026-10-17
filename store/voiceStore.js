@@ -1,6 +1,7 @@
 "use client";
 
 import { create } from "zustand";
+import { logConnection } from "@/lib/diagnostics/connectionLog";
 import { createPeerVoiceSession } from "@/lib/voice/peerVoiceSession";
 import { createVoiceSession } from "@/lib/voice/voiceSession";
 
@@ -33,6 +34,7 @@ function createSession({ coupleId, userId, partnerId, onState }) {
   if (VOICE_PROVIDER === "daily") return createVoiceSession({ fetchAccess, partnerId, onState });
   return createPeerVoiceSession({
     getSupabase: () => import("@/lib/supabase/client").then(({ getSupabaseBrowserClient }) => getSupabaseBrowserClient()),
+    getIceServers: fetchIceServers,
     coupleId,
     userId,
     partnerId,
@@ -55,6 +57,18 @@ let session = null;
 let sessionKey = null;
 let users = 0;
 let lingerTimer = null;
+
+/** STUN + TURN (when configured) from the server; null → the session's STUN defaults. */
+async function fetchIceServers() {
+  try {
+    const response = await fetch("/api/voice/ice", { credentials: "same-origin", cache: "no-store" });
+    if (!response.ok) return null;
+    const payload = await response.json();
+    return Array.isArray(payload?.iceServers) ? payload.iceServers : null;
+  } catch {
+    return null;
+  }
+}
 
 async function fetchAccess() {
   let response;
@@ -89,7 +103,17 @@ export const useVoiceStore = create((set, get) => ({
     if (!session) {
       sessionKey = key;
       set({ ...initialState, status: "connecting" });
-      session = createSession({ coupleId, userId, partnerId, onState: (patch) => set(patch) });
+      session = createSession({
+        coupleId,
+        userId,
+        partnerId,
+        onState: (patch) => {
+          if (patch.status && patch.status !== get().status) logConnection("voice", patch.status);
+          if (patch.error && patch.error !== get().error) logConnection("voice", `error ${patch.error}`);
+          if (patch.partner && patch.partner.connected !== get().partner.connected) logConnection("voice", patch.partner.connected ? "partner connected" : "partner not connected");
+          set(patch);
+        },
+      });
       session.connect();
     }
     let released = false;

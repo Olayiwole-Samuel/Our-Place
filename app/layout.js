@@ -1,6 +1,5 @@
 import { Geist, Geist_Mono } from "next/font/google";
 import { ServiceWorkerRegistration } from "@/components/pwa/ServiceWorkerRegistration";
-import { RotateDevicePrompt } from "@/components/ui/RotateDevicePrompt";
 import { palette } from "@/lib/design/tokens";
 import "./globals.css";
 
@@ -35,8 +34,7 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en" className={`${geist.variable} ${geistMono.variable}`}>
       <body>
-        <div className="landscape-content">{children}</div>
-        <RotateDevicePrompt />
+        {children}
         <ServiceWorkerRegistration />
       </body>
     </html>

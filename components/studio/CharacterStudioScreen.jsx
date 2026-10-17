@@ -117,7 +117,7 @@ export function CharacterStudioScreen({ photoAvailable }) {
     return (
       <main className="app-viewport">
         <Atmosphere mood="relationship" />
-        <div className="relative flex h-full flex-col safe-inset">
+        <div className="relative flex h-full flex-col overflow-y-auto safe-inset">
           <Wordmark size="sm" />
           <div className="mx-auto flex w-full max-w-4xl flex-1 flex-col justify-center gap-6 short:gap-4">
             <div className="flex flex-col gap-2">
@@ -171,7 +171,7 @@ export function CharacterStudioScreen({ photoAvailable }) {
     return (
       <main className="app-viewport">
         <Atmosphere />
-        <div className="relative flex h-full flex-col gap-4 safe-inset">
+        <div className="relative flex h-full flex-col gap-4 overflow-y-auto safe-inset">
           <header className="flex items-center justify-between">
             <Wordmark size="sm" />
             <Button variant="ghost" size="sm" onClick={() => setStep(creating ? "intro" : "studio")}>

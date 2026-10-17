@@ -92,11 +92,11 @@ export function InviteCodePanel() {
 
       {/* Visual cells for sighted users; screen readers get the code spelled out. */}
       <p className="sr-only">{`Your invite code is ${invite.code.split("").join(" ")}`}</p>
-      <p aria-hidden="true" className="flex gap-2 select-all short:gap-1.5">
+      <p aria-hidden="true" className="flex gap-1.5 select-all sm:gap-2 short:gap-1.5">
         {invite.code.split("").map((char, i) => (
           <span
             key={i}
-            className="grid h-14 w-11 place-items-center rounded-[var(--radius-sm)] border border-[var(--border-strong)] bg-black-950 font-mono text-code text-white-soft short:h-12 short:w-10 sm:w-12"
+            className="grid h-14 w-[clamp(2.25rem,11vw,2.75rem)] place-items-center rounded-[var(--radius-sm)] border border-[var(--border-strong)] bg-black-950 font-mono text-code text-white-soft short:h-12 short:w-10 sm:w-12"
           >
             {char}
           </span>

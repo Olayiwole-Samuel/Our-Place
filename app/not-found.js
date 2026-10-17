@@ -7,7 +7,7 @@ export default function NotFound() {
   return (
     <main className="app-viewport">
       <Atmosphere />
-      <div className="relative flex h-full flex-col items-center justify-center gap-3 text-center safe-inset">
+      <div className="relative flex h-full flex-col items-center justify-center-safe gap-3 overflow-y-auto text-center safe-inset">
         <p className="micro-caps text-text-muted">404</p>
         <h1 className="text-heading text-white-soft">This room doesn&apos;t exist.</h1>
         <Link

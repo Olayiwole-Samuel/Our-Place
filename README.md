@@ -74,9 +74,12 @@ See [.env.example](.env.example) for the authoritative list with comments.
 | --- | --- | --- |
 | `NEXT_PUBLIC_SUPABASE_URL` | Public — must be `https://<ref>.supabase.co` | All Supabase clients |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Public (RLS-protected) | Browser + server clients |
-| `SUPABASE_SERVICE_ROLE_KEY` | **Server only** | `lib/supabase/admin.js` (optional; unused in Phase 2) |
+| `SUPABASE_SERVICE_ROLE_KEY` | **Server only** | `lib/supabase/admin.js` — **required** for games, win streaks and couple photos |
 | `NEXT_PUBLIC_VOICE_PROVIDER` | Public | `p2p` (default, free) or `daily` |
 | `DAILY_API_KEY` | **Server only** | `lib/voice/daily.server.js` (only when the voice provider is `daily`) |
+| `METERED_TURN_APP`, `METERED_TURN_API_KEY` | **Server only** | TURN relay for direct voice (`lib/voice/ice.server.js`) — needed for voice between phones on mobile data. Metered Open Relay: free 20 GB/month, no card |
+| `CLOUDFLARE_TURN_KEY_ID`, `CLOUDFLARE_TURN_KEY_API_TOKEN` | **Server only** | Alternative relay (Cloudflare; asks for a card) |
+| `TURN_URLS`, `TURN_USERNAME`, `TURN_CREDENTIAL` | **Server only** | Alternative: any TURN provider with fixed credentials |
 | `METAPERSON_CLIENT_ID`, `METAPERSON_CLIENT_SECRET` | **Server only** | Photo characters (off until set) |
 | `NEXT_PUBLIC_COLYSEUS_URL`, `GEMINI_API_KEY` | Reserved | Not read yet |
 
@@ -131,5 +134,11 @@ docs/                   Architecture documentation
 
 ## Deployment
 
-- **Web app** → Vercel. Set the env vars above in the project settings.
+- **Web app** → Vercel. Set the env vars above in the project settings (Production), then redeploy.
+  - `vercel.json` pins the server functions to `dub1` (Dublin), next to the Supabase project (AWS eu-west-1). Every API call makes several database round trips, so keeping them in the same region matters.
+  - Supabase → Authentication → URL Configuration: the Site URL and redirect URLs must include the Vercel domain (`https://<app>.vercel.app/**`), or Google sign-in returns to the wrong place.
+  - Apply every file in `supabase/migrations/` (in order) in the SQL editor.
+  - Check a deployment from a signed-in browser at `/api/diagnostics`: it reports whether the server key and TURN relay are configured (true/false only).
+- **Voice** works browser-to-browser. Between phones on mobile data it needs a TURN relay: set `METERED_TURN_APP` and `METERED_TURN_API_KEY` (Metered Open Relay, free 20 GB/month, no card), or the Cloudflare pair.
+- **Phones**: works upright and sideways; `/dev/hud` (development only) previews the HUD and games at any size without signing in.
 - **Multiplayer server** (future) → Render, as a separate Node service running Colyseus.

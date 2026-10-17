@@ -44,7 +44,7 @@ export function OnboardingHint({ touch, partnerName, ready }) {
           animate={{ opacity: 1, y: 0, transition: { delay: 0.4, duration: 0.45, ease: [0.22, 1, 0.36, 1] } }}
           exit={{ opacity: 0, y: 8, transition: { duration: 0.15 } }}
           aria-labelledby="onboarding-title"
-          className="panel pointer-events-auto flex w-[min(26rem,calc(100vw-2rem))] flex-col gap-3 p-5 short:gap-2 short:p-4"
+          className="panel pointer-events-auto flex w-full flex-col gap-3 p-5 short:gap-2 short:p-4"
         >
           <h2 id="onboarding-title" className="text-subheading text-white-soft">
             Welcome home.

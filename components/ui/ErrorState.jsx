@@ -47,7 +47,7 @@ export function ErrorState({ error, onRetry, variant = "screen", diagnostics }) 
   return (
     <div role="alert" className="app-viewport">
       <Atmosphere />
-      <div className="relative flex h-full items-center justify-center safe-inset">{body}</div>
+      <div className="relative flex h-full items-center-safe justify-center overflow-y-auto safe-inset">{body}</div>
     </div>
   );
 }

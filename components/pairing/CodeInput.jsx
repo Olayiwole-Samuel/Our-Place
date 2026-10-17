@@ -57,7 +57,7 @@ export function CodeInput({ value, onChange, onSubmit, invalid = false, disabled
           // 16px keeps iOS from zooming on focus; the field itself is invisible.
           className="absolute inset-0 z-10 h-full w-full cursor-text bg-transparent text-[16px] text-transparent caret-transparent opacity-0 outline-none disabled:cursor-not-allowed"
         />
-        <div aria-hidden="true" className="flex gap-2 short:gap-1.5">
+        <div aria-hidden="true" className="flex gap-1.5 sm:gap-2 short:gap-1.5">
           {Array.from({ length: INVITE_CODE_LENGTH }, (_, i) => {
             const char = value[i];
             const isActive = focused && !disabled && i === activeIndex && value.length < INVITE_CODE_LENGTH;
@@ -65,7 +65,7 @@ export function CodeInput({ value, onChange, onSubmit, invalid = false, disabled
             return (
               <span
                 key={i}
-                className={`grid h-14 w-11 place-items-center rounded-[var(--radius-sm)] border bg-black-950 font-mono text-code text-white-soft transition-colors short:h-12 short:w-10 sm:w-12 ${
+                className={`grid h-14 w-[clamp(2.25rem,11vw,2.75rem)] place-items-center rounded-[var(--radius-sm)] border bg-black-950 font-mono text-code text-white-soft transition-colors short:h-12 short:w-10 sm:w-12 ${
                   invalid ? "border-red-500/70" : isActive || isComplete ? ring : char ? "border-[var(--border-strong)]" : "border-[var(--border-subtle)]"
                 } ${disabled ? "opacity-60" : ""}`}
               >

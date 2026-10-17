@@ -75,7 +75,7 @@ export function ObjectCard() {
           role="dialog"
           aria-modal="false"
           aria-labelledby="object-card-title"
-          className="panel pointer-events-auto flex w-[min(24rem,calc(100vw-2rem))] flex-col gap-2 p-5 short:p-4"
+          className="panel pointer-events-auto flex w-full flex-col gap-2 p-5 short:p-4"
         >
           <div className="flex items-start justify-between gap-3">
             <div className="flex flex-col gap-1">

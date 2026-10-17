@@ -22,7 +22,7 @@ export function OfflineBanner() {
   const online = useSyncExternalStore(subscribe, () => navigator.onLine, () => true);
   if (online) return null;
   return (
-    <div role="status" className="panel pointer-events-auto mx-auto flex items-center gap-2 rounded-[var(--radius-md)] px-3 py-2 text-caption text-white-soft">
+    <div role="status" className="offline-banner panel pointer-events-auto flex items-center gap-2 rounded-[var(--radius-md)] px-3 py-2 text-caption text-white-soft">
       <WifiOff aria-hidden="true" size={15} className="text-text-muted" />
       You&apos;re offline. Reconnect to stay in Our Place.
     </div>

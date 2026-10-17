@@ -216,7 +216,7 @@ export default function Ludo({ view, me, partner, names = {}, profiles = {}, sta
         </AnimatePresence>
       </div>
 
-      <aside className="flex w-full max-w-[20rem] flex-col gap-2 sm:w-auto sm:max-w-52 sm:min-w-32 sm:flex-1 sm:py-1" aria-label="Turn">
+      <aside className="flex w-full max-w-[22rem] flex-col gap-1.5 sm:w-auto sm:max-w-52 sm:min-w-32 sm:flex-1 sm:gap-2 sm:py-1" aria-label="Turn">
         {/* The turn line stays mounted (and announced) even while customising. */}
         <p role="status" aria-live="polite" className={`text-body leading-snug font-semibold text-white-soft ${customising ? "sr-only" : ""}`}>
           {line}
@@ -229,31 +229,33 @@ export default function Ludo({ view, me, partner, names = {}, profiles = {}, sta
               {event}
             </p>
             {myDice && <DiceLeft dice={myDice} />}
-            {canRoll && (
-              <button type="button" onClick={roll} className="min-h-11 rounded-[var(--radius-md)] bg-green-600 px-4 text-body font-semibold text-white transition-transform active:scale-[0.98] sm:hidden">
-                Roll dice
-              </button>
-            )}
           </>
         )}
-        {!customising && (
-          <button type="button" onClick={() => setCustomising(true)} className="mt-auto flex min-h-10 items-center gap-2 self-start rounded-[var(--radius-md)] px-2 text-caption text-text-secondary hover:bg-black-700 hover:text-white-soft">
-            <ImagePlus aria-hidden="true" size={16} /> Customise board
-          </button>
-        )}
-        <dl className={`${customising ? "mt-auto" : ""} grid grid-cols-2 gap-2 text-caption`}>
-          {[
-            [mySeat, "You"],
-            [partnerSeat, partnerName],
-          ].map(([seat, label]) => (
-            <div key={seat} className="rounded-[var(--radius-md)] bg-black-800 px-3 py-2">
-              <dt className={`truncate text-micro tracking-normal ${SEAT_STYLE[seat].text}`}>{label}</dt>
-              <dd className="text-white-soft tabular-nums">
-                {homeCount(seat)}/{PIECES_PER_PLAYER} home
-              </dd>
-            </div>
-          ))}
-        </dl>
+        <div className={`${customising ? "" : "mt-auto"} flex items-stretch gap-2`}>
+          <dl className="grid flex-1 grid-cols-2 gap-2 text-caption">
+            {[
+              [mySeat, "You"],
+              [partnerSeat, partnerName],
+            ].map(([seat, label]) => (
+              <div key={seat} className="min-w-0 rounded-[var(--radius-md)] bg-black-800 px-3 py-1.5">
+                <dt className={`truncate text-micro tracking-normal ${SEAT_STYLE[seat].text}`}>{label}</dt>
+                <dd className="text-white-soft tabular-nums">
+                  {homeCount(seat)}/{PIECES_PER_PLAYER} home
+                </dd>
+              </div>
+            ))}
+          </dl>
+          {!customising && (
+            <button
+              type="button"
+              onClick={() => setCustomising(true)}
+              aria-label="Customise board"
+              className="grid min-h-11 min-w-11 place-items-center rounded-[var(--radius-md)] bg-black-800 text-text-secondary hover:bg-black-700 hover:text-white-soft"
+            >
+              <ImagePlus aria-hidden="true" size={18} />
+            </button>
+          )}
+        </div>
       </aside>
     </div>
   );

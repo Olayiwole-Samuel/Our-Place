@@ -28,7 +28,7 @@ export function PairingSuccess() {
   return (
     <main className="app-viewport">
       <Atmosphere mood="relationship" />
-      <div className="relative flex h-full flex-col items-center justify-center gap-6 text-center safe-inset short:gap-4">
+      <div className="relative flex h-full flex-col items-center justify-center-safe gap-6 overflow-y-auto text-center safe-inset short:gap-4">
         <div aria-hidden="true" className="relative grid h-16 w-40 place-items-center">
           <m.span
             className="absolute size-4 rounded-full bg-green-500"
