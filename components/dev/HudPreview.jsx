@@ -76,7 +76,14 @@ function Scenario() {
       useWorldStore.getState().dispatchPartner({ type: "sync", partnerPresent: true });
       const sample = SAMPLES[params.get("game")];
       if (sample) {
-        useGameStore.getState().receive(sample);
+        const phase = params.get("phase");
+        const session =
+          phase === "lobby"
+            ? { ...sample.session, status: "waiting", ready: [PARTNER.id] }
+            : phase === "result"
+              ? { ...sample.session, status: "completed", winnerId: ME.id, result: { outcome: "win", winnerId: ME.id, summary: { headline: "Home Sweet Home 🏆", line: "All four pieces made it home.", lines: { winner: "You brought all four pieces home first.", loser: "{winner} brought all four home first." } } } }
+              : sample.session;
+        useGameStore.getState().receive({ ...sample, session });
         useGameStore.setState({ error: null });
       }
       if (params.get("chat")) useChatStore.getState().setOpen(true);

@@ -127,7 +127,8 @@ function Launch({ me, partner, definition, session }) {
           : "Tap Ready when you are.";
 
   return (
-    <div className="flex flex-col items-center gap-5 px-6 py-6 text-center">
+    // Scrolls on short landscape phones, so Ready and Cancel are always reachable.
+    <div className="flex min-h-0 flex-1 flex-col items-center gap-5 overflow-y-auto px-6 py-6 text-center short:gap-3 short:py-4">
       <div>
         <p className="micro-caps text-text-muted">Game</p>
         <h2 className="text-subheading font-semibold text-white-soft">{definition.name}</h2>
@@ -296,7 +297,7 @@ function Shell({ me, partner, definition, session, phase, onEmote }) {
 
   return (
     <>
-      <header className="flex items-center gap-3 border-b border-[var(--border-subtle)] py-2 pr-2 pl-4">
+      <header className="flex shrink-0 items-center gap-3 border-b border-[var(--border-subtle)] py-2 pr-2 pl-4">
         <h2 className="flex-1 truncate text-caption font-semibold text-white-soft">{definition.name}</h2>
         {connection !== "live" && (
           <span role="status" className="shrink-0 text-micro tracking-normal text-text-muted">
@@ -314,50 +315,75 @@ function Shell({ me, partner, definition, session, phase, onEmote }) {
         )}
       </header>
 
-      <div className="game-body relative min-h-0 flex-1 overflow-auto p-4">
-        {view ? (
-          <GameErrorBoundary
-            onReturn={async () => {
-              if (phase === "playing") await useGameStore.getState().leave();
-              useGameStore.getState().dismiss();
-            }}
-          >
-            <Suspense fallback={<p className="py-10 text-center text-caption text-text-muted">Setting up your game…</p>}>
-              <GameView
-                view={view}
-                me={me.id}
-                partner={partner.id}
-                names={{ [me.id]: "You", [partner.id]: partnerName }}
-                profiles={{ [me.id]: me, [partner.id]: partner }}
-                status={session.status}
-                result={session.result}
-                busy={pending === "action"}
-                act={(type, payload) => useGameStore.getState().act(type, payload)}
-              />
-            </Suspense>
-          </GameErrorBoundary>
-        ) : (
-          <p className="py-10 text-center text-caption text-text-muted">{session.status === "cancelled" ? "This game was cancelled." : "Loading…"}</p>
+      {/* One scroll area: on a short phone the result (with its buttons, first)
+          and the game can always be scrolled into view. */}
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+        {phase === "result" && (
+          <section aria-label="Result" className="flex flex-col items-center gap-3 border-b border-[var(--border-subtle)] p-4 short:gap-2 short:p-3">
+            {outcome === "win" && session.result?.summary?.headline && <p className="micro-caps -mb-2 text-pink-400">{session.result.summary.headline}</p>}
+            <p role="status" aria-live="polite" className="text-subheading font-semibold text-white-soft">
+              {(RESULT_COPY[outcome] ?? RESULT_COPY.completed)(session, me.id, partnerName)}
+            </p>
+            {(outcome === "completed" || outcome === "win") && resultLine(session, me.id, partnerName) && <p className="-mt-2 text-caption text-text-secondary">{resultLine(session, me.id, partnerName)}</p>}
+            {outcome === "win" && <WinnerRow me={me} partner={partner} session={session} partnerName={partnerName} />}
+            <div className="flex gap-2">
+              {outcome !== "abandoned" && (
+                <button type="button" onClick={playAgain} className="flex min-h-11 items-center gap-2 rounded-[var(--radius-md)] bg-green-600 px-4 text-body font-semibold text-white">
+                  <RotateCcw aria-hidden="true" size={16} /> {outcome === "cancelled" ? "Try again" : "Play again"}
+                </button>
+              )}
+              <button type="button" onClick={() => useGameStore.getState().dismiss()} className="flex min-h-11 items-center gap-2 rounded-[var(--radius-md)] border border-[var(--border-strong)] px-4 text-body text-white-soft">
+                <Home aria-hidden="true" size={16} /> Return to Our Place
+              </button>
+            </div>
+          </section>
         )}
-        {rejection && (
-          <p role="alert" className="mt-3 text-center text-caption text-pink-400">
-            {rejection}
-          </p>
-        )}
-        {error && (
-          <p role="alert" className="mt-3 text-center text-caption text-pink-400">
-            {error.message}
-          </p>
-        )}
-        {phase === "playing" && partnerStatus === "offline" && (
-          <p role="status" className="mt-3 text-center text-caption text-text-secondary">
-            {partnerName} left Our Place. You can wait, or end the game.
-          </p>
-        )}
+        <div className="game-body relative p-4">
+          {view ? (
+            <GameErrorBoundary
+              onReturn={async () => {
+                if (phase === "playing") await useGameStore.getState().leave();
+                useGameStore.getState().dismiss();
+              }}
+            >
+              <Suspense fallback={<p className="py-10 text-center text-caption text-text-muted">Setting up your game…</p>}>
+                <GameView
+                  view={view}
+                  me={me.id}
+                  partner={partner.id}
+                  names={{ [me.id]: "You", [partner.id]: partnerName }}
+                  profiles={{ [me.id]: me, [partner.id]: partner }}
+                  status={session.status}
+                  result={session.result}
+                  busy={pending === "action"}
+                  act={(type, payload) => useGameStore.getState().act(type, payload)}
+                />
+              </Suspense>
+            </GameErrorBoundary>
+          ) : (
+            <p className="py-10 text-center text-caption text-text-muted">{session.status === "cancelled" ? "This game was cancelled." : "Loading…"}</p>
+          )}
+          {rejection && (
+            <p role="alert" className="mt-3 text-center text-caption text-pink-400">
+              {rejection}
+            </p>
+          )}
+          {error && (
+            <p role="alert" className="mt-3 text-center text-caption text-pink-400">
+              {error.message}
+            </p>
+          )}
+          {phase === "playing" && partnerStatus === "offline" && (
+            <p role="status" className="mt-3 text-center text-caption text-text-secondary">
+              {partnerName} left Our Place. You can wait, or end the game.
+            </p>
+          )}
+        </div>
+
       </div>
 
       {phase === "playing" && confirmLeave && (
-        <footer className="flex items-center justify-center gap-2 border-t border-[var(--border-subtle)] p-3">
+        <footer className="flex shrink-0 flex-wrap items-center justify-center gap-2 border-t border-[var(--border-subtle)] p-3 short:p-2">
           <span className="text-caption text-text-secondary">Leave this game? It won&apos;t count.</span>
           <button type="button" onClick={() => useGameStore.getState().leave()} className="min-h-10 rounded-[var(--radius-md)] bg-black-700 px-3 text-caption text-white-soft">
             Leave
@@ -368,26 +394,6 @@ function Shell({ me, partner, definition, session, phase, onEmote }) {
         </footer>
       )}
 
-      {phase === "result" && (
-        <footer className="flex flex-col items-center gap-3 border-t border-[var(--border-subtle)] p-4">
-          {outcome === "win" && session.result?.summary?.headline && <p className="micro-caps -mb-2 text-pink-400">{session.result.summary.headline}</p>}
-          <p role="status" aria-live="polite" className="text-subheading font-semibold text-white-soft">
-            {(RESULT_COPY[outcome] ?? RESULT_COPY.completed)(session, me.id, partnerName)}
-          </p>
-          {(outcome === "completed" || outcome === "win") && resultLine(session, me.id, partnerName) && <p className="-mt-2 text-caption text-text-secondary">{resultLine(session, me.id, partnerName)}</p>}
-          {outcome === "win" && <WinnerRow me={me} partner={partner} session={session} partnerName={partnerName} />}
-          <div className="flex gap-2">
-            {outcome !== "abandoned" && (
-              <button type="button" onClick={playAgain} className="flex min-h-11 items-center gap-2 rounded-[var(--radius-md)] bg-green-600 px-4 text-body font-semibold text-white">
-                <RotateCcw aria-hidden="true" size={16} /> {outcome === "cancelled" ? "Try again" : "Play again"}
-              </button>
-            )}
-            <button type="button" onClick={() => useGameStore.getState().dismiss()} className="flex min-h-11 items-center gap-2 rounded-[var(--radius-md)] border border-[var(--border-strong)] px-4 text-body text-white-soft">
-              <Home aria-hidden="true" size={16} /> Return to Our Place
-            </button>
-          </div>
-        </footer>
-      )}
     </>
   );
 }
