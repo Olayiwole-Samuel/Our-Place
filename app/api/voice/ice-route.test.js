@@ -76,6 +76,12 @@ describe("Metered Open Relay TURN", () => {
     expect(JSON.stringify(result)).not.toContain("odd chars");
   });
 
+  it("tolerates pasted values with spaces, quotes or the whole URL", async () => {
+    const fetcher = metered();
+    await getIceServers({ env: { METERED_TURN_APP: ' "https://ourplace.metered.live/api/v1/turn/credentials" ', METERED_TURN_API_KEY: " 'https://ourplace.metered.live/api/v1/turn/credentials?apiKey=abc123' " }, fetcher });
+    expect(fetcher.mock.calls[0][0]).toBe("https://ourplace.metered.live/api/v1/turn/credentials?apiKey=abc123");
+  });
+
   it("accepts the full subdomain too, caches, and falls back to STUN on failure", async () => {
     const fetcher = metered();
     await getIceServers({ env: { ...env, METERED_TURN_APP: "ourplace.metered.live" }, fetcher });
