@@ -11,12 +11,12 @@ export const dynamic = "force-dynamic";
  * server before the first byte of HTML, so the right screen arrives immediately —
  * no login flash, no pairing flash. Paired couples go straight to their world.
  *
- *   signed out → welcome   unpaired → pairing   paired → /character (first time) or /lobby
+ *   signed out → welcome   unpaired → pairing   paired → /lobby
  */
 export default async function Home({ searchParams }) {
   const [viewer, params] = await Promise.all([resolveViewer(), searchParams]);
   if (viewer.status === "signed_in" && viewer.couple.status === "paired") {
-    redirect(viewer.characters?.mine ? "/lobby" : "/character");
+    redirect("/lobby");
   }
   const authError = typeof params.auth_error === "string" ? params.auth_error : undefined;
 

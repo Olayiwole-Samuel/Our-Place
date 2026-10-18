@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { isSupabaseConfigured } from "@/lib/config/env";
 import { reportError } from "@/lib/errors";
 import { joinCouplePresence } from "@/lib/realtime/couplePresence";
@@ -15,13 +15,16 @@ import { useWorldStore } from "@/store/worldStore";
  * - partner pose snapshots → runtime.partnerBuffer (interpolated by RemotePlayer)
  * - presence sync / deliberate leave → partner status machine (worldStore)
  * - a dropped partner connection → "away" for a grace period, then offline
+ * - partner switched character → onPartnerCharacter (reload theirs)
  * - arrival → "❤️ <name>'s here." toast (departure is shown calmly in the status, no toast)
  * - closing the tab / signing out → deliberate leave (instant for the partner)
  *
  * Identity used here (couple id, own id, partner id) comes from the
  * server-verified couple state; the channel itself is authorized by RLS.
  */
-export function useCouplePresence({ runtime, coupleId, userId, partnerId }) {
+export function useCouplePresence({ runtime, coupleId, userId, partnerId, onPartnerCharacter }) {
+  const characterChanged = useRef(onPartnerCharacter);
+  characterChanged.current = onPartnerCharacter;
   useEffect(() => {
     const world = useWorldStore.getState();
     if (!isSupabaseConfigured()) {
@@ -53,6 +56,7 @@ export function useCouplePresence({ runtime, coupleId, userId, partnerId }) {
             },
             onPartnerPose: (pose) => runtime.partnerBuffer.push(pose, performance.now()),
             onPartnerLeft: () => dispatch({ type: "partner_left" }),
+            onPartnerCharacter: () => characterChanged.current?.(),
           },
         });
         runtime.presence = presence;

@@ -6,6 +6,7 @@ import { Component, Suspense, lazy, useEffect, useRef, useState } from "react";
 import { ProfileAvatar } from "@/components/ui/ProfileAvatar";
 import { gameRegistry } from "@/lib/game/catalog";
 import { loadGameClient } from "@/lib/game/loader";
+import { useChatStore } from "@/store/chatStore";
 import { useGameStore, sessionPhase } from "@/store/gameStore";
 import { useWorldStore } from "@/store/worldStore";
 
@@ -20,13 +21,15 @@ import { useWorldStore } from "@/store/worldStore";
  *   result    outcome → Play again / Return to Our Place
  *
  * It floats over the living room: the room, both characters (and their emotes),
- * chat and voice stay present the whole time. Chat/voice/emotes are the Phase 4
+ * chat and voice stay present the whole time — chat opens over (or, on wide
+ * screens, beside) the game, so nobody has to leave a game to talk. Chat/voice/emotes are the Phase 4
  * systems in the HUD — games don't get their own.
  */
 export function GameStage({ me, partner, onEmote }) {
   const session = useGameStore((state) => state.session);
   const phase = sessionPhase(session, me.id);
   const definition = session ? gameRegistry.get(session.gameId) : null;
+  const chatOpen = useChatStore((state) => state.open);
 
   // While a game is open the world doesn't take movement keys (typing/clicking
   // in the game must not walk the character); characters stay visible.
@@ -40,7 +43,9 @@ export function GameStage({ me, partner, onEmote }) {
       {(phase === "lobby" || phase === "playing" || phase === "result") && definition && (
         <m.div
           key={`stage-${session.id}`}
-          className="pointer-events-none absolute inset-0 z-30 grid place-items-center bg-black-950/35 safe-inset"
+          // Chat open: wide screens move the game left so the two sit side by side.
+          data-chat={chatOpen ? "true" : "false"}
+          className="game-stage pointer-events-none absolute inset-0 z-30 grid place-items-center bg-black-950/35 safe-inset"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0, transition: { duration: 0.18 } }}

@@ -351,38 +351,10 @@
 }
 
 /* ── Game menu & game stage (Phase 5) ───────────────────────────────────── */
-/* The rail floats on the right edge, between the top-right controls and the
-   bottom-right dock. Its grid adapts to the height actually available, so it
-   never reaches the dock: tall screens one column of ten; shorter screens two
-   columns of five; landscape phones with browser bars three or four columns. */
+/* One Games button on the right edge, under the top-right controls. Its panel
+   (categories → games) drops down from it and stops above the bottom HUD row. */
 :root {
-  --game-rail-button: var(--control-size);
-  --game-rail-rows: 10;
-  --game-rail-width: calc(var(--game-rail-button) + 14px);
-}
-
-@media (max-height: 619px) {
-  :root {
-    --game-rail-button: 40px;
-    --game-rail-rows: 5;
-    --game-rail-width: calc(2 * var(--game-rail-button) + 18px);
-  }
-}
-
-@media (max-height: 399px) {
-  :root {
-    --game-rail-button: 36px;
-    --game-rail-rows: 4;
-    --game-rail-width: calc(3 * var(--game-rail-button) + 22px);
-  }
-}
-
-@media (max-height: 299px) {
-  :root {
-    --game-rail-button: 34px;
-    --game-rail-rows: 3;
-    --game-rail-width: calc(4 * var(--game-rail-button) + 26px);
-  }
+  --game-rail-width: var(--control-size);
 }
 
 .game-rail-anchor {
@@ -391,23 +363,11 @@
   top: calc(var(--safe-top) + var(--edge-gap) + var(--control-size) + 12px);
 }
 
-.game-rail {
-  display: grid;
-  grid-auto-flow: column;
-  grid-template-rows: repeat(var(--game-rail-rows), var(--game-rail-button));
-  grid-auto-columns: var(--game-rail-button);
-  gap: 4px;
-}
-
-.game-rail-button {
-  width: var(--game-rail-button);
-  height: var(--game-rail-button);
-}
-
-/* The drawer opens to the rail's left and stops above the bottom HUD row. */
 .game-drawer {
-  width: min(20rem, calc(100vw - var(--safe-left) - var(--safe-right) - 2 * var(--edge-gap) - var(--game-rail-width) - 16px));
-  max-height: calc(100dvh - var(--safe-top) - var(--safe-bottom) - 2 * var(--edge-gap) - 2 * var(--control-size) - 36px);
+  width: min(20rem, calc(100vw - var(--safe-left) - var(--safe-right) - 2 * var(--edge-gap)));
+  max-height: calc(100dvh - var(--safe-top) - var(--safe-bottom) - 2 * var(--edge-gap) - 3 * var(--control-size) - 44px);
+  min-height: min(12rem, calc(100dvh - var(--safe-top) - var(--safe-bottom) - 2 * var(--edge-gap) - 3 * var(--control-size) - 44px));
+  z-index: 40;
 }
 
 /* Chat sits left of the rail so the two never overlap — except on narrow
@@ -419,6 +379,28 @@
   .chat-panel {
     right: calc(var(--safe-right) + var(--edge-gap));
   }
+}
+
+/* Chat, voice and emotes stay above an open game: talking never means leaving it. */
+.hud-actions {
+  z-index: 35;
+}
+/* Wide screens: with chat open, the game moves left so both are fully visible. */
+@media (min-width: 1024px) {
+  .game-stage[data-chat="true"] {
+    padding-right: calc(22rem + var(--edge-gap) + var(--game-rail-width) + 16px);
+  }
+}
+/* Narrower screens: chat covers the game, but only the lower part, so the
+   board stays in view above it while you type. */
+@media (max-width: 1023px) {
+  .hud[data-ingame="true"] .chat-panel {
+    height: min(19rem, 42dvh);
+    min-height: min(11rem, 42dvh);
+  }
+}
+.game-shell {
+  max-width: 100%;
 }
 
 /* The game shell floats over the room's centre; the bottom HUD row stays clear. */

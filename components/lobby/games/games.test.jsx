@@ -59,28 +59,36 @@ describe("game metadata for the menu", () => {
 });
 
 describe("in-world game menu", () => {
-  it("shows the ten categories in order as labelled controls", () => {
+  const openCategory = async (name) => {
+    fireEvent.click(screen.getByRole("button", { name: "Games" }));
+    fireEvent.click(await screen.findByRole("button", { name: (accessibleName) => accessibleName.startsWith(name) }));
+    return screen.findByRole("complementary", { name: `${name} games` });
+  };
+
+  it("is one Games button that opens the ten categories in order", async () => {
     render(<GameMenu />);
-    const rail = screen.getByRole("toolbar", { name: "Game categories" });
-    const names = [...rail.querySelectorAll("button")].map((b) => b.getAttribute("aria-label"));
-    expect(names).toEqual(GAME_CATEGORIES.map((c) => c.name));
+    expect(screen.queryByRole("complementary")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Games" }));
+    const panel = await screen.findByRole("complementary", { name: "Game categories" });
+    const names = [...panel.querySelectorAll("[data-category]")].map((b) => b.querySelector(".font-semibold").textContent);
+    expect(names).toEqual([...GAME_CATEGORIES].sort((a, b) => a.order - b.order).map((c) => c.name));
     expect(names).toContain("Flirty / Spicy");
   });
 
-  it("a category opens its drawer of games; Escape closes it", async () => {
+  it("a category shows its games; Back returns to the categories; Escape closes", async () => {
     render(<GameMenu />);
-    fireEvent.click(screen.getByRole("button", { name: "Board & Strategy" }));
-    const drawer = await screen.findByRole("complementary", { name: "Board & Strategy games" });
+    const drawer = await openCategory("Board & Strategy");
     for (const name of ["Chess", "Ludo", "Tic Tac Toe", "Battleship"]) expect(drawer.textContent).toContain(name);
     expect(drawer.textContent).toContain("Coming soon");
-    expect(screen.getByRole("button", { name: "Board & Strategy" }).getAttribute("aria-expanded")).toBe("true");
+    fireEvent.click(screen.getByRole("button", { name: "Back to categories" }));
+    await screen.findByRole("complementary", { name: "Game categories" });
     act(() => document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" })));
     await waitFor(() => expect(useGameStore.getState().drawer).toBeNull());
   });
 
   it("unavailable games don't launch — they say so", async () => {
     render(<GameMenu />);
-    fireEvent.click(screen.getByRole("button", { name: "Board & Strategy" }));
+    await openCategory("Board & Strategy");
     fireEvent.click(await screen.findByRole("button", { name: /^Chess/ }));
     expect(fetchMock).not.toHaveBeenCalled();
     expect(screen.getByText("This game isn't ready yet.")).toBeTruthy();
@@ -88,24 +96,23 @@ describe("in-world game menu", () => {
 
   it("18+ games are locked by default", async () => {
     render(<GameMenu />);
-    fireEvent.click(screen.getByRole("button", { name: "Flirty / Spicy" }));
-    const drawer = await screen.findByRole("complementary", { name: "Flirty / Spicy games" });
+    const drawer = await openCategory("Flirty / Spicy");
     expect(drawer.textContent).toContain("18+ · Locked");
     fireEvent.click(screen.getByRole("button", { name: /^Truth or Dare/ }));
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it("selecting an available game creates a session and closes the drawer", async () => {
+  it("selecting an available game creates a session and closes the menu", async () => {
     render(<GameMenu />);
-    fireEvent.click(screen.getByRole("button", { name: "Board & Strategy" }));
+    await openCategory("Board & Strategy");
     await act(async () => fireEvent.click(await screen.findByRole("button", { name: /^Tic Tac Toe/ })));
     expect(fetchMock).toHaveBeenCalledWith("/api/games/sessions", expect.objectContaining({ method: "POST", body: JSON.stringify({ gameId: "tic_tac_toe" }) }));
     expect(useGameStore.getState()).toMatchObject({ drawer: null, session: { id: SESSION_ID, status: "waiting" } });
   });
 
-  it("opening chat closes the drawer (they share the right side)", async () => {
+  it("opening chat closes the menu (they share the right side)", async () => {
     render(<GameMenu />);
-    fireEvent.click(screen.getByRole("button", { name: "Puzzle" }));
+    await openCategory("Puzzle");
     act(() => useChatStore.getState().setOpen(true));
     await waitFor(() => expect(useGameStore.getState().drawer).toBeNull());
   });

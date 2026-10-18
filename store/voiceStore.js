@@ -2,13 +2,14 @@
 
 import { create } from "zustand";
 import { logConnection } from "@/lib/diagnostics/connectionLog";
+import { createAgoraVoiceSession } from "@/lib/voice/agoraVoiceSession";
 import { createPeerVoiceSession } from "@/lib/voice/peerVoiceSession";
 import { createVoiceSession } from "@/lib/voice/voiceSession";
 
 /**
  * Voice state — the only place voice state lives. The call itself is
- * encapsulated in lib/voice/peerVoiceSession.js (direct) or voiceSession.js
- * (Daily); this store owns ONE session per
+ * encapsulated in lib/voice/agoraVoiceSession.js (Agora), peerVoiceSession.js
+ * (direct) or voiceSession.js (Daily); this store owns ONE session per
  * page and exposes plain state + three actions to the UI.
  *
  *   status      "idle" | "connecting" | "connected" | "reconnecting" | "disconnected"
@@ -24,14 +25,15 @@ import { createVoiceSession } from "@/lib/voice/voiceSession";
 const LINGER_MS = 4000;
 
 /**
- * Voice provider: "p2p" (default — direct browser-to-browser WebRTC, free) or
- * "daily" (Daily.co rooms; needs DAILY_API_KEY and a Daily account with a
- * payment method on file). Both expose the same session interface.
+ * Voice provider. By default Agora when the server has it configured
+ * (AGORA_APP_ID + AGORA_APP_CERTIFICATE), otherwise direct browser-to-browser
+ * WebRTC. NEXT_PUBLIC_VOICE_PROVIDER=daily selects Daily.co instead, and
+ * NEXT_PUBLIC_VOICE_PROVIDER=p2p forces direct voice. All expose the same
+ * session interface.
  */
-export const VOICE_PROVIDER = process.env.NEXT_PUBLIC_VOICE_PROVIDER === "daily" ? "daily" : "p2p";
+export const VOICE_PROVIDER = ["daily", "p2p"].includes(process.env.NEXT_PUBLIC_VOICE_PROVIDER) ? process.env.NEXT_PUBLIC_VOICE_PROVIDER : "auto";
 
-function createSession({ coupleId, userId, partnerId, onState }) {
-  if (VOICE_PROVIDER === "daily") return createVoiceSession({ fetchAccess, partnerId, onState });
+function createPeerSession({ coupleId, userId, partnerId, onState }) {
   return createPeerVoiceSession({
     getSupabase: () => import("@/lib/supabase/client").then(({ getSupabaseBrowserClient }) => getSupabaseBrowserClient()),
     getIceServers: fetchIceServers,
@@ -40,6 +42,60 @@ function createSession({ coupleId, userId, partnerId, onState }) {
     partnerId,
     onState,
   });
+}
+
+function createSession(options) {
+  if (VOICE_PROVIDER === "daily") return createVoiceSession({ fetchAccess: () => fetchAccess("/api/voice/token"), partnerId: options.partnerId, onState: options.onState });
+  if (VOICE_PROVIDER === "p2p") return createPeerSession(options);
+  return createAutoSession(options);
+}
+
+/**
+ * Agora when the server has credentials for it, else direct voice. Decided on
+ * connect (one request), then every call goes to the chosen session.
+ */
+export function createAutoSession(options, { agora = createAgoraVoiceSession, peer = createPeerSession, fetchAgoraAccess = () => fetchAccess("/api/voice/agora") } = {}) {
+  let inner = null;
+  let destroyed = false;
+  let pendingMic = null;
+  return {
+    async connect() {
+      let first = null;
+      try {
+        first = await fetchAgoraAccess();
+      } catch (error) {
+        if (error?.code !== "voice_unavailable") first = error; // Agora is set up but unreachable: let its session retry
+      }
+      if (destroyed) return;
+      if (first) {
+        let handed = first instanceof Error ? null : first;
+        const fetchAgora = async () => {
+          if (handed) {
+            const access = handed;
+            handed = null;
+            return access;
+          }
+          return fetchAgoraAccess();
+        };
+        inner = agora({ fetchAccess: fetchAgora, partnerId: options.partnerId, onState: options.onState });
+      } else {
+        inner = peer(options);
+      }
+      await inner.connect();
+      if (pendingMic !== null) inner.setMic(pendingMic);
+    },
+    setMic(enabled) {
+      if (inner) return inner.setMic(enabled);
+      pendingMic = enabled;
+      return undefined;
+    },
+    unlockAudio: () => inner?.unlockAudio(),
+    retryNow: () => inner?.retryNow(),
+    async destroy() {
+      destroyed = true;
+      await inner?.destroy();
+    },
+  };
 }
 
 const initialState = {
@@ -70,10 +126,10 @@ async function fetchIceServers() {
   }
 }
 
-async function fetchAccess() {
+async function fetchAccess(path) {
   let response;
   try {
-    response = await fetch("/api/voice/token", {
+    response = await fetch(path, {
       method: "POST",
       credentials: "same-origin",
       cache: "no-store",
@@ -84,7 +140,7 @@ async function fetchAccess() {
     throw Object.assign(new Error("network"), { code: "network" });
   }
   const payload = await response.json().catch(() => null);
-  if (!response.ok || !payload?.url || !payload?.token) {
+  if (!response.ok || !payload?.token) {
     throw Object.assign(new Error("voice"), { code: payload?.error?.code ?? "voice_failed" });
   }
   return payload;

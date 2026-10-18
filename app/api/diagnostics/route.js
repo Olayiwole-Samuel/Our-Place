@@ -1,4 +1,5 @@
 import { apiOk, authenticatedRoute } from "@/lib/api/route";
+import { isAgoraConfigured } from "@/lib/voice/agora.server";
 import { turnProvider } from "@/lib/voice/ice.server";
 
 export const dynamic = "force-dynamic";
@@ -11,7 +12,7 @@ export const dynamic = "force-dynamic";
 export const GET = authenticatedRoute(async () =>
   apiOk({
     serviceRoleKey: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY),
-    voiceProvider: process.env.NEXT_PUBLIC_VOICE_PROVIDER === "daily" ? "daily" : "p2p",
+    voiceProvider: ["daily", "p2p"].includes(process.env.NEXT_PUBLIC_VOICE_PROVIDER) ? process.env.NEXT_PUBLIC_VOICE_PROVIDER : isAgoraConfigured() ? "agora" : "p2p",
     turnRelay: turnProvider() ?? "none",
     region: process.env.VERCEL_REGION ?? "local",
     commit: process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ?? "local",

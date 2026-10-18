@@ -61,6 +61,7 @@ Without valid Supabase credentials the app still runs: the welcome screen shows 
 | `npm run lint` | ESLint (Next.js core-web-vitals rules) |
 | `npm test` | All tests: unit, component (jsdom), and database security tests (real migrations in PGlite) |
 | `npm run check` | Lint + tests + build — run before every merge |
+| `npm run characters:build` | Build the male/female characters and their animations from Mixamo downloads in `assets-src/mixamo/` (docs/characters.md) |
 | `npm run gallery:build` | Build the character gallery from free CC0 packs in `assets-src/` |
 | `node scripts/bench-headless.mjs` | Measure the living room in headless Chrome (needs `npm run dev`); see docs/performance.md |
 | `node scripts/bench-lifecycle.mjs` | Check avatar GPU memory across quality changes and leave/re-enter (needs `npm run dev`) |
@@ -77,6 +78,7 @@ See [.env.example](.env.example) for the authoritative list with comments.
 | `SUPABASE_SERVICE_ROLE_KEY` | **Server only** | `lib/supabase/admin.js` — **required** for games, win streaks and couple photos |
 | `NEXT_PUBLIC_VOICE_PROVIDER` | Public | `p2p` (default, free) or `daily` |
 | `DAILY_API_KEY` | **Server only** | `lib/voice/daily.server.js` (only when the voice provider is `daily`) |
+| `AGORA_APP_ID`, `AGORA_APP_CERTIFICATE` | **Server only** | Voice over Agora (`lib/voice/agora.server.js`) — used automatically when set. Free 10,000 participant-minutes a month |
 | `METERED_TURN_APP`, `METERED_TURN_API_KEY` | **Server only** | TURN relay for direct voice (`lib/voice/ice.server.js`) — needed for voice between phones on mobile data. Metered Open Relay: free 20 GB/month, no card |
 | `CLOUDFLARE_TURN_KEY_ID`, `CLOUDFLARE_TURN_KEY_API_TOKEN` | **Server only** | Alternative relay (Cloudflare; asks for a card) |
 | `TURN_URLS`, `TURN_USERNAME`, `TURN_CREDENTIAL` | **Server only** | Alternative: any TURN provider with fixed credentials |

@@ -21,7 +21,8 @@ function dayLabel(ms) {
 }
 
 /**
- * The chat panel: floats over the world's bottom-right corner, never navigates
+ * The chat panel: floats over the world's bottom-right corner — and over an
+ * open game, so the couple can keep talking while they play. Never navigates
  * away. Text is always rendered as text (React escapes it; no HTML injection).
  */
 export function ChatPanel({ meId, partnerName, onClose, onComposerFocus, panelId }) {
@@ -123,7 +124,7 @@ export function ChatPanel({ meId, partnerName, onClose, onComposerFocus, panelId
       id={panelId}
       aria-label={`Chat with ${partnerName}`}
       style={keyboardInset ? { bottom: keyboardInset } : undefined}
-      className="chat-panel panel pointer-events-auto fixed z-30 flex flex-col overflow-hidden rounded-[var(--radius-lg)] shadow-[0_18px_48px_rgba(0,0,0,0.45)] [animation:panel-in_180ms_var(--ease-out-soft)] motion-reduce:animate-none"
+      className="chat-panel panel pointer-events-auto fixed z-40 flex flex-col overflow-hidden rounded-[var(--radius-lg)] shadow-[0_18px_48px_rgba(0,0,0,0.45)] [animation:panel-in_180ms_var(--ease-out-soft)] motion-reduce:animate-none"
     >
       <header className="flex items-center justify-between gap-2 border-b border-[var(--border-subtle)] py-2 pr-1.5 pl-4">
         <div className="flex min-w-0 items-center gap-2">

@@ -13,7 +13,6 @@ export const dynamic = "force-dynamic";
  *   signed out / unconfigured  → "/" (sign in)
  *   signed in, unpaired        → "/" (pairing)
  *   Supabase unreachable       → connection error with retry (not a redirect loop)
- *   paired, no character yet   → /character (create yourself first)
  *   signed in + paired         → the world
  */
 export default async function LobbyPage() {
@@ -27,7 +26,6 @@ export default async function LobbyPage() {
     );
   }
   if (viewer.status !== "signed_in" || viewer.couple.status !== "paired") redirect("/");
-  if (!viewer.characters?.mine) redirect("/character");
 
   return (
     <AppProviders viewer={viewer}>

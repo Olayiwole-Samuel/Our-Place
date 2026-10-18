@@ -121,6 +121,31 @@ function ProceduralCharacter({ config, motion, opacity, reducedMotion, castShado
  *    (lib/character/retarget.js): the same walk, sit and emotes as the built-in
  *    character, performed by the person's actual model.
  */
+// Ground speed (m/s) the library's walk and run cycles were captured at, and
+// the world's full walking speed (motion.speed is 0..1 of it; LocalPlayer).
+const WALK_CLIP_SPEED = 1.4;
+const RUN_CLIP_SPEED = 3.4;
+const WORLD_WALK_SPEED = 2.1;
+
+/**
+ * A library's clips, named by our states/emotes. Two shapes:
+ *   { file, map }   one file with many clips; `map` names ours → theirs
+ *   { clips }       one file per clip (Mixamo: idle.glb, walk.glb, …), named
+ *                   after the file's key; a missing one is simply not played
+ */
+async function loadLibraryClips(library) {
+  if (!library.clips) return loadClipLibrary(library.file);
+  const entries = Object.entries(library.clips);
+  const loaded = await Promise.allSettled(entries.map(([, url]) => loadClipLibrary(url)));
+  return loaded.flatMap((result, index) => {
+    const clip = result.status === "fulfilled" ? result.value[0] : null;
+    if (!clip) return [];
+    const named = clip.clone();
+    named.name = entries[index][0];
+    return [named];
+  });
+}
+
 function ModelCharacter({ model, motion, opacity, reducedMotion, quality, textureMax, castShadow, cull, onError, fallback }) {
   const [instance, setInstance] = useState(null);
   const [clips, setClips] = useState(null);
@@ -147,7 +172,7 @@ function ModelCharacter({ model, motion, opacity, reducedMotion, quality, textur
   useEffect(() => {
     if (!library) return undefined;
     let cancelled = false;
-    loadClipLibrary(library.file)
+    loadLibraryClips(library)
       .then((loaded) => !cancelled && setClips(loaded))
       .catch(() => {}); // no clips → rest pose; the character itself still renders
     return () => {
@@ -237,6 +262,11 @@ function ModelCharacter({ model, motion, opacity, reducedMotion, quality, textur
         current.current?.fadeOut(0.25);
         next.reset().fadeIn(0.25).play();
         current.current = next;
+      }
+      // Feet match the ground: the walk/run cycle plays at the speed actually moved.
+      if (next && (next === actions.current.walk || next === actions.current.run)) {
+        const base = next === actions.current.run ? RUN_CLIP_SPEED : WALK_CLIP_SPEED;
+        next.timeScale = speed > 0 ? THREE.MathUtils.clamp((speed * WORLD_WALK_SPEED) / base, 0.6, 1.6) : 1;
       }
     }
     mixer.update(delta);

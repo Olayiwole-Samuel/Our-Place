@@ -2,7 +2,43 @@
 
 Every person in Our Place is a **full-body, rigged 3D humanoid**: head, face, hair, neck, torso, both arms and hands, pelvis, both legs and feet. They are driven by one skeleton and one animation controller, so the same character walks, sits and (from Phase 4) emotes in the living room, game rooms and the Range Room.
 
-## Where a character comes from
+## Male / female characters (current)
+
+Everyone is one of two realistic, motion-captured characters, **Male** or **Female**, from [Mixamo](https://www.mixamo.com) (free with an Adobe account; royalty-free use in projects). There is no personal designing or importing any more: you choose a look from the account menu (**Your character: Male / Female**), any time, also while a game is open, and your partner sees the change at once (a `character` broadcast on the presence channel makes them reload it). Until you choose, you appear as the default look (Male). `lib/character/looks.js` holds the rules. `/character` now redirects to the world.
+
+Until the models are built, the gallery is empty and characters render as before.
+
+### Getting the Mixamo files (once)
+
+Sign in at mixamo.com and save every file into `assets-src/mixamo/` (git-ignored) with exactly these names.
+
+**Characters** (Characters tab → pick one → Download → Format **FBX Binary (.fbx)**, Pose **T-pose**):
+
+| File | Suggestion |
+| --- | --- |
+| `male.fbx` | any realistic clothed man, e.g. Remy |
+| `female.fbx` | any realistic clothed woman, e.g. Jody or Kate |
+
+**Animations** (Animations tab → search → Download → **FBX Binary**, **Without Skin**, 30 fps; tick **In Place** whenever it's offered):
+
+| File | Search Mixamo for |
+| --- | --- |
+| `idle.fbx` (required) | Breathing Idle |
+| `walk.fbx` (required) | Walking |
+| `run.fbx` | Jogging |
+| `sit.fbx` | Sitting Idle |
+| `wave.fbx` | Waving |
+| `laugh.fbx` | Laughing |
+| `cry.fbx` | Crying |
+| `kiss.fbx` | Blow A Kiss |
+| `dance.fbx` | Hip Hop Dancing (or any dance) |
+| `celebrate.fbx` | Victory |
+| `angry.fbx` | Angry |
+| `heart.fbx` | Thankful |
+
+Then run `npm run characters:build`. It converts everything (FBX2glTF), compresses it (meshopt + WebP) into `public/models/characters/{male,female}.glb` and `public/models/animations/mixamo/*.glb`, and writes `lib/character/gallery.manifest.json`. Commit those outputs. Walk cycles play at the speed the character actually moves, so the feet don't slide.
+
+## Earlier character sources (kept in code, no longer offered)
 
 | Source (`characters.provider`) | Status | What it is |
 | --- | --- | --- |

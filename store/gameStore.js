@@ -6,7 +6,7 @@ import { gameApi } from "@/lib/game/client";
 /**
  * Game UI + session state (module store, like worldStore/chatStore).
  *
- *   drawer      category id whose drawer is open in the game menu, or null
+ *   drawer      the game menu: null (closed), MENU (the category list) or a category id
  *   session     the couple's current session summary (from the server), or null
  *   view        MY view of the authoritative game state (from the server), or null
  *   pending     the request in flight: "create" | "join" | "ready" | "action" | "leave" | null
@@ -17,6 +17,9 @@ import { gameApi } from "@/lib/game/client";
  * Authoritative game state never lives here beyond the latest server view, and
  * nothing here is sent back as truth: actions are intents the server validates.
  */
+/** `drawer` value for the game menu's category list. */
+export const MENU = "menu";
+
 const OPEN = new Set(["created", "waiting", "ready", "active", "paused"]);
 
 const initialState = {
@@ -51,6 +54,7 @@ export const useGameStore = create((set, get) => ({
   },
   reset: () => set(initialState),
 
+  openMenu: () => set({ drawer: MENU }),
   openCategory: (drawer) => set({ drawer }),
   closeDrawer: () => set({ drawer: null }),
   setConnection: (connection) => set({ connection }),

@@ -1,7 +1,6 @@
 "use client";
 
 import { AnimatePresence, m } from "motion/react";
-import Link from "next/link";
 import { useEffect, useId, useRef, useState, useSyncExternalStore } from "react";
 import { SignOutButton } from "@/components/auth/SignOutButton";
 import { connectionLog, formatConnectionLog, subscribeConnectionLog } from "@/lib/diagnostics/connectionLog";
@@ -9,12 +8,13 @@ import { GRAPHICS_PREFERENCES } from "@/lib/performance/profiles";
 import { setSoundsEnabled, soundsEnabled, subscribeSounds } from "@/lib/ui/sounds";
 import { usePerformanceStore } from "@/store/performanceStore";
 import { useAuthStore } from "@/store/authStore";
+import { CharacterSwitch } from "./CharacterSwitch";
 
 /**
  * Small account menu in the world's corner. Deliberately contains no
  * leave/unpair/partner controls — pairing is permanent by design.
  */
-export function AccountMenu({ beforeSignOut }) {
+export function AccountMenu({ beforeSignOut, runtime }) {
   const email = useAuthStore((state) => state.user?.email);
   const [open, setOpen] = useState(false);
   const menuId = useId();
@@ -68,12 +68,7 @@ export function AccountMenu({ beforeSignOut }) {
             className="panel absolute top-full right-0 z-20 mt-2 flex max-h-[calc(100dvh-var(--safe-top)-var(--safe-bottom)-2*var(--edge-gap)-var(--control-size)-16px)] w-60 origin-top-right flex-col gap-2 overflow-y-auto overscroll-contain rounded-[var(--radius-md)] p-2"
           >
             {email && <p className="truncate px-2 pt-1 text-caption text-text-muted">{email}</p>}
-            <Link
-              href="/character"
-              className="flex min-h-11 items-center rounded-[var(--radius-md)] px-3 text-body text-white-soft hover:bg-black-800"
-            >
-              My character
-            </Link>
+            <CharacterSwitch runtime={runtime} />
             <SoundToggle />
             <GraphicsSetting />
             <ConnectionLog />

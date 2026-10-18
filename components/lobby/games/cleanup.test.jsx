@@ -37,7 +37,7 @@ describe("game cleanup", () => {
   it("closing the drawer removes its keyboard listener", () => {
     const remove = vi.spyOn(document, "removeEventListener");
     render(<GameMenu />);
-    fireEvent.click(screen.getByRole("button", { name: "Puzzle" }));
+    fireEvent.click(screen.getByRole("button", { name: "Games" }));
     act(() => useGameStore.getState().closeDrawer());
     expect(remove).toHaveBeenCalledWith("keydown", expect.any(Function));
     remove.mockRestore();

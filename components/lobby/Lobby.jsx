@@ -1,18 +1,20 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { WorldStage } from "@/components/3d/World/WorldStage";
 import { Wordmark } from "@/components/brand/Wordmark";
 import { LoadingScreen } from "@/components/ui/LoadingScreen";
 import { useCoarsePointer } from "@/hooks/useMediaQuery";
 import { livingRoom } from "@/lib/world/rooms/livingRoom";
 import { createWorldRuntime } from "@/lib/world/runtime";
-import { useCharacterStore } from "@/store/characterStore";
+import { displayedCharacter } from "@/lib/character/looks";
+import { useCharacterStore, useCharacterStoreApi } from "@/store/characterStore";
 import { useChatStore } from "@/store/chatStore";
 import { useCoupleStore } from "@/store/coupleStore";
 import { useVoiceStore } from "@/store/voiceStore";
 import { useWorldStore } from "@/store/worldStore";
 import { AccountMenu } from "./AccountMenu";
+import { ChooseCharacterCard } from "./CharacterSwitch";
 import { InteractPrompt, ObjectCard, SeatedHint } from "./InteractionUI";
 import { Joystick } from "./Joystick";
 import { OfflineBanner } from "./OfflineBanner";
@@ -33,7 +35,7 @@ const PRESENCE_WAIT_MS = 5000;
  * sits at the edges inside the safe area and never covers the middle:
  *
  *   top-left      partner + presence          top-right   connection, account
- *   right         the floating game menu (ten categories → drawer → game)
+ *   right         the Games button (categories → games → launch)
  *   bottom-left   joystick (touch)            bottom-right interact; emotes · chat · mic
  *   bottom-centre contextual cards (object info, first-visit hint, seated hint)
  *
@@ -56,17 +58,20 @@ function LivingRoom({ me, partner, couple }) {
   const connection = useWorldStore((state) => state.connection);
   const partnerStatus = useWorldStore((state) => state.partner.status);
   const partnerName = partner.displayName?.split(" ")[0] || "Your person";
-  // Saved characters (server-confirmed). The partner may not have created theirs
-  // yet — they then appear as the default built-in character.
-  const myCharacter = useCharacterStore((state) => state.mine);
-  const partnerCharacter = useCharacterStore((state) => state.partner);
+  // Saved characters (server-confirmed), shown as the chosen male/female look —
+  // or the default look until someone picks one (lib/character/looks.js).
+  const savedMine = useCharacterStore((state) => state.mine);
+  const savedPartner = useCharacterStore((state) => state.partner);
+  const myCharacter = useMemo(() => displayedCharacter(savedMine), [savedMine]);
+  const partnerCharacter = useMemo(() => displayedCharacter(savedPartner), [savedPartner]);
+  const characterStore = useCharacterStoreApi();
 
   useEffect(() => {
     useWorldStore.getState().reset();
     return () => useWorldStore.getState().reset();
   }, []);
 
-  useCouplePresence({ runtime, coupleId: couple.id, userId: me.id, partnerId: partner.id });
+  useCouplePresence({ runtime, coupleId: couple.id, userId: me.id, partnerId: partner.id, onPartnerCharacter: () => characterStore.getState().refresh() });
   usePartnerPresenceEffects({ runtime, partnerName });
   // Chat, voice and emotes. Kept out of the 3D tree: messages and voice state
   // re-render only the HUD, never the scene.
@@ -100,7 +105,7 @@ function LivingRoom({ me, partner, couple }) {
       </div>
 
       {ready && (
-        <div className="hud pointer-events-none absolute inset-0 z-20 safe-inset" data-touch={touch ? "true" : "false"}>
+        <div className="hud pointer-events-none absolute inset-0 z-20 safe-inset" data-touch={touch ? "true" : "false"} data-ingame={inGame ? "true" : "false"}>
           <header className="flex items-start justify-between gap-2">
             <div className="flex min-w-0 items-start gap-3">
               <PartnerStatus />
@@ -109,6 +114,7 @@ function LivingRoom({ me, partner, couple }) {
             <div className="pointer-events-auto flex shrink-0 items-center gap-2">
               <ConnectionStatus />
               <AccountMenu
+                runtime={runtime}
                 beforeSignOut={async () => {
                   await Promise.allSettled([runtime.presence?.leave(), useVoiceStore.getState().shutdown()]);
                 }}
@@ -123,6 +129,7 @@ function LivingRoom({ me, partner, couple }) {
           {/* Hidden while chatting: the chat panel covers the middle on most screens. */}
           {!inGame && !chatOpen && (
             <div className="hud-center flex flex-col items-center gap-2">
+              <ChooseCharacterCard runtime={runtime} />
               <ObjectCard />
               <SeatedHint touch={touch} />
               <OnboardingHint touch={touch} partnerName={partnerName} ready={ready} />
