@@ -5,6 +5,7 @@ import { AppProviders } from "@/components/app/AppProviders";
 import { AppStage } from "@/components/app/AppStage";
 import { Lobby } from "@/components/lobby/Lobby";
 import { CharacterStudioScreen } from "@/components/studio/CharacterStudioScreen";
+import { galleryModelDescriptor } from "@/lib/character/gallery";
 import { useChatStore } from "@/store/chatStore";
 import { useGameStore } from "@/store/gameStore";
 import { useWorldStore } from "@/store/worldStore";
@@ -96,8 +97,21 @@ function Scenario() {
 
 const UNPAIRED = { ...VIEWER, couple: { status: "unpaired", me: ME, invite: { code: "K7Q2XW", expiresAt: "2099-01-01T00:00:00Z" } } };
 
+/**
+ * ?me=male|female&partner=male|female — those looks instead of the defaults.
+ * ?me=file:<name>.glb — a model from assets-src/ (served by /dev/bench/model),
+ * animated with the Mixamo clips, e.g. to try an Avaturn export.
+ */
+function lookCharacter(id, userId) {
+  const file = id?.startsWith("file:") ? id.slice(5) : null;
+  const model = file ? { key: `dev:${file}`, url: `/dev/bench/model/${encodeURIComponent(file)}`, rig: "mixamo" } : id ? galleryModelDescriptor(id) : null;
+  return model ? { userId, provider: "library", version: 1, config: {}, model, updatedAt: null } : null;
+}
+
 export function HudPreview() {
-  const screen = new URLSearchParams(window.location.search).get("screen");
+  const params = new URLSearchParams(window.location.search);
+  const screen = params.get("screen");
+  const viewer = { ...VIEWER, characters: { mine: lookCharacter(params.get("me"), ME.id), partner: lookCharacter(params.get("partner"), PARTNER.id) } };
   if (screen === "pairing") {
     return (
       <AppProviders viewer={UNPAIRED}>
@@ -113,7 +127,7 @@ export function HudPreview() {
     );
   }
   return (
-    <AppProviders viewer={VIEWER}>
+    <AppProviders viewer={viewer}>
       <Lobby />
       <Scenario />
     </AppProviders>

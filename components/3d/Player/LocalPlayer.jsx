@@ -8,7 +8,7 @@ import { PLAYER_RADIUS, roomColliders, roomInteractables } from "@/lib/world/roo
 import { useWorldStore } from "@/store/worldStore";
 import { Avatar } from "./Avatar";
 
-const WALK_SPEED = 2.1; // m/s — a relaxed indoor walk
+const WALK_SPEED = 1.6; // m/s — a relaxed indoor walk, matched to the walk cycle's stride (Character.jsx)
 const TURN_SHARPNESS = 12;
 const DEAD_ZONE = 0.08;
 const INTERACTION_CHECK_S = 0.1; // 10 Hz, not every frame

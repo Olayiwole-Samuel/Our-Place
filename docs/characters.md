@@ -36,7 +36,9 @@ Sign in at mixamo.com and save every file into `assets-src/mixamo/` (git-ignored
 | `angry.fbx` | Angry |
 | `heart.fbx` | Thankful |
 
-Then run `npm run characters:build`. It converts everything (FBX2glTF), compresses it (meshopt + WebP) into `public/models/characters/{male,female}.glb` and `public/models/animations/mixamo/*.glb`, and writes `lib/character/gallery.manifest.json`. Commit those outputs. Walk cycles play at the speed the character actually moves, so the feet don't slide.
+**Looking like yourselves:** instead of a Mixamo character, either look can be your own avatar. Make one from selfies at avaturn.me, download **Avatar T-pose** as `.glb`, and save it as `assets-src/mixamo/male.glb` or `female.glb`; a `.glb` wins over the `.fbx`. Avaturn bones (`Hips`, `Spine`, …) are matched to the Mixamo clips by name, and each clip's hip movement is rescaled to the avatar's height (`fitClipToCharacter` in `lib/character/modelCache.js`), so the same motion capture plays on it.
+
+Then run `npm run characters:build`. It converts everything (FBX2glTF), compresses it (meshopt + WebP) into `public/models/characters/{male,female}.glb` and `public/models/animations/mixamo/*.glb`, and writes `lib/character/gallery.manifest.json`. Commit those outputs. Walk cycles play at the speed the character actually moves (1.6 m/s), so the feet don't slide. Motions cross-fade with their weights summing to one, and an emote hands back to walking or standing during its last moments, so the body never flickers through its stiff bind pose.
 
 ## Earlier character sources (kept in code, no longer offered)
 

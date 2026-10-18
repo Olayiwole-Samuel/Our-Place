@@ -1,5 +1,43 @@
 {
-  "generated": null,
-  "characters": [],
-  "animations": {}
+  "generated": "2026-10-18",
+  "characters": [
+    {
+      "id": "male",
+      "name": "Male",
+      "file": "/models/characters/male.glb",
+      "rig": "mixamo",
+      "credit": "Avaturn (made from the user's own photos)",
+      "license": "Personal avatar"
+    },
+    {
+      "id": "female",
+      "name": "Female",
+      "file": "/models/characters/female.glb",
+      "rig": "mixamo",
+      "credit": "Avaturn (made from the user's own photos)",
+      "license": "Personal avatar",
+      "clips": {
+        "walk": "/models/animations/mixamo/walk-female.glb"
+      }
+    }
+  ],
+  "animations": {
+    "mixamo": {
+      "clips": {
+        "idle": "/models/animations/mixamo/idle.glb",
+        "walk": "/models/animations/mixamo/walk.glb",
+        "run": "/models/animations/mixamo/run.glb",
+        "sit": "/models/animations/mixamo/sit.glb",
+        "wave": "/models/animations/mixamo/wave.glb",
+        "laugh": "/models/animations/mixamo/laugh.glb",
+        "cry": "/models/animations/mixamo/cry.glb",
+        "kiss": "/models/animations/mixamo/kiss.glb",
+        "dance": "/models/animations/mixamo/dance.glb",
+        "celebrate": "/models/animations/mixamo/celebrate.glb",
+        "angry": "/models/animations/mixamo/angry.glb",
+        "heart": "/models/animations/mixamo/heart.glb"
+      },
+      "credit": "Mixamo (Adobe)"
+    }
+  }
 }

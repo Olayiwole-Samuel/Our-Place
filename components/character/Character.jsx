@@ -6,7 +6,7 @@ import * as THREE from "three";
 import { EMOTES, createAnimationController } from "@/lib/character/animation";
 import { ANIMATION_LIBRARIES } from "@/lib/character/gallery";
 import { buildCharacter } from "@/lib/character/buildCharacter";
-import { instantiateCharacterModel, loadCharacterModel, loadClipLibrary } from "@/lib/character/modelCache";
+import { fitClipToCharacter, instantiateCharacterModel, loadCharacterModel, loadClipLibrary } from "@/lib/character/modelCache";
 import { applyModelQuality, characterInView, setCastShadow } from "@/lib/character/quality";
 import { createRetarget } from "@/lib/character/retarget";
 import { normalizeCharacterConfig } from "@/lib/character/schema";
@@ -125,23 +125,28 @@ function ProceduralCharacter({ config, motion, opacity, reducedMotion, castShado
 // the world's full walking speed (motion.speed is 0..1 of it; LocalPlayer).
 const WALK_CLIP_SPEED = 1.4;
 const RUN_CLIP_SPEED = 3.4;
-const WORLD_WALK_SPEED = 2.1;
+const WORLD_WALK_SPEED = 1.6;
+// Blend times (s): between walking and standing, and into/out of an emote.
+const MOVE_FADE = 0.3;
+const EMOTE_FADE = 0.35;
 
 /**
  * A library's clips, named by our states/emotes. Two shapes:
  *   { file, map }   one file with many clips; `map` names ours → theirs
  *   { clips }       one file per clip (Mixamo: idle.glb, walk.glb, …), named
- *                   after the file's key; a missing one is simply not played
+ *                   after the file's key; a missing one is simply not played.
+ *                   `overrides` (the character's own clips) replace shared ones.
  */
-async function loadLibraryClips(library) {
+async function loadLibraryClips(library, overrides) {
   if (!library.clips) return loadClipLibrary(library.file);
-  const entries = Object.entries(library.clips);
+  const entries = Object.entries({ ...library.clips, ...overrides });
   const loaded = await Promise.allSettled(entries.map(([, url]) => loadClipLibrary(url)));
   return loaded.flatMap((result, index) => {
     const clip = result.status === "fulfilled" ? result.value[0] : null;
     if (!clip) return [];
     const named = clip.clone();
     named.name = entries[index][0];
+    named.userData = clip.userData;
     return [named];
   });
 }
@@ -172,15 +177,22 @@ function ModelCharacter({ model, motion, opacity, reducedMotion, quality, textur
   useEffect(() => {
     if (!library) return undefined;
     let cancelled = false;
-    loadLibraryClips(library)
+    loadLibraryClips(library, model.clips)
       .then((loaded) => !cancelled && setClips(loaded))
       .catch(() => {}); // no clips → rest pose; the character itself still renders
     return () => {
       cancelled = true;
     };
-  }, [library]);
+  }, [library, model.clips]);
 
   const mixer = useMemo(() => (instance ? new THREE.AnimationMixer(instance.root) : null), [instance]);
+  // Development: expose live characters for motion diagnostics (scripts, DevTools).
+  useEffect(() => {
+    if (process.env.NODE_ENV === "production" || !instance) return undefined;
+    const entry = { key: model.key, instance, mixer, actions, current };
+    (window.__ourPlaceCharacters ??= new Set()).add(entry);
+    return () => window.__ourPlaceCharacters.delete(entry);
+  }, [instance, mixer, model.key]);
   // Rest pose is captured once per instance, before anything animates it.
   const retarget = useMemo(() => (instance ? createRetarget(instance.root, instance.bones) : null), [instance]);
   const controller = useMemo(() => (retarget ? createAnimationController(retarget.controllerTarget, { reducedMotion }) : null), [retarget, reducedMotion]);
@@ -190,7 +202,8 @@ function ModelCharacter({ model, motion, opacity, reducedMotion, quality, textur
 
   useEffect(() => {
     if (!mixer || !instance) return undefined;
-    const available = new Map([...(clips ?? []), ...instance.animations].map((clip) => [clip.name.toLowerCase(), clip]));
+    const fitted = (clips ?? []).map((clip) => fitClipToCharacter(clip, instance));
+    const available = new Map([...fitted, ...instance.animations].map((clip) => [clip.name.toLowerCase(), clip]));
     const lookup = (name) => {
       const mapped = library?.map?.[name];
       return available.get((mapped ?? name).toLowerCase()) ?? null;
@@ -204,7 +217,7 @@ function ModelCharacter({ model, motion, opacity, reducedMotion, quality, textur
       const action = actions.current[name];
       if (action) {
         action.setLoop(THREE.LoopOnce, 1);
-        action.clampWhenFinished = false;
+        action.clampWhenFinished = true; // hold the last frame while fading out
       }
     }
     current.current = null;
@@ -248,21 +261,27 @@ function ModelCharacter({ model, motion, opacity, reducedMotion, quality, textur
       retarget.apply();
       return;
     }
+    // Cross-fades keep the total weight at 1, so the body never blends towards
+    // its stiff bind pose between two motions (no T-pose flicker).
+    const switchTo = (next, fade) => {
+      if (!next) return;
+      if (next === current.current) return;
+      next.reset().setEffectiveWeight(1).play();
+      if (current.current) current.current.crossFadeTo(next, fade, false);
+      current.current = next;
+    };
     if (emote && emote !== lastEmote.current && actions.current[emoteName]) {
-      const action = actions.current[emoteName];
-      current.current?.fadeOut(0.2);
-      action.reset().fadeIn(0.2).play();
-      current.current = action;
+      if (current.current === actions.current[emoteName]) current.current.reset().play(); // the same emote again
+      else switchTo(actions.current[emoteName], EMOTE_FADE);
     }
     lastEmote.current = emote;
-    const playingEmote = current.current && current.current.loop === THREE.LoopOnce && current.current.isRunning();
-    if (!playingEmote) {
+    const playing = current.current;
+    const isEmote = playing?.loop === THREE.LoopOnce;
+    // An emote hands back to walking/idle while its last moments are still playing.
+    const emoteEnding = isEmote && (!playing.isRunning() || playing.time >= playing.getClip().duration - EMOTE_FADE);
+    if (!isEmote || emoteEnding) {
       const next = actions.current[anim] ?? (anim === "run" ? actions.current.walk : null) ?? actions.current.idle;
-      if (next && next !== current.current) {
-        current.current?.fadeOut(0.25);
-        next.reset().fadeIn(0.25).play();
-        current.current = next;
-      }
+      switchTo(next, emoteEnding ? EMOTE_FADE : MOVE_FADE);
       // Feet match the ground: the walk/run cycle plays at the speed actually moved.
       if (next && (next === actions.current.walk || next === actions.current.run)) {
         const base = next === actions.current.run ? RUN_CLIP_SPEED : WALK_CLIP_SPEED;

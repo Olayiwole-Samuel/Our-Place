@@ -95,7 +95,9 @@ export function FrameDriver({ runtime }) {
       if (cap && last && now - last < 1000 / cap - 2) return; // 2 ms tolerance for vsync jitter
       const interval = last ? now - last : 1000 / (cap || 60);
       last = now;
-      advance(now);
+      // Seconds: with frameloop="never", R3F's frame delta has the unit of this
+      // timestamp, and every useFrame (animation mixers included) expects seconds.
+      advance(now / 1000);
 
       const warmedUp = now - startedAt > WARMUP_MS;
       if (warmedUp && !wasWarm) {

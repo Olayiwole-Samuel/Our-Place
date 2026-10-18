@@ -10,7 +10,8 @@ export const dynamic = "force-dynamic";
  *   ?game=ludo|ttt|wyr   open a sample game in the shell
  *   &phase=lobby|result  that game's ready screen or result instead of play
  *   ?chat=1              open the chat panel
- *   ?drawer=<category>   open a game-menu drawer
+ *   ?drawer=<category>   open the game menu (menu = the category list)
+ *   ?me=female&partner=male   characters' looks (default: male)
  *   ?screen=pairing|character   the pairing screen or Character Studio instead
  * 404 in production.
  */
