@@ -70,11 +70,90 @@ const SAMPLES = {
   },
 };
 
+/**
+ * Games previewed through their REAL rules: the server's setup runs here with a
+ * fixed seed, a few scripted actions are applied by the engine, and the view
+ * is what the server would send to ME. `adjust` may tweak the fresh state.
+ */
+const RULE_SAMPLES = {
+  chess: {
+    load: () => import("@/games/chess/rules"),
+    adjust: (state) => ({ ...state, seats: { w: ME.id, b: PARTNER.id } }),
+    script: [
+      [ME.id, "move", { from: "e2", to: "e4" }],
+      [PARTNER.id, "move", { from: "e7", to: "e5" }],
+      [ME.id, "move", { from: "g1", to: "f3" }],
+      [PARTNER.id, "move", { from: "d7", to: "d6" }],
+      [ME.id, "move", { from: "f1", to: "c4" }],
+      [PARTNER.id, "move", { from: "c8", to: "g4" }],
+    ],
+  },
+};
+
+RULE_SAMPLES.whot = {
+  gameId: "naija_whot",
+  load: () => import("@/games/naija_whot/rules"),
+  adjust: (state) => ({ ...state, first: ME.id }),
+  script: [[ME.id, "deal", {}]],
+};
+RULE_SAMPLES.words = {
+  gameId: "scrabble",
+  load: () => import("@/games/scrabble/rules"),
+  adjust: (state) => ({
+    ...state,
+    current: ME.id,
+    board: {
+      "7,5": { letter: "H", blank: false, by: PARTNER.id },
+      "7,6": { letter: "E", blank: false, by: PARTNER.id },
+      "7,7": { letter: "A", blank: false, by: PARTNER.id },
+      "7,8": { letter: "R", blank: false, by: PARTNER.id },
+      "7,9": { letter: "T", blank: false, by: PARTNER.id },
+      "8,7": { letter: "T", blank: false, by: ME.id },
+      "9,7": { letter: "E", blank: false, by: ME.id },
+    },
+    scores: { [ME.id]: 12, [PARTNER.id]: 18 },
+  }),
+  script: [],
+};
+RULE_SAMPLES.jigsaw = {
+  gameId: "jigsaw_puzzle",
+  load: () => import("@/games/jigsaw_puzzle/rules"),
+  script: [
+    [ME.id, "configure", { difficulty: "medium" }],
+    [ME.id, "start", {}],
+    [ME.id, "drop", { piece: 0, x: 0, y: 0 }],
+    [PARTNER.id, "drop", { piece: 1, x: 1.1, y: 0.1 }],
+  ],
+};
+RULE_SAMPLES.jigsaw_choose = { gameId: "jigsaw_puzzle", load: () => import("@/games/jigsaw_puzzle/rules"), script: [] };
+RULE_SAMPLES.whot_settings = { gameId: "naija_whot", load: () => import("@/games/naija_whot/rules"), script: [] };
+
+async function ruleSample(key) {
+  const gameId = RULE_SAMPLES[key].gameId ?? key;
+  const sample = RULE_SAMPLES[key];
+  const [{ default: rules }, { gameRegistry }, engine, { createRandom }] = await Promise.all([sample.load(), import("@/lib/game/catalog"), import("@/lib/game/engine"), import("@/lib/game/random")]);
+  const definition = gameRegistry.get(gameId);
+  let session = engine.createSession({ id: SESSION.id, definition, rules, coupleId: "preview", playerIds: [ME.id, PARTNER.id], options: definition.sessionDefaults ?? {}, random: createRandom(7), now: Date.now() });
+  if (sample.adjust) session = { ...session, state: sample.adjust(session.state) };
+  for (const [playerId, type, payload] of sample.script) {
+    const outcome = engine.applyPlayerAction(session, { type, payload, playerId }, { definition, rules, random: createRandom(session.version + 11), now: Date.now() });
+    if (outcome.ok) session = outcome.session;
+    else console.warn("[preview] scripted action refused", type, outcome.error);
+  }
+  return { session: { ...SESSION, gameId, version: session.version }, view: engine.getPlayerView(session, ME.id, { rules, random: createRandom(1), now: Date.now() }) };
+}
+
 function Scenario() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const timer = setTimeout(() => {
       useWorldStore.getState().dispatchPartner({ type: "sync", partnerPresent: true });
+      if (RULE_SAMPLES[params.get("game")]) {
+        ruleSample(params.get("game")).then((sample) => {
+          useGameStore.getState().receive(sample);
+          useGameStore.setState({ error: null });
+        });
+      }
       const sample = SAMPLES[params.get("game")];
       if (sample) {
         const phase = params.get("phase");

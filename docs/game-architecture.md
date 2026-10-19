@@ -2,7 +2,7 @@
 
 Our Place hosts fundamentally different experiences — Ludo, Scrabble, a realtime target range, a co-op jigsaw, Would You Rather, drawing, watch-together. The game system therefore assumes nothing about turns, boards, winners or scores. All of it lives in `lib/game/` and is pure JavaScript shared by the web client, the future Colyseus server and tests.
 
-**Current state (Phase 5):** the full product roster (≈80 games, ten categories) is registered in `lib/game/catalog.js`. Three games are implemented end to end:
+**Current state:** the full product roster (≈80 games, ten categories) is registered in `lib/game/catalog.js`. Seven games are implemented end to end (Chess, Naija Whot, Scrabble and the Jigsaw Puzzle were added on 2026-10-19 — see their sections below):
 - **Tic Tac Toe**, the platform test (turn-based, competitive).
 - **Would You Rather** (Phase 6A): the reference conversation game — no winner.
 - **Naija Ludo** (Phase 6B): the reference state-heavy, turn-based competitive game — two dice, kills (the killer goes home), double-six rolls, a winner and win streaks.
@@ -209,7 +209,8 @@ A trigger broadcasts a compact event (`{ event, id, gameId, status, players, rea
 
 - **Menu** (`components/lobby/games/GameMenu.jsx`): a vertical rail of the ten categories on the right edge of the living room (one column on tall screens, two columns of five on short landscape phones). A category opens a drawer to its left; each game card shows name, one line, human labels ("2 Players · Turn Based", "🔥 Streak") and its real availability. The in-world game corner opens the menu too. Only metadata is in the lobby bundle; a game's code loads on selection (and is pre-fetched on hover/focus).
 - **Stage / shell** (`components/lobby/games/GameStage.jsx`): invite ("King wants to play…" → Join / Not now), launch (both players, ready states, "Waiting for…", "…isn't here yet"), the game itself, and the result (Play again / Return to Our Place). It floats over the room: the room, both characters, chat, voice and emotes stay present (they are the Phase 4 systems in the HUD). Movement keys and the joystick pause while a game is open. A win makes the winner's character dance through the normal emote pipeline.
-- **A game's client** receives `{ view, me, partner, status, result, busy, act(type, payload) }` and renders only the game.
+- **A game's client** receives `{ view, me, partner, names, profiles, status, result, busy, act(type, payload), hints }` and renders only the game. `hints` is `{ send(hint), subscribe(listener) }`: small, cosmetic, live messages to the partner's client over the couple's private presence channel (the Jigsaw uses it to show a piece being dragged). Hints never change game state; only `act` does.
+- **How to play** (`lib/game/guides.js`, `components/lobby/games/GameGuide.jsx`): every playable game has a guide (goal, rules as Our Place plays them, screen controls, tips), opened from the ? beside a game in the menu, on the launch screen, and in the game header. A test requires a guide for every available game.
 - **Errors and loading:**
   - "Setting up your game…" while a game's code loads.
   - "We couldn't open this game." with Retry and Return to Our Place if its code fails.
@@ -410,3 +411,16 @@ The together photos are fixed to the physical board: seat B sees them swapped be
 4. In `lib/game/catalog.js`, add `status: "available"` plus the two loaders to the existing `chess` entry.
 
 Nothing else changes: menu, sessions, API, realtime, shell, results and streak eligibility all come from the platform.
+
+
+## Chess, Naija Whot, Scrabble, Jigsaw (2026-10-19)
+
+All four use the platform unchanged: catalog entry + `games/<id>/rules.js` (server) + `client.jsx`. Hidden state lives only in `game_sessions.state`; `view()` decides what each player sees. Every action carries the client's move counter (`ply` / `turn`), so a resent action is refused with an `already_*` code (quiet in the client) and never applied twice. End-to-end tests through the real authority and migrations: `supabase/tests/newGames.test.js`.
+
+**Chess** (`games/chess/`): rules from **chess.js 1.4** (BSD-2-Clause) — legal moves, check, mate, stalemate, castling, en passant, promotion, threefold repetition, 50-move rule, insufficient material. State keeps the UCI move list and is replayed so repetition is exact. Colours are drawn by the server. Actions: `move { from, to, promotion?, ply }`, `offer_draw`, `accept_draw`, `decline_draw`, `resign`. The view lists the side to move's legal targets, so the board only offers moves the server accepts.
+
+**Naija Whot** (`games/naija_whot/`): the 54-card Nigerian pack; rules agreed with the couple — 6 cards each; 1 Hold on, 2 Pick two, 5 Pick three, 8 Suspension, 14 General market, 20 Whot (wild, request a shape); a 2 is blocked only by a 2 and a 5 only by a 5, blocks stack; picking uses the picker's turn; playing your last card is check up (instant win). Settings before the deal (either player): Pick two / Pick three / Suspension on or off, and the **tender** — when the market runs out, `count` (game ends, lower hand total wins, stars ×2, Whot 20) or `reshuffle`. The server shuffles and deals; a player's view has their hand, the partner's card COUNT, and only how many cards someone drew.
+
+**Scrabble** (`games/scrabble/`): standard 15×15 premium layout, 100 tiles (2 blanks), 7-tile racks, bingo +50, exchange (bag ≥ 7), pass, game end by going out (rack values transfer) or six scoreless turns (each loses their rack value), resign. Placement + scoring are pure (`scoring.js`, shared with the client for a points preview); the server re-runs them with the **ENABLE word list** (public domain, ~170k words, `words.js`, server-only — never sent to browsers, no outside service). Racks and the bag order are private.
+
+**Jigsaw Puzzle** (`games/jigsaw_puzzle/`, cooperative): built-in illustrations (`public/puzzles/*.svg`, drawn for Our Place) or the couple's "together" photos — the server stores only the picture id; each browser loads a photo with its own signed URL. 12 / 24 / 48 pieces with real jigsaw tabs drawn by the server. Actions: `configure`, `start`, `grab` (20 s hold so two hands never move one group), `drop { piece, x, y }`, `release`, `restart`. The server decides every snap (into the frame within 0.3 of a piece, or joining a matching neighbour) and completion (`completed`, no winner, never streaks). Drags are shown live to the partner through `hints` (≤ 10/s); only drops are persisted.

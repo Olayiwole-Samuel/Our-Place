@@ -49,7 +49,7 @@ export function VoiceControl() {
         <view.Icon aria-hidden="true" size={19} strokeWidth={1.75} className={view.spin ? "animate-spin motion-reduce:animate-none" : undefined} />
       </HudButton>
       {view.caption && (
-        <span role="status" className="pointer-events-none absolute right-0 bottom-full mb-2 w-max max-w-[15rem] rounded-[var(--radius-sm)] bg-black-950/85 px-2 py-1 text-right text-micro tracking-normal text-text-secondary">
+        <span role="status" className="voice-caption pointer-events-none absolute right-0 bottom-full mb-2 w-max max-w-[15rem] rounded-[var(--radius-sm)] bg-black-950/85 px-2 py-1 text-right text-micro tracking-normal text-text-secondary">
           {view.caption}
         </span>
       )}
@@ -68,6 +68,8 @@ export function describeVoice({ status, micEnabled, micPending, permissionDenied
   if (status === "reconnecting") return { Icon: LoaderCircle, spin: true, label: "Voice reconnecting…", caption: "Reconnecting…", action: null };
   if (status === "error" || status === "disconnected")
     return { Icon: RotateCw, warn: true, label: "Voice disconnected. Reconnect voice", caption: "Voice disconnected — tap to retry", action: "retry" };
+  if (error === "voice_elsewhere")
+    return { Icon: RotateCw, warn: true, label: "Voice is on in your other tab or device. Use voice here", caption: "Voice is on in your other tab or device — tap to use it here", action: "retry" };
   if (error === "voice_unreachable")
     return { Icon: RotateCw, warn: true, label: "Couldn't connect voice on this network. Try again", caption: "Couldn't connect voice on this network — tap to retry", action: "retry" };
   if (audioBlocked) return { Icon: Volume2, warn: true, label: "Tap to hear your partner", caption: "Tap to hear your partner", action: "unlock" };

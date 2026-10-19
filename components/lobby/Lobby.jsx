@@ -15,6 +15,7 @@ import { useVoiceStore } from "@/store/voiceStore";
 import { useWorldStore } from "@/store/worldStore";
 import { AccountMenu } from "./AccountMenu";
 import { ChooseCharacterCard } from "./CharacterSwitch";
+import { FullscreenButton, RotateGate } from "./RotateGate";
 import { InteractPrompt, ObjectCard, SeatedHint } from "./InteractionUI";
 import { Joystick } from "./Joystick";
 import { OfflineBanner } from "./OfflineBanner";
@@ -81,7 +82,19 @@ function LivingRoom({ me, partner, couple }) {
   useCoupleGames({ coupleId: couple.id, userId: me.id });
   const inGame = useWorldStore((state) => state.inGame);
   const chatOpen = useChatStore((state) => state.open);
+  const lookLocked = useWorldStore((state) => state.lookLocked);
   const { interact, lookHandlers } = useWorldControls(runtime);
+  // Live, cosmetic hints between the two game clients (e.g. a dragged jigsaw piece).
+  const hints = useMemo(
+    () => ({
+      send: (hint) => runtime.presence?.sendHint?.(hint),
+      subscribe: (listener) => {
+        (runtime.hintListeners ??= new Set()).add(listener);
+        return () => runtime.hintListeners.delete(listener);
+      },
+    }),
+    [runtime],
+  );
 
   // "Finding your person" ends when presence answers — or after a short wait, so
   // a slow or failed connection never traps anyone on the loading screen.
@@ -100,6 +113,7 @@ function LivingRoom({ me, partner, couple }) {
 
   return (
     <main className="app-viewport bg-black-950">
+      <RotateGate />
       <div className="absolute inset-0" {...lookHandlers}>
         <WorldStage runtime={runtime} partner={partner} myCharacter={myCharacter} partnerCharacter={partnerCharacter} />
       </div>
@@ -113,6 +127,7 @@ function LivingRoom({ me, partner, couple }) {
             <OfflineBanner />
             <div className="pointer-events-auto flex shrink-0 items-center gap-2">
               <ConnectionStatus />
+              <FullscreenButton />
               <AccountMenu
                 runtime={runtime}
                 beforeSignOut={async () => {
@@ -136,6 +151,12 @@ function LivingRoom({ me, partner, couple }) {
             </div>
           )}
 
+          {lookLocked && (
+            <p role="status" className="look-lock-hint panel pointer-events-none rounded-full px-3 py-1.5 text-micro tracking-normal text-text-secondary">
+              Cursor locked · move the mouse to look · <span className="font-semibold text-white-soft">Ctrl</span> to release
+            </p>
+          )}
+
           <div className="hud-actions flex flex-col items-end gap-3">
             {!inGame && <InteractPrompt onInteract={interact} touch={touch} />}
             <CommsDock meId={me.id} partnerName={partnerName} runtime={runtime} onEmote={triggerEmote} />
@@ -143,7 +164,7 @@ function LivingRoom({ me, partner, couple }) {
 
           {/* Right edge: the floating game menu (reserved for it since Phase 3). */}
           <GameMenu disabled={inGame} />
-          <GameStage me={me} partner={partner} onEmote={triggerEmote} />
+          <GameStage me={me} partner={partner} onEmote={triggerEmote} hints={hints} />
         </div>
       )}
     </main>

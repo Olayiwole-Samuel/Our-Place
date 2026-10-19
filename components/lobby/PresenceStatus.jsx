@@ -30,7 +30,7 @@ export function PartnerStatus() {
             : { text: "Checking…", dot: "bg-text-muted/50 animate-pulse-live" };
 
   return (
-    <div role="status" aria-live="polite" className="panel pointer-events-auto flex min-w-0 items-center gap-3 rounded-[var(--radius-md)] py-2 pr-4 pl-2">
+    <div role="status" aria-live="polite" className="panel pointer-events-auto flex min-w-0 items-center gap-3 rounded-[var(--radius-md)] py-2 pr-4 pl-2 short:gap-2 short:py-1 short:pr-3 short:pl-1">
       <ProfileAvatar profile={partner} size={34} ring="pink" />
       <div className="flex min-w-0 flex-col">
         <span className="flex min-w-0 items-center gap-1.5 text-caption font-semibold text-white-soft">
@@ -65,7 +65,7 @@ export function ConnectionStatus() {
       className="panel pointer-events-auto flex h-[var(--control-size)] items-center gap-2 rounded-[var(--radius-md)] px-3 text-caption text-text-secondary"
     >
       <span aria-hidden="true" className={`size-2 shrink-0 rounded-full ${state.dot}`} />
-      <span aria-hidden="true" className="hidden whitespace-nowrap sm:inline">
+      <span aria-hidden="true" className="hidden whitespace-nowrap sm:inline short:hidden">
         {state.text}
       </span>
     </div>

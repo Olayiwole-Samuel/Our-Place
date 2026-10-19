@@ -1,10 +1,10 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
 
-const BASE = 132; // px — large, thumb-friendly hit area
-const KNOB = 54;
-const TRAVEL = (BASE - KNOB) / 2;
+// px — large, thumb-friendly hit area; smaller on landscape phones (≤ 480px tall).
+const SIZES = { regular: { base: 132, knob: 54 }, short: { base: 104, knob: 44 } };
 
 /**
  * Virtual joystick for touch devices. Writes a normalised vector straight into
@@ -15,6 +15,8 @@ export function Joystick({ input }) {
   const base = useRef(null);
   const pointer = useRef(null);
   const [knob, setKnob] = useState({ x: 0, y: 0 });
+  const { base: BASE, knob: KNOB } = SIZES[useMediaQuery("(max-height: 480px)") ? "short" : "regular"];
+  const TRAVEL = (BASE - KNOB) / 2;
 
   function update(event) {
     const rect = base.current.getBoundingClientRect();

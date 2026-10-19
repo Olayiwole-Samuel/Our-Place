@@ -2,15 +2,19 @@
 
 import { useCallback, useEffect, useRef } from "react";
 import { isTypingTarget } from "@/lib/world/input";
+import { useChatStore } from "@/store/chatStore";
 import { useWorldStore } from "@/store/worldStore";
 import { INTERACTION_HANDLERS } from "./interactionHandlers";
 
 const LOOK_SENSITIVITY = 0.006; // radians per pixel dragged
+const LOCKED_SENSITIVITY = 0.0035; // radians per pixel of mouse movement while the cursor is locked
 
 /**
  * Desktop and touch controls for the world:
  *   WASD / arrows → move      drag anywhere on the world → look around
  *   E or Enter → interact     Esc → close an info card
+ *   Ctrl (desktop, tapped on its own) → lock the cursor: moving the mouse turns
+ *   the camera without dragging; Ctrl or Esc again unlocks it
  * Returns `interact()` (for the touch Interact button) and pointer handlers to
  * spread onto the world container.
  */
@@ -56,6 +60,53 @@ export function useWorldControls(runtime) {
       window.removeEventListener("blur", onBlur);
     };
   }, [runtime, interact]);
+
+  // Cursor lock (desktop only): a lone Ctrl tap toggles it. Ctrl used in a
+  // shortcut (Ctrl+C…) doesn't count, and it's never offered on touch screens.
+  useEffect(() => {
+    const finePointer = window.matchMedia?.("(pointer: fine)").matches && !window.matchMedia?.("(pointer: coarse)").matches;
+    if (!finePointer || typeof document.body.requestPointerLock !== "function") return undefined;
+    let ctrlAlone = false;
+    const locked = () => Boolean(document.pointerLockElement);
+    const unlock = () => locked() && document.exitPointerLock();
+    const onKeyDown = (event) => {
+      ctrlAlone = event.key === "Control" && !event.repeat;
+    };
+    const onKeyUp = (event) => {
+      if (event.key !== "Control" || !ctrlAlone) return;
+      ctrlAlone = false;
+      if (locked()) {
+        unlock();
+        return;
+      }
+      if (isTypingTarget(document.activeElement) || useWorldStore.getState().inGame || useChatStore.getState().open) return;
+      try {
+        const request = document.body.requestPointerLock();
+        request?.catch?.(() => {}); // refused (e.g. right after an Esc): nothing to do
+      } catch {
+        // pointer lock unavailable
+      }
+    };
+    const onLockChange = () => useWorldStore.getState().setLookLocked(locked());
+    const onMouseMove = (event) => {
+      if (locked()) runtime.camera.yaw -= event.movementX * LOCKED_SENSITIVITY;
+    };
+    // A game or the chat needs the cursor back.
+    const stopWatching = [useWorldStore.subscribe((state) => state.inGame && unlock()), useChatStore.subscribe((state) => state.open && unlock())];
+    window.addEventListener("keydown", onKeyDown, true);
+    window.addEventListener("keyup", onKeyUp, true);
+    document.addEventListener("pointerlockchange", onLockChange);
+    document.addEventListener("mousemove", onMouseMove);
+    return () => {
+      stopWatching.forEach((stop) => stop());
+      window.removeEventListener("keydown", onKeyDown, true);
+      window.removeEventListener("keyup", onKeyUp, true);
+      document.removeEventListener("pointerlockchange", onLockChange);
+      document.removeEventListener("mousemove", onMouseMove);
+      unlock();
+      useWorldStore.getState().setLookLocked(false);
+    };
+  }, [runtime]);
 
   // Drag to look (mouse or a finger on the world, not on HUD controls).
   const drag = useRef(null);

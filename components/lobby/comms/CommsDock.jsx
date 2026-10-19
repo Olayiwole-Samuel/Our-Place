@@ -21,7 +21,7 @@ export function CommsDock({ meId, partnerName, runtime, onEmote }) {
   const [emotesOpen, setEmotesOpen] = useState(false);
 
   return (
-    <div role="group" aria-label="Chat, voice and emotes" className="pointer-events-auto flex items-end gap-2">
+    <div role="group" aria-label="Chat, voice and emotes" className="comms-dock pointer-events-auto flex items-end gap-2">
       <Isolated name="emotes">
         <EmoteControl open={emotesOpen} onOpenChange={setEmotesOpen} onEmote={onEmote} />
       </Isolated>
@@ -92,7 +92,7 @@ function ChatControl({ meId, partnerName, runtime }) {
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="panel absolute right-0 bottom-full mb-2 flex w-max max-w-[min(18rem,60vw)] items-baseline gap-1.5 rounded-[var(--radius-md)] px-3 py-2 text-left text-caption [animation:panel-in_180ms_var(--ease-out-soft)] motion-reduce:animate-none"
+          className="chat-peek panel absolute right-0 bottom-full mb-2 flex w-max max-w-[min(18rem,60vw)] items-baseline gap-1.5 rounded-[var(--radius-md)] px-3 py-2 text-left text-caption [animation:panel-in_180ms_var(--ease-out-soft)] motion-reduce:animate-none"
         >
           <span className="shrink-0 font-semibold text-pink-400">{partnerName}</span>
           <span className="truncate text-text-secondary">{peek.content}</span>

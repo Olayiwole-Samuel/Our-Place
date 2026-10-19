@@ -21,6 +21,7 @@ import { initialPartnerPresence, partnerPresenceReducer } from "@/lib/world/part
  *   seated      true while the local player sits on the couch
  *   inGame      a game launch/shell is open: movement keys and the joystick pause
  *               (characters stay present; chat, voice and emotes keep working)
+ *   lookLocked  desktop cursor lock (Ctrl): the mouse turns the camera without dragging
  */
 const initialState = {
   loadStage: "engine",
@@ -30,6 +31,7 @@ const initialState = {
   activeInteraction: null,
   seated: false,
   inGame: false,
+  lookLocked: false,
 };
 
 export const useWorldStore = create((set, get) => ({
@@ -53,6 +55,9 @@ export const useWorldStore = create((set, get) => ({
   setSeated: (seated) => set({ seated }),
   setInGame: (inGame) => {
     if (get().inGame !== inGame) set({ inGame });
+  },
+  setLookLocked: (lookLocked) => {
+    if (get().lookLocked !== lookLocked) set({ lookLocked });
   },
   reset: () => set(initialState),
 }));

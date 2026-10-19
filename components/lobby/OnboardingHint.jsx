@@ -50,7 +50,7 @@ export function OnboardingHint({ touch, partnerName, ready }) {
             Welcome home.
           </h2>
           <ul className="flex flex-col gap-1.5 text-caption text-text-secondary">
-            <li>{touch ? "Move with the joystick. Drag the room to look around." : "Move with WASD or the arrow keys. Drag to look around."}</li>
+            <li>{touch ? "Move with the joystick. Drag the room to look around." : "Move with WASD or the arrow keys. Drag to look around, or tap Ctrl to lock the cursor and just move the mouse."}</li>
             <li>{touch ? "Walk up to things to interact." : "Walk up to things and press E to interact."}</li>
             <li>
               <span className="text-pink-400">{partnerName}</span> appears here whenever they&apos;re in Our Place.

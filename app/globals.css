@@ -341,6 +341,25 @@
     left: calc(var(--safe-left) + var(--edge-gap) + var(--hud-bottom-reserve) + 12px);
   }
 }
+/* Portrait phones: the rotate hint turns gently. */
+@keyframes rotate-hint {
+  0%, 30% { transform: rotate(0deg); }
+  60%, 100% { transform: rotate(-90deg); }
+}
+.rotate-hint {
+  animation: rotate-hint 2.2s ease-in-out infinite alternate;
+}
+@media (prefers-reduced-motion: reduce) {
+  .rotate-hint { animation: none; }
+}
+/* Cursor-lock note (desktop): centred low, clear of the corners. */
+.look-lock-hint {
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--safe-bottom) + var(--edge-gap) + 6px);
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
 /* Offline notice: centred under the top bar so it never squeezes it. */
 .offline-banner {
   position: absolute;
@@ -534,11 +553,250 @@
   .ludo-piece-legal::after { animation: none; }
 }
 
+/* ── Square board games (Chess, Scrabble): sized like the Ludo board ────── */
+.square-board {
+  --board-room: calc(100dvh - var(--safe-top) - var(--safe-bottom) - 2 * var(--edge-gap) - var(--control-size) - 16px);
+  /* 100% = the board's own column (the side panel sits beside or below it). */
+  width: min(34rem, 100%, calc(var(--board-room) - var(--board-header, 44px) - 2 * var(--board-pad, 16px) - 4px - var(--board-extra, 0px)));
+  aspect-ratio: 1;
+  container-type: inline-size;
+}
+/* The captured-piece rows line up with the board's edges. */
+.square-board-row {
+  width: min(34rem, 100%);
+}
+@media (max-height: 619px) {
+  .game-shell[data-layout="board"] .square-board {
+    --board-room: calc(100dvh - var(--safe-top) - var(--safe-bottom) - 2 * var(--edge-gap));
+  }
+}
+@media (max-width: 639px) {
+  .game-shell[data-layout="board"] .square-board {
+    width: min(34rem, 100%, calc(100dvh - var(--safe-top) - var(--safe-bottom) - 2 * var(--edge-gap) - 2 * var(--control-size) - 24px - var(--board-header, 44px) - 2 * var(--board-pad, 16px) - 4px - var(--board-below, 0px)));
+  }
+  .chess {
+    --board-below: 6.5rem;
+  }
+}
+.chess {
+  --board-extra: 3.6rem; /* the captured-piece rows above and below the board */
+}
+.chess-light {
+  background: #e4dfcd;
+}
+.chess-dark {
+  background: #6b7b4e;
+}
+.chess-square {
+  -webkit-tap-highlight-color: transparent;
+}
+.chess-coord {
+  font-size: max(8px, 2.1cqw);
+  font-weight: 600;
+  line-height: 1;
+}
+.chess-piece {
+  font-family: "Segoe UI Symbol", "Apple Symbols", "Noto Sans Symbols 2", "DejaVu Sans", serif;
+  font-size: 9.6cqw;
+  line-height: 1;
+}
+.chess-mini {
+  font-size: 1rem;
+}
+.chess-drag {
+  font-size: min(4.6rem, 12vw);
+  transform: translate(-50%, -55%);
+}
+.chess-white {
+  color: #fbf8ef;
+  text-shadow: 0 0 1px #1b1f18, 0 0 1px #1b1f18, 0 1px 1.5px rgba(0, 0, 0, 0.55), 0 0 2px #1b1f18;
+}
+.chess-black {
+  color: #1f241b;
+  text-shadow: 0 0 1px rgba(255, 255, 255, 0.35), 0 1px 1.5px rgba(0, 0, 0, 0.45);
+}
+
+/* ── Jigsaw: the table fills the space the shell leaves ───────────────────── */
+.jigsaw-table {
+  max-height: calc(100dvh - var(--safe-top) - var(--safe-bottom) - 2 * var(--edge-gap) - var(--control-size) - 140px);
+}
+@media (max-height: 480px) {
+  .jigsaw-table {
+    max-height: calc(100dvh - var(--safe-top) - var(--safe-bottom) - 2 * var(--edge-gap) - 110px);
+  }
+}
+
+/* ── Word board (Scrabble) ───────────────────────────────────────────────── */
+.words-cell {
+  container-type: size;
+  -webkit-tap-highlight-color: transparent;
+}
+.words-tile {
+  font-size: 62cqh;
+  line-height: 1;
+}
+.words-value {
+  font-size: 30cqh;
+  line-height: 1;
+}
+.words-premium {
+  font-size: 34cqh;
+  line-height: 1;
+}
+.words-rack-tile {
+  width: clamp(28px, 8vh, 40px);
+  height: clamp(28px, 8vh, 40px);
+  font-size: clamp(14px, 4vh, 20px);
+}
+@media (max-height: 480px) {
+  .words-aside button.min-h-9 {
+    min-height: 1.85rem;
+  }
+}
+@media (max-width: 639px) {
+  .words {
+    --board-below: 14rem;
+  }
+}
+
+/* ── Naija Whot: card sizes scale with the screen ─────────────────────────── */
+.whot {
+  --whot-hand-w: clamp(52px, 13vw, 78px);
+  --whot-table-w: clamp(62px, 15vw, 92px);
+  --whot-back-w: clamp(30px, 7vw, 42px);
+  --whot-back-h: calc(var(--whot-back-w) * 1.43);
+}
+.whot-card-hand {
+  width: var(--whot-hand-w);
+  aspect-ratio: 0.7;
+}
+.whot-card-table {
+  width: var(--whot-table-w);
+  aspect-ratio: 0.7;
+}
+.whot-card-back {
+  width: var(--whot-back-w);
+  aspect-ratio: 0.7;
+}
+@media (max-height: 619px) {
+  .whot {
+    --whot-hand-w: clamp(44px, 13vh, 64px);
+    --whot-table-w: clamp(48px, 12vh, 72px);
+    --whot-back-w: clamp(24px, 5vh, 34px);
+  }
+}
+/* Landscape phones: the table (partner, market, call card) on the left, your
+   hand on the right — everything visible without scrolling. */
+@media (max-height: 480px) {
+  .whot {
+    flex-direction: row;
+    align-items: stretch;
+    --whot-hand-w: clamp(48px, 22vh, 76px);
+    --whot-table-w: clamp(44px, 18vh, 68px);
+    --whot-back-w: clamp(20px, 7vh, 30px);
+  }
+  .whot-table {
+    flex: 0 0 auto;
+    justify-content: center;
+  }
+  .whot-player {
+    flex: 1 1 auto;
+    min-width: 0;
+    justify-content: center;
+  }
+}
+.whot-hand {
+  scrollbar-width: thin;
+}
+
 .game-invite {
   top: calc(var(--safe-top) + var(--edge-gap) + var(--control-size) + 12px);
   max-width: calc(100vw - 2 * var(--edge-gap) - 2 * var(--game-rail-width));
 }
 
+
+/* ── Landscape phones (Redmi 13C / A5: about 800×300 with the browser bar) ── */
+/* The games panel opens to the LEFT of the Games button and uses the full
+   height (it scrolls), so it never covers the chat / mic / emote dock below. */
+@media (max-height: 480px) {
+  .game-drawer {
+    top: 0;
+    right: calc(100% + 8px);
+    margin-top: 0;
+    max-height: calc(100dvh - var(--safe-top) - var(--safe-bottom) - 2 * var(--edge-gap) - var(--control-size) - 12px);
+    min-height: 0;
+    width: min(20rem, calc(100vw - var(--safe-left) - var(--safe-right) - 2 * var(--edge-gap) - var(--control-size) - 16px - 140px));
+  }
+  /* Chat: from under the top bar down to the bottom edge, beside the right column. */
+  .chat-panel,
+  .hud[data-ingame="true"] .chat-panel {
+    top: calc(var(--safe-top) + var(--edge-gap) + var(--control-size) + 8px);
+    bottom: calc(var(--safe-bottom) + var(--edge-gap));
+    right: calc(var(--safe-right) + var(--edge-gap) + var(--control-size) + 8px);
+    height: auto;
+    min-height: 0;
+    width: min(22rem, calc(100vw - var(--safe-left) - var(--safe-right) - 2 * var(--edge-gap) - var(--control-size) - 8px - 150px));
+  }
+}
+
+/* Landscape phones: smaller controls leave room for the world and games. */
+@media (max-height: 480px) {
+  :root {
+    --control-size: 36px;
+  }
+  .hud[data-touch="true"] {
+    --hud-bottom-reserve: 104px; /* the smaller joystick */
+  }
+}
+/* Landscape phones: games use the full height and everything left of the
+   right-edge column (Games button + chat/mic/emotes stay reachable). */
+@media (max-height: 480px) {
+  .game-stage {
+    padding-right: calc(var(--safe-right) + var(--edge-gap) + var(--control-size) + 10px);
+  }
+  .game-shell,
+  .game-shell[data-layout="board"] {
+    width: 100%;
+    max-height: calc(100dvh - var(--safe-top) - var(--safe-bottom) - 2 * var(--edge-gap));
+    margin-bottom: 0;
+  }
+  .game-shell > header,
+  .game-shell[data-layout="board"] > header {
+    min-height: 38px;
+    padding-block: 0;
+  }
+  .game-shell[data-layout="board"] {
+    --board-header: 38px;
+  }
+  .chess {
+    --board-extra: 0px;
+  }
+  .chess-captured-board {
+    display: none;
+  }
+}
+@media (min-height: 481px) {
+  .chess-captured-aside {
+    display: none;
+  }
+}
+/* Landscape phones: chat / mic / emotes stack down the right edge under the
+   Games button; the partner's message preview appears beside the chat button. */
+@media (max-height: 480px) {
+  .comms-dock {
+    flex-direction: column;
+    align-items: flex-end;
+  }
+  .chat-peek,
+  .voice-caption {
+    right: calc(100% + 8px);
+    bottom: 0;
+    margin-bottom: 0;
+  }
+  .hud[data-ingame="true"] .voice-caption {
+    display: none; /* it would sit on the game; the mic icon still shows the state */
+  }
+}
 /* Short landscape: the interact prompt sits beside the dock, not above it,
    leaving the right edge to the game rail. */
 @media (max-height: 619px) {

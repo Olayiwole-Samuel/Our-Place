@@ -57,6 +57,7 @@ export function useCouplePresence({ runtime, coupleId, userId, partnerId, onPart
             onPartnerPose: (pose) => runtime.partnerBuffer.push(pose, performance.now()),
             onPartnerLeft: () => dispatch({ type: "partner_left" }),
             onPartnerCharacter: () => characterChanged.current?.(),
+            onPartnerHint: (hint) => runtime.hintListeners?.forEach((listener) => listener(hint)),
           },
         });
         runtime.presence = presence;

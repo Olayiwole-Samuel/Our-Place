@@ -126,7 +126,7 @@ export function ChatPanel({ meId, partnerName, onClose, onComposerFocus, panelId
       style={keyboardInset ? { bottom: keyboardInset } : undefined}
       className="chat-panel panel pointer-events-auto fixed z-40 flex flex-col overflow-hidden rounded-[var(--radius-lg)] shadow-[0_18px_48px_rgba(0,0,0,0.45)] [animation:panel-in_180ms_var(--ease-out-soft)] motion-reduce:animate-none"
     >
-      <header className="flex items-center justify-between gap-2 border-b border-[var(--border-subtle)] py-2 pr-1.5 pl-4">
+      <header className="flex items-center justify-between gap-2 border-b border-[var(--border-subtle)] py-2 pr-1.5 pl-4 short:py-0.5 short:pl-3">
         <div className="flex min-w-0 items-center gap-2">
           <span aria-hidden="true" className={`size-1.5 shrink-0 rounded-full ${offline ? "bg-text-muted animate-pulse-live" : "bg-blue-400"}`} />
           <h2 className="truncate text-caption font-semibold text-white-soft">{partnerName}</h2>
@@ -136,14 +136,14 @@ export function ChatPanel({ meId, partnerName, onClose, onComposerFocus, panelId
           type="button"
           aria-label="Close chat"
           onClick={onClose}
-          className="grid size-10 place-items-center rounded-[var(--radius-md)] text-text-muted transition-colors hover:bg-black-700 hover:text-white-soft"
+          className="grid size-10 place-items-center rounded-[var(--radius-md)] text-text-muted transition-colors hover:bg-black-700 hover:text-white-soft short:size-8"
         >
           <X aria-hidden="true" size={18} strokeWidth={1.75} />
         </button>
       </header>
 
       <div className="relative min-h-0 flex-1">
-        <div ref={listRef} onScroll={onScroll} role="log" aria-live="polite" aria-relevant="additions" className="h-full overflow-y-auto overscroll-contain px-3 py-2">
+        <div ref={listRef} onScroll={onScroll} role="log" aria-live="polite" aria-relevant="additions" className="h-full overflow-y-auto overscroll-contain px-3 py-2 short:py-1">
           {hasOlder && (
             <div className="flex justify-center py-2 text-micro text-text-muted">
               {loadingOlder ? <LoaderCircle aria-label="Loading older messages" size={14} className="animate-spin motion-reduce:animate-none" /> : <span>Scroll up for older messages</span>}
@@ -173,7 +173,7 @@ export function ChatPanel({ meId, partnerName, onClose, onComposerFocus, panelId
       </div>
 
       <form
-        className="border-t border-[var(--border-subtle)] p-2"
+        className="border-t border-[var(--border-subtle)] p-2 short:p-1"
         onSubmit={(event) => {
           event.preventDefault();
           submit();
@@ -197,13 +197,13 @@ export function ChatPanel({ meId, partnerName, onClose, onComposerFocus, panelId
               if (composerError) setComposerError(null);
             }}
             onKeyDown={onKeyDown}
-            className="field-sizing-content max-h-24 min-h-9 flex-1 resize-none bg-transparent py-2 text-body leading-snug text-white-soft outline-none placeholder:text-text-muted"
+            className="field-sizing-content max-h-24 min-h-9 flex-1 resize-none bg-transparent py-2 text-body leading-snug text-white-soft outline-none placeholder:text-text-muted short:max-h-14 short:min-h-8 short:py-1.5 short:text-caption"
           />
           <button
             type="submit"
             aria-label="Send message"
             disabled={!draft.trim() || remaining < 0}
-            className="grid size-10 shrink-0 place-items-center rounded-[var(--radius-md)] bg-green-600 text-white transition-[opacity,transform] active:scale-95 disabled:bg-transparent disabled:text-text-muted"
+            className="grid size-10 shrink-0 place-items-center rounded-[var(--radius-md)] bg-green-600 text-white short:size-8 transition-[opacity,transform] active:scale-95 disabled:bg-transparent disabled:text-text-muted"
           >
             <SendHorizontal aria-hidden="true" size={18} strokeWidth={1.75} />
           </button>

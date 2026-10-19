@@ -42,7 +42,7 @@ afterAll(() => db?.close());
 describe("game authority (server)", () => {
   it("only launchable registry games can be created", async () => {
     const { a } = await pair();
-    expect(await errorOf(service.create(a, "chess"))).toBe("game_unavailable"); // coming soon
+    expect(await errorOf(service.create(a, "checkers"))).toBe("game_unavailable"); // coming soon
     expect(await errorOf(service.create(a, "truth_or_dare"))).toBe("game_unavailable"); // 18+ locked
     expect(await errorOf(service.create(a, "not_a_game"))).toBe("game_unavailable");
     expect(await errorOf(service.create(a, { id: "tic_tac_toe" }))).toBe("invalid_request");

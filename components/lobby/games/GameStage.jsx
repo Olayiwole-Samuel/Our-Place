@@ -1,13 +1,15 @@
 "use client";
 
 import { AnimatePresence, m } from "motion/react";
-import { Check, Home, LogOut, RotateCcw } from "lucide-react";
+import { Check, CircleHelp, Home, LogOut, RotateCcw } from "lucide-react";
 import { Component, Suspense, lazy, useEffect, useRef, useState } from "react";
 import { ProfileAvatar } from "@/components/ui/ProfileAvatar";
 import { gameRegistry } from "@/lib/game/catalog";
+import { guideFor } from "@/lib/game/guides";
 import { loadGameClient } from "@/lib/game/loader";
 import { useChatStore } from "@/store/chatStore";
 import { useGameStore, sessionPhase } from "@/store/gameStore";
+import { GameGuide } from "./GameGuide";
 import { useWorldStore } from "@/store/worldStore";
 
 /**
@@ -25,7 +27,7 @@ import { useWorldStore } from "@/store/worldStore";
  * screens, beside) the game, so nobody has to leave a game to talk. Chat/voice/emotes are the Phase 4
  * systems in the HUD — games don't get their own.
  */
-export function GameStage({ me, partner, onEmote }) {
+export function GameStage({ me, partner, onEmote, hints }) {
   const session = useGameStore((state) => state.session);
   const phase = sessionPhase(session, me.id);
   const definition = session ? gameRegistry.get(session.gameId) : null;
@@ -61,7 +63,7 @@ export function GameStage({ me, partner, onEmote }) {
             className="game-shell panel pointer-events-auto flex flex-col overflow-hidden rounded-[var(--radius-lg)] shadow-[0_24px_64px_rgba(0,0,0,0.5)]"
           >
             {phase === "lobby" && <Launch me={me} partner={partner} definition={definition} session={session} />}
-            {(phase === "playing" || phase === "result") && <Shell me={me} partner={partner} definition={definition} session={session} phase={phase} onEmote={onEmote} />}
+            {(phase === "playing" || phase === "result") && <Shell me={me} partner={partner} definition={definition} session={session} phase={phase} onEmote={onEmote} hints={hints} />}
           </m.section>
         </m.div>
       )}
@@ -120,6 +122,7 @@ function Launch({ me, partner, definition, session }) {
   const partnerJoined = session.players.includes(partner.id);
   const partnerReady = session.ready.includes(partner.id);
   const starting = session.status === "ready";
+  const [guideOpen, setGuideOpen] = useState(false);
 
   const line = starting
     ? "Both ready — starting…"
@@ -138,6 +141,11 @@ function Launch({ me, partner, definition, session }) {
         <p className="micro-caps text-text-muted">Game</p>
         <h2 className="text-subheading font-semibold text-white-soft">{definition.name}</h2>
         <p className="text-caption text-text-secondary">{definition.description}</p>
+        {guideFor(definition.id) && (
+          <button type="button" onClick={() => setGuideOpen(true)} className="mt-1 inline-flex items-center gap-1 text-micro tracking-normal text-pink-400 underline underline-offset-2">
+            <CircleHelp aria-hidden="true" size={12} /> How to play
+          </button>
+        )}
       </div>
       <div className="flex items-start gap-8" aria-label="Players">
         <PlayerChip profile={me} label="You" ready={iAmReady} />
@@ -174,6 +182,7 @@ function Launch({ me, partner, definition, session }) {
           Cancel
         </button>
       </div>
+      {guideOpen && <GameGuide definition={definition} onClose={() => setGuideOpen(false)} />}
     </div>
   );
 }
@@ -274,7 +283,7 @@ function WinnerRow({ me, partner, session, partnerName }) {
   );
 }
 
-function Shell({ me, partner, definition, session, phase, onEmote }) {
+function Shell({ me, partner, definition, session, phase, onEmote, hints }) {
   const view = useGameStore((state) => state.view);
   const pending = useGameStore((state) => state.pending);
   const rejection = useGameStore((state) => state.rejection);
@@ -283,6 +292,7 @@ function Shell({ me, partner, definition, session, phase, onEmote }) {
   const partnerStatus = useWorldStore((state) => state.partner.status);
   const partnerName = firstName(partner, "Your partner");
   const [confirmLeave, setConfirmLeave] = useState(false);
+  const [guideOpen, setGuideOpen] = useState(false);
   const GameView = gameViewFor(definition);
 
   // A win is celebrated with the existing emote system: the winner's full-body
@@ -314,6 +324,11 @@ function Shell({ me, partner, definition, session, phase, onEmote }) {
           <span aria-hidden="true" className={`size-1.5 rounded-full ${partnerStatus === "online" ? "bg-pink-400" : "bg-text-muted/60"}`} />
           {partnerName} {partnerStatus === "online" ? "is here" : partnerStatus === "away" ? "· reconnecting" : "· away"}
         </span>
+        {guideFor(definition.id) && (
+          <button type="button" aria-label={`How to play ${definition.name}`} title="How to play" onClick={() => setGuideOpen(true)} className="grid size-9 place-items-center rounded-[var(--radius-md)] text-text-muted hover:bg-black-700 hover:text-white-soft">
+            <CircleHelp aria-hidden="true" size={16} />
+          </button>
+        )}
         {phase === "playing" && (
           <button type="button" aria-label="Leave game" onClick={() => setConfirmLeave(true)} className="grid size-9 place-items-center rounded-[var(--radius-md)] text-text-muted hover:bg-black-700 hover:text-white-soft">
             <LogOut aria-hidden="true" size={16} />
@@ -363,6 +378,7 @@ function Shell({ me, partner, definition, session, phase, onEmote }) {
                   result={session.result}
                   busy={pending === "action"}
                   act={(type, payload) => useGameStore.getState().act(type, payload)}
+                  hints={hints}
                 />
               </Suspense>
             </GameErrorBoundary>
@@ -389,6 +405,7 @@ function Shell({ me, partner, definition, session, phase, onEmote }) {
 
       </div>
 
+      {guideOpen && <GameGuide definition={definition} onClose={() => setGuideOpen(false)} />}
       {phase === "playing" && confirmLeave && (
         <footer className="flex shrink-0 flex-wrap items-center justify-center gap-2 border-t border-[var(--border-subtle)] p-3 short:p-2">
           <span className="text-caption text-text-secondary">Leave this game? It won&apos;t count.</span>

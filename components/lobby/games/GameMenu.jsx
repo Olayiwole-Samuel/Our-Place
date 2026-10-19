@@ -1,16 +1,18 @@
 "use client";
 
 import { AnimatePresence, m } from "motion/react";
-import { ChevronLeft, ChevronRight, Clock, Gamepad2, Lock, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, CircleHelp, Clock, Gamepad2, Lock, X } from "lucide-react";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { GAME_CATEGORIES } from "@/lib/game/categories";
 import { gameRegistry } from "@/lib/game/catalog";
 import { gameAvailability, gameLabels } from "@/lib/game/gating";
+import { guideFor } from "@/lib/game/guides";
 import { preloadGameClient } from "@/lib/game/loader";
 import { useChatStore } from "@/store/chatStore";
 import { MENU, useGameStore } from "@/store/gameStore";
 import { HudButton } from "../comms/HudButton";
 import { ACCENT_CLASSES, CATEGORY_ICONS } from "./categoryIcons";
+import { GameGuide } from "./GameGuide";
 
 const CATEGORIES = [...GAME_CATEGORIES].sort((a, b) => a.order - b.order);
 
@@ -97,7 +99,7 @@ export function GameMenu({ disabled = false }) {
 function CategoryList() {
   return (
     <>
-      <header className="flex items-center gap-2 border-b border-[var(--border-subtle)] py-3 pr-2 pl-4">
+      <header className="flex items-center gap-2 border-b border-[var(--border-subtle)] py-3 pr-2 pl-4 short:py-1.5">
         <h2 className="flex-1 text-caption font-semibold text-white-soft">Games</h2>
       </header>
       <ul className="flex-1 overflow-y-auto overscroll-contain p-1.5">
@@ -120,9 +122,9 @@ function CategoryRow({ category }) {
       type="button"
       data-category={category.id}
       onClick={() => useGameStore.getState().openCategory(category.id)}
-      className="flex w-full items-center gap-3 rounded-[var(--radius-md)] px-3 py-2.5 text-left transition-colors hover:bg-black-700 focus-visible:bg-black-700"
+      className="flex w-full items-center gap-3 rounded-[var(--radius-md)] px-3 py-2.5 text-left transition-colors hover:bg-black-700 focus-visible:bg-black-700 short:gap-2 short:py-1"
     >
-      <span aria-hidden="true" className={`grid size-9 shrink-0 place-items-center rounded-[var(--radius-sm)] bg-black-800 ${accent.text}`}>
+      <span aria-hidden="true" className={`grid size-9 shrink-0 place-items-center rounded-[var(--radius-sm)] bg-black-800 short:size-7 ${accent.text}`}>
         <Icon size={18} strokeWidth={1.75} />
       </span>
       <span className="min-w-0 flex-1">
@@ -135,10 +137,15 @@ function CategoryRow({ category }) {
 }
 
 function CategoryGames({ category }) {
-  const games = useMemo(() => gameRegistry.listByCategory(category.id), [category.id]);
+  // Playable games first, then the rest in catalog order.
+  const games = useMemo(() => {
+    const list = gameRegistry.listByCategory(category.id);
+    return [...list.filter((g) => gameAvailability(g).launchable), ...list.filter((g) => !gameAvailability(g).launchable)];
+  }, [category.id]);
   const accent = ACCENT_CLASSES[category.accent];
   const pending = useGameStore((state) => state.pending);
   const [notice, setNotice] = useState(null);
+  const [guide, setGuide] = useState(null); // definition whose "how to play" is open
 
   const select = (definition, availability) => {
     if (!availability.launchable) {
@@ -150,7 +157,7 @@ function CategoryGames({ category }) {
 
   return (
     <>
-      <header className="flex items-start gap-1 border-b border-[var(--border-subtle)] py-2 pr-2 pl-1.5">
+      <header className="flex items-start gap-1 border-b border-[var(--border-subtle)] py-2 pr-2 pl-1.5 short:py-1">
         <button type="button" aria-label="Back to categories" onClick={() => useGameStore.getState().openMenu()} className="grid size-9 shrink-0 place-items-center rounded-[var(--radius-md)] text-text-muted hover:bg-black-700 hover:text-white-soft">
           <ChevronLeft aria-hidden="true" size={18} />
         </button>
@@ -163,7 +170,7 @@ function CategoryGames({ category }) {
         {games.map((definition) => {
           const availability = gameAvailability(definition);
           return (
-            <li key={definition.id}>
+            <li key={definition.id} className="flex items-center gap-1">
               <GameCard
                 definition={definition}
                 availability={availability}
@@ -171,10 +178,22 @@ function CategoryGames({ category }) {
                 notice={notice?.id === definition.id ? notice.text : null}
                 onSelect={() => select(definition, availability)}
               />
+              {guideFor(definition.id) && (
+                <button
+                  type="button"
+                  aria-label={`How to play ${definition.name}`}
+                  title="How to play"
+                  onClick={() => setGuide(definition)}
+                  className="grid size-9 shrink-0 place-items-center rounded-[var(--radius-md)] text-text-muted hover:bg-black-700 hover:text-white-soft short:size-8"
+                >
+                  <CircleHelp aria-hidden="true" size={17} />
+                </button>
+              )}
             </li>
           );
         })}
       </ul>
+      {guide && <GameGuide definition={guide} onClose={() => setGuide(null)} />}
     </>
   );
 }
@@ -189,11 +208,11 @@ function GameCard({ definition, availability, busy, notice, onSelect }) {
       onClick={onSelect}
       onPointerEnter={() => playable && preloadGameClient(definition)}
       onFocus={() => playable && preloadGameClient(definition)}
-      className={`flex w-full items-center gap-3 rounded-[var(--radius-md)] px-3 py-2.5 text-left transition-colors ${
+      className={`flex min-w-0 flex-1 items-center gap-3 rounded-[var(--radius-md)] px-3 py-2.5 text-left transition-colors short:py-1.5 ${
         playable ? "hover:bg-black-700 focus-visible:bg-black-700" : "cursor-default"
       }`}
     >
-      <span aria-hidden="true" className={`grid size-9 shrink-0 place-items-center rounded-[var(--radius-sm)] bg-black-800 text-[1.1rem] leading-none ${playable ? "" : "opacity-60"}`}>
+      <span aria-hidden="true" className={`grid size-9 shrink-0 place-items-center rounded-[var(--radius-sm)] bg-black-800 text-[1.1rem] leading-none short:size-7 ${playable ? "" : "opacity-60"}`}>
         {definition.icon}
       </span>
       <span className="min-w-0 flex-1">

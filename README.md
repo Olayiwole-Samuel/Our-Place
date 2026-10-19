@@ -32,6 +32,8 @@ The product is a persistent 3D living room the couple shares: avatars, voice, ch
 | Imported models animated by the built-in controller (retargeting) | ✅ Built (Phase 4) |
 | Game menu, games, media, streaks, room evolution | ⏳ Not started |
 | Game platform: menu, registry (full roster), sessions, server authority, shell | ✅ Built (Phase 5) — apply migration `20261009000000_game_sessions.sql`; Tic Tac Toe (platform test), **Would You Rather** (Phase 6A; apply `20261010000000_question_usage.sql`) and **Naija Ludo** (Phase 6B; apply `20261011000000_win_streaks.sql` for win streaks and `20261012000000_couple_photos.sql` for the personalised board) are playable |
+| Chess, Naija Whot (house-rule settings), Scrabble (ENABLE word list) and a co-op Jigsaw Puzzle; "How to play" guides for every game | ✅ Built (2026-10-19) — no migration needed |
+| Phones: landscape only ("turn your phone sideways"), full-screen button, layouts fitted to ~800×300 (Redmi 13C / A5) | ✅ Built |
 | Remaining game implementations, Colyseus realtime game server | ⏳ Not started |
 | Streaks, leaderboard, media, notifications, AI questions, avatars | ⏳ Not started |
 
@@ -61,6 +63,7 @@ Without valid Supabase credentials the app still runs: the welcome screen shows 
 | `npm run lint` | ESLint (Next.js core-web-vitals rules) |
 | `npm test` | All tests: unit, component (jsdom), and database security tests (real migrations in PGlite) |
 | `npm run check` | Lint + tests + build — run before every merge |
+| `node scripts/voice-e2e.mjs` | Two headless browsers talk through Agora for 30 s and report what each hears (needs `npm run dev` and Agora keys) |
 | `npm run characters:build` | Build the male/female characters and their animations from Mixamo downloads in `assets-src/mixamo/` (docs/characters.md) |
 | `npm run gallery:build` | Build the character gallery from free CC0 packs in `assets-src/` |
 | `node scripts/bench-headless.mjs` | Measure the living room in headless Chrome (needs `npm run dev`); see docs/performance.md |
