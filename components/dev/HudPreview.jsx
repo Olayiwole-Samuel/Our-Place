@@ -189,6 +189,7 @@ function Scenario() {
           watch: params.get("panel") === "tv-playing" ? { source: { type: "youtube", id: "dQw4w9WgXcQ", title: "Never Gonna Give You Up" }, playing: false, atSeconds: 12, updatedAt: new Date().toISOString(), updatedBy: PARTNER.id, version: 1 } : null,
           trophies: {
             paired_at: ago(60 * 24 * 41),
+            together_since: "2026-03-06",
             games_played: 27,
             wins: [
               { game_id: "ludo", user_id: ME.id, wins: 7 },

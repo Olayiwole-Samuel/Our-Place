@@ -118,4 +118,14 @@ describe("memories, push and trophies", () => {
     expect({ ...trophies, memories: Number(trophies.memories), games_played: Number(trophies.games_played) }).toMatchObject({ memories: 1, games_played: 0, wins: [] });
     expect(trophies.paired_at).toBeTruthy();
   });
+
+  it("either partner sets the day you got together — for their couple only, never in the future", async () => {
+    await call(couple.b, "select public.set_together_since('2026-03-06')");
+    const [{ couple_trophies: mine }] = await call(couple.a, "select public.couple_trophies()");
+    expect(mine.together_since).toBe("2026-03-06");
+    const [{ couple_trophies: theirs }] = await call(other.a, "select public.couple_trophies()");
+    expect(theirs.together_since).not.toBe("2026-03-06");
+    expect(await fails(call(couple.a, "select public.set_together_since(current_date + 30)"))).toMatch(/room:invalid/);
+    expect(await fails(call(couple.a, "update public.couples set together_since = '2020-01-01'"))).toMatch(/permission denied/);
+  });
 });

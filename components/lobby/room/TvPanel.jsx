@@ -128,6 +128,12 @@ function YouTubeForm({ onPlay }) {
   );
 }
 
+/** Asks the server to check an uploaded file and mark it ready. */
+const finishUpload = (id) =>
+  fetch(`/api/room/videos/${id}`, { method: "POST", credentials: "same-origin", headers: { "content-type": "application/json" }, body: "{}" })
+    .then((r) => r.ok)
+    .catch(() => false);
+
 function Library({ kind, videos, uploads, onPlay, playingId }) {
   const list = videos.filter((video) => video.kind === kind);
   const [progress, setProgress] = useState(null); // { title, loaded, total } | { error }
@@ -164,10 +170,23 @@ function Library({ kind, videos, uploads, onPlay, playingId }) {
       useRoomStore.getState().refresh("videos");
       return;
     }
-    const done = await fetch(`/api/room/videos/${start.data.id}`, { method: "POST", credentials: "same-origin" }).then((r) => r.ok);
+    const done = await finishUpload(start.data.id);
     setProgress(done ? null : { error: "Uploaded, but we couldn't check the file. Try again." });
     useRoomStore.getState().refresh("videos");
   };
+
+  // An upload of ours left "Uploading…" (the tab closed, or the check failed
+  // after the file arrived): check it again once, so it never needs re-uploading.
+  const me = useRoomStore((state) => state.me());
+  const checked = useRef(new Set());
+  const uploading = Boolean(progress && !progress.error);
+  useEffect(() => {
+    if (uploading) return;
+    const stale = list.filter((video) => video.status === "uploading" && video.uploaderId === me && !checked.current.has(video.id));
+    if (!stale.length) return;
+    stale.forEach((video) => checked.current.add(video.id));
+    Promise.all(stale.map((video) => finishUpload(video.id))).then((results) => results.some(Boolean) && useRoomStore.getState().refresh("videos"));
+  }, [list, me, uploading]);
 
   return (
     <div className="flex min-h-0 flex-col gap-1.5">

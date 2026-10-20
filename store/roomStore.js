@@ -196,6 +196,15 @@ export const useRoomStore = create((set, get) => ({
     await get().refresh("notes");
   },
 
+  /** The day you got together ("YYYY-MM-DD"); returns an error code or null. */
+  async setTogetherSince(day) {
+    if (!ctx) return "unavailable";
+    const { error } = await ctx.supabase.rpc("set_together_since", { day });
+    if (error) return error.message.match(/room:([a-z_]+)/)?.[1] ?? "unknown";
+    await get().refresh("trophies");
+    return null;
+  },
+
   /** Sets what the TV plays; returns an error code or null. */
   async setWatch({ source, playing, atSeconds }) {
     if (!ctx) return "unavailable";
