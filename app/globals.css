@@ -382,6 +382,53 @@
   top: calc(var(--safe-top) + var(--edge-gap) + var(--control-size) + 12px);
 }
 
+/* The Room button sits under the Games button. */
+.room-menu-anchor {
+  position: absolute;
+  right: calc(var(--safe-right) + var(--edge-gap));
+  top: calc(var(--safe-top) + var(--edge-gap) + 2 * var(--control-size) + 20px);
+}
+/* Room panels (TV, memories, notes, trophies): sized like the game shell. */
+.room-panel {
+  width: min(40rem, calc(100vw - var(--safe-left) - var(--safe-right) - 2 * var(--edge-gap) - 2 * var(--game-rail-width) - 16px));
+  max-height: calc(100dvh - var(--safe-top) - var(--safe-bottom) - 2 * var(--edge-gap) - 2 * var(--control-size) - 24px);
+}
+.room-panel-wide {
+  width: min(56rem, calc(100vw - var(--safe-left) - var(--safe-right) - 2 * var(--edge-gap) - 2 * var(--game-rail-width) - 16px));
+}
+.tv-screen {
+  aspect-ratio: 16 / 9;
+  max-height: calc(100dvh - var(--safe-top) - var(--safe-bottom) - 2 * var(--edge-gap) - 2 * var(--control-size) - 140px);
+  margin-inline: auto;
+}
+.tv-youtube iframe {
+  width: 100%;
+  height: 100%;
+}
+.now-playing-chip {
+  align-self: center;
+}
+@media (max-height: 480px) {
+  .room-stage {
+    padding-right: calc(var(--safe-right) + var(--edge-gap) + var(--control-size) + 10px);
+  }
+  .room-panel,
+  .room-panel-wide {
+    width: 100%;
+    max-height: calc(100dvh - var(--safe-top) - var(--safe-bottom) - 2 * var(--edge-gap));
+  }
+  .tv-layout {
+    flex-direction: row;
+  }
+  .tv-library {
+    width: 13rem;
+    flex-shrink: 0;
+  }
+  .tv-screen {
+    max-height: calc(100dvh - var(--safe-top) - var(--safe-bottom) - 2 * var(--edge-gap) - 110px);
+  }
+}
+
 .game-drawer {
   width: min(20rem, calc(100vw - var(--safe-left) - var(--safe-right) - 2 * var(--edge-gap)));
   max-height: calc(100dvh - var(--safe-top) - var(--safe-bottom) - 2 * var(--edge-gap) - 3 * var(--control-size) - 44px);

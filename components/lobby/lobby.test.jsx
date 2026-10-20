@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { roomInteractables, livingRoom } from "@/lib/world/rooms/livingRoom";
 import { createWorldRuntime } from "@/lib/world/runtime";
 import { CoupleStoreContext, createCoupleStore } from "@/store/coupleStore";
+import { useRoomStore } from "@/store/roomStore";
 import { useWorldStore } from "@/store/worldStore";
 import { InteractPrompt } from "./InteractionUI";
 import { Joystick } from "./Joystick";
@@ -33,11 +34,27 @@ describe("world controls", () => {
   it("E on an object without a feature yet opens its info card; Esc closes it", () => {
     const runtime = createWorldRuntime(livingRoom, 1);
     render(<Controls runtime={runtime} />);
-    act(() => useWorldStore.getState().setInteractionTarget(interactable("photoWall")));
+    act(() => useWorldStore.getState().setInteractionTarget(interactable("plant")));
     key("KeyE");
-    expect(useWorldStore.getState().activeInteraction).toBe("photo_wall");
+    expect(useWorldStore.getState().activeInteraction).toBe("plant");
     key("Escape");
     expect(useWorldStore.getState().activeInteraction).toBeNull();
+  });
+
+  it("E at the photo wall, TV, notes board or bookshelf opens that room panel", () => {
+    const runtime = createWorldRuntime(livingRoom, 1);
+    render(<Controls runtime={runtime} />);
+    for (const [type, panel] of [
+      ["photoWall", "memories"],
+      ["videoScreen", "tv"],
+      ["messageBoard", "notes"],
+      ["bookshelf", "shelf"],
+    ]) {
+      act(() => useWorldStore.getState().setInteractionTarget(interactable(type)));
+      key("KeyE");
+      expect(useRoomStore.getState().panel).toBe(panel);
+      act(() => useRoomStore.getState().closePanel());
+    }
   });
 
   it("Esc works even when focus is on the card's close button", () => {

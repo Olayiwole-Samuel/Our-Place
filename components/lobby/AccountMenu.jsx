@@ -9,12 +9,13 @@ import { setSoundsEnabled, soundsEnabled, subscribeSounds } from "@/lib/ui/sound
 import { usePerformanceStore } from "@/store/performanceStore";
 import { useAuthStore } from "@/store/authStore";
 import { CharacterSwitch } from "./CharacterSwitch";
+import { PushSetting } from "./PushControls";
 
 /**
  * Small account menu in the world's corner. Deliberately contains no
  * leave/unpair/partner controls — pairing is permanent by design.
  */
-export function AccountMenu({ beforeSignOut, runtime }) {
+export function AccountMenu({ beforeSignOut, runtime, partnerName = "your partner" }) {
   const email = useAuthStore((state) => state.user?.email);
   const [open, setOpen] = useState(false);
   const menuId = useId();
@@ -69,6 +70,7 @@ export function AccountMenu({ beforeSignOut, runtime }) {
           >
             {email && <p className="truncate px-2 pt-1 text-caption text-text-muted">{email}</p>}
             <CharacterSwitch runtime={runtime} />
+            <PushSetting partnerName={partnerName} />
             <SoundToggle />
             <GraphicsSetting />
             <ConnectionLog />

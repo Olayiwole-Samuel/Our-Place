@@ -1,5 +1,6 @@
 import { sitDown } from "@/lib/world/actions";
 import { useGameStore } from "@/store/gameStore";
+import { useRoomStore } from "@/store/roomStore";
 
 /**
  * What interacting with each object type does. Detection (lib/world/interactions)
@@ -17,31 +18,15 @@ export const INTERACTION_HANDLERS = {
       if (sitDown(runtime)) world.setSeated(true);
     },
   },
-  photoWall: {
-    kind: "card",
-    title: "Your photo wall",
-    body: "This is where your memories will hang. Adding photos is coming soon.",
-  },
-  videoScreen: {
-    kind: "card",
-    title: "Nothing playing yet",
-    body: "You'll be able to watch videos together here, in sync. Coming soon.",
-  },
-  bookshelf: {
-    kind: "card",
-    title: "Your bookshelf",
-    body: "Trophies, milestones and game wins will collect on these shelves. The top shelf is waiting.",
-  },
+  photoWall: { kind: "action", run: () => useRoomStore.getState().openPanel("memories") },
+  videoScreen: { kind: "action", run: () => useRoomStore.getState().openPanel("tv") },
+  bookshelf: { kind: "action", run: () => useRoomStore.getState().openPanel("shelf") },
   plant: {
     kind: "card",
     title: "Your plant",
     body: "Just planted. Soon it will grow as you spend time here together.",
   },
-  messageBoard: {
-    kind: "card",
-    title: "No notes yet",
-    body: "Leave each other notes to find later. Coming soon.",
-  },
+  messageBoard: { kind: "action", run: () => useRoomStore.getState().openPanel("notes") },
   gameCorner: {
     // The in-world game corner opens the floating game menu at its first category.
     kind: "action",

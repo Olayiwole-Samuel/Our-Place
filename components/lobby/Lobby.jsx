@@ -5,6 +5,7 @@ import { WorldStage } from "@/components/3d/World/WorldStage";
 import { Wordmark } from "@/components/brand/Wordmark";
 import { LoadingScreen } from "@/components/ui/LoadingScreen";
 import { useCoarsePointer } from "@/hooks/useMediaQuery";
+import { isSupabaseConfigured } from "@/lib/config/env";
 import { livingRoom } from "@/lib/world/rooms/livingRoom";
 import { createWorldRuntime } from "@/lib/world/runtime";
 import { displayedCharacter } from "@/lib/character/looks";
@@ -12,10 +13,12 @@ import { useCharacterStore, useCharacterStoreApi } from "@/store/characterStore"
 import { useChatStore } from "@/store/chatStore";
 import { useCoupleStore } from "@/store/coupleStore";
 import { useVoiceStore } from "@/store/voiceStore";
+import { useRoomStore } from "@/store/roomStore";
 import { useWorldStore } from "@/store/worldStore";
 import { AccountMenu } from "./AccountMenu";
 import { ChooseCharacterCard } from "./CharacterSwitch";
 import { FullscreenButton, RotateGate } from "./RotateGate";
+import { PushPrompt } from "./PushControls";
 import { InteractPrompt, ObjectCard, SeatedHint } from "./InteractionUI";
 import { Joystick } from "./Joystick";
 import { OfflineBanner } from "./OfflineBanner";
@@ -25,6 +28,7 @@ import { CommsDock } from "./comms/CommsDock";
 import { GameMenu } from "./games/GameMenu";
 import { GameStage } from "./games/GameStage";
 import { useCoupleGames } from "./games/useCoupleGames";
+import { NowPlayingChip, RoomMenu, RoomPanels, StreakBadge } from "./room/RoomPanels";
 import { useCoupleComms, usePresenceNotices } from "./useCoupleComms";
 import { useCouplePresence, usePartnerPresenceEffects } from "./useCouplePresence";
 import { useWorldControls } from "./useWorldControls";
@@ -80,6 +84,20 @@ function LivingRoom({ me, partner, couple }) {
   usePresenceNotices(partnerName);
   // Games: the couple's sessions + live events (one subscription for the room's lifetime).
   useCoupleGames({ coupleId: couple.id, userId: me.id });
+  // The room's shared things: notes, memories, TV, trophies, streak, last seen.
+  useEffect(() => {
+    if (!isSupabaseConfigured()) return undefined;
+    let close = null;
+    let cancelled = false;
+    import("@/lib/supabase/client").then(({ getSupabaseBrowserClient }) => {
+      if (!cancelled) close = useRoomStore.getState().open({ supabase: getSupabaseBrowserClient(), coupleId: couple.id, userId: me.id, partnerId: partner.id });
+    });
+    return () => {
+      cancelled = true;
+      close?.();
+    };
+  }, [couple.id, me.id, partner.id]);
+  const roomPanel = useRoomStore((state) => state.panel);
   const inGame = useWorldStore((state) => state.inGame);
   const chatOpen = useChatStore((state) => state.open);
   const lookLocked = useWorldStore((state) => state.lookLocked);
@@ -121,8 +139,9 @@ function LivingRoom({ me, partner, couple }) {
       {ready && (
         <div className="hud pointer-events-none absolute inset-0 z-20 safe-inset" data-touch={touch ? "true" : "false"} data-ingame={inGame ? "true" : "false"}>
           <header className="flex items-start justify-between gap-2">
-            <div className="flex min-w-0 items-start gap-3">
+            <div className="flex min-w-0 items-start gap-2">
               <PartnerStatus />
+              <StreakBadge />
             </div>
             <OfflineBanner />
             <div className="pointer-events-auto flex shrink-0 items-center gap-2">
@@ -130,6 +149,7 @@ function LivingRoom({ me, partner, couple }) {
               <FullscreenButton />
               <AccountMenu
                 runtime={runtime}
+                partnerName={partnerName}
                 beforeSignOut={async () => {
                   await Promise.allSettled([runtime.presence?.leave(), useVoiceStore.getState().shutdown()]);
                 }}
@@ -142,8 +162,10 @@ function LivingRoom({ me, partner, couple }) {
           </div>
 
           {/* Hidden while chatting: the chat panel covers the middle on most screens. */}
-          {!inGame && !chatOpen && (
+          {!inGame && !chatOpen && !roomPanel && (
             <div className="hud-center flex flex-col items-center gap-2">
+              <NowPlayingChip me={me.id} partnerName={partnerName} />
+              <PushPrompt partnerName={partnerName} />
               <ChooseCharacterCard runtime={runtime} />
               <ObjectCard />
               <SeatedHint touch={touch} />
@@ -164,6 +186,8 @@ function LivingRoom({ me, partner, couple }) {
 
           {/* Right edge: the floating game menu (reserved for it since Phase 3). */}
           <GameMenu disabled={inGame} />
+          <RoomMenu disabled={inGame} />
+          <RoomPanels me={me} partner={partner} partnerName={partnerName} />
           <GameStage me={me} partner={partner} onEmote={triggerEmote} hints={hints} />
         </div>
       )}

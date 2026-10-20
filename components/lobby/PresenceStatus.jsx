@@ -1,8 +1,10 @@
 "use client";
 
 import { MicOff, Volume2 } from "lucide-react";
+import { useEffect, useState } from "react";
 import { ProfileAvatar } from "@/components/ui/ProfileAvatar";
 import { useCoupleStore } from "@/store/coupleStore";
+import { lastSeenText, useRoomStore } from "@/store/roomStore";
 import { useVoiceStore } from "@/store/voiceStore";
 import { useWorldStore } from "@/store/worldStore";
 
@@ -15,6 +17,12 @@ export function PartnerStatus() {
   const partner = useCoupleStore((state) => state.partner);
   const status = useWorldStore((state) => state.partner.status);
   const connection = useWorldStore((state) => state.connection);
+  const seenAt = useRoomStore((state) => state.partnerSeenAt);
+  useMinuteTick(status === "offline");
+  // When they leave, re-read "last here" so it says "just now", not an old visit.
+  useEffect(() => {
+    if (status === "offline") useRoomStore.getState().refresh("seen");
+  }, [status]);
   if (!partner) return null;
 
   const name = partner.displayName?.split(" ")[0] || "Your person";
@@ -24,7 +32,7 @@ export function PartnerStatus() {
       : status === "away"
         ? { text: "Reconnecting…", dot: "bg-text-muted animate-pulse-live" }
         : status === "offline"
-          ? { text: "Not here yet", dot: "bg-text-muted/50" }
+          ? { text: seenAt ? `Last here ${lastSeenText(seenAt)}` : "Not here yet", dot: "bg-text-muted/50" }
           : connection === "unavailable" || connection === "closed"
             ? { text: "Can't check right now", dot: "bg-text-muted/50" }
             : { text: "Checking…", dot: "bg-text-muted/50 animate-pulse-live" };
@@ -93,4 +101,14 @@ function PartnerVoice() {
       <span className="sr-only">{speaking ? "speaking" : "in voice"}</span>
     </span>
   );
+}
+
+/** Re-renders once a minute while `active` (keeps "last here 5 min ago" honest). */
+function useMinuteTick(active) {
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    if (!active) return undefined;
+    const timer = setInterval(() => setTick((n) => n + 1), 60_000);
+    return () => clearInterval(timer);
+  }, [active]);
 }

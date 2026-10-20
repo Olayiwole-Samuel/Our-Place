@@ -8,6 +8,7 @@ import { CharacterStudioScreen } from "@/components/studio/CharacterStudioScreen
 import { galleryModelDescriptor } from "@/lib/character/gallery";
 import { useChatStore } from "@/store/chatStore";
 import { useGameStore } from "@/store/gameStore";
+import { useRoomStore } from "@/store/roomStore";
 import { useWorldStore } from "@/store/worldStore";
 
 /**
@@ -167,6 +168,44 @@ function Scenario() {
         useGameStore.setState({ error: null });
       }
       if (params.get("chat")) useChatStore.getState().setOpen(true);
+      if (params.get("panel") || params.get("room")) {
+        // Sample room data (the preview has no session to load real data).
+        const ago = (minutes) => new Date(Date.now() - minutes * 60_000).toISOString();
+        useRoomStore.setState({
+          ready: true,
+          streak: { current: 6, best: 9, todayBoth: true },
+          partnerSeenAt: ago(42),
+          notes: [
+            { id: "n1", authorId: PARTNER.id, body: "Good morning sunshine ☀️ Don't forget to eat breakfast!", color: "yellow", createdAt: ago(30), seenAt: null },
+            { id: "n2", authorId: ME.id, body: "Movie night on Friday? I'll upload something good 🍿", color: "pink", createdAt: ago(300), seenAt: ago(200) },
+            { id: "n3", authorId: PARTNER.id, body: "Miss you already ❤️", color: "blue", createdAt: ago(2000), seenAt: ago(1900) },
+          ],
+          unseenNotes: 1,
+          memories: ["/puzzles/lagos-sunset.svg", "/puzzles/tropical.svg", "/puzzles/night-sky.svg", "/puzzles/hearts.svg"].map((url, i) => ({ id: `m${i}`, uploaderId: i % 2 ? PARTNER.id : ME.id, url, caption: ["Lekki sunset", "The garden party", "Stargazing", "Our place"][i], takenOn: i === 0 ? "2026-08-14" : null, createdAt: ago(i * 900) })),
+          videos: [
+            { id: "v1", uploaderId: ME.id, kind: "movie", title: "The Wedding Party", sizeBytes: 1.4e9, status: "ready", createdAt: ago(100) },
+            { id: "v2", uploaderId: PARTNER.id, kind: "clip", title: "Beach day", sizeBytes: 8.2e7, status: "ready", createdAt: ago(50) },
+          ],
+          watch: params.get("panel") === "tv-playing" ? { source: { type: "youtube", id: "dQw4w9WgXcQ", title: "Never Gonna Give You Up" }, playing: false, atSeconds: 12, updatedAt: new Date().toISOString(), updatedBy: PARTNER.id, version: 1 } : null,
+          trophies: {
+            paired_at: ago(60 * 24 * 41),
+            games_played: 27,
+            wins: [
+              { game_id: "ludo", user_id: ME.id, wins: 7 },
+              { game_id: "ludo", user_id: PARTNER.id, wins: 9 },
+              { game_id: "chess", user_id: ME.id, wins: 3 },
+              { game_id: "naija_whot", user_id: PARTNER.id, wins: 5 },
+            ],
+            best_streaks: [{ game_id: "ludo", user_id: PARTNER.id, best: 4 }],
+            puzzles_done: 2,
+            messages: 812,
+            memories: 4,
+            notes: 3,
+            days_together_here: 31,
+          },
+          panel: (params.get("panel") ?? "").replace("tv-playing", "tv") || null,
+        });
+      }
       if (params.get("drawer")) useGameStore.getState().openCategory(params.get("drawer"));
     }, 2500);
     return () => clearTimeout(timer);
@@ -189,6 +228,7 @@ function lookCharacter(id, userId) {
 
 export function HudPreview() {
   const params = new URLSearchParams(window.location.search);
+  if (params.get("panel") || params.get("room")) useRoomStore.setState({ preview: true });
   const screen = params.get("screen");
   const viewer = { ...VIEWER, characters: { mine: lookCharacter(params.get("me"), ME.id), partner: lookCharacter(params.get("partner"), PARTNER.id) } };
   if (screen === "pairing") {

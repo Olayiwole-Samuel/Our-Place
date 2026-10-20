@@ -170,6 +170,8 @@ export const useChatStore = create((set, get) => ({
     try {
       const saved = await service.send(pending.content, clientId);
       set({ messages: mergeMessages(get().messages, [saved]) });
+      // A phone notification for the partner if they're not in Our Place (the server decides).
+      if (saved?.id) import("@/lib/push/client").then(({ announceMessage }) => announceMessage(saved.id)).catch(() => {});
     } catch (error) {
       const code = error.code ?? chatErrorCode(error);
       set({
