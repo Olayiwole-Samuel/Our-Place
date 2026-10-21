@@ -21,6 +21,7 @@ export const INTERACTION_HANDLERS = {
   photoWall: { kind: "action", run: () => useRoomStore.getState().openPanel("memories") },
   videoScreen: { kind: "action", run: () => useRoomStore.getState().openPanel("tv") },
   bookshelf: { kind: "action", run: () => useRoomStore.getState().openPanel("shelf") },
+  loveHeart: { kind: "action", run: () => useRoomStore.getState().openPanel("us") },
   plant: {
     kind: "card",
     title: "Your plant",

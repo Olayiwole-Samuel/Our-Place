@@ -17,7 +17,8 @@ import { openResilientChannel } from "@/lib/realtime/resilientChannel";
  *   videos         TV library { id, kind, title, sizeBytes, status, uploaderId }
  *   watch          what the TV plays: { source, playing, atSeconds, updatedAt, updatedBy, version } | null
  *   trophies       bookshelf counts (couple_trophies()), loaded when the shelf opens
- *   panel          which room panel is open: null | "notes" | "memories" | "tv" | "shelf"
+ *   togetherSince  the day you got together ("YYYY-MM-DD"), else when you paired (ISO)
+ *   panel          which room panel is open: null | "us" | "notes" | "memories" | "tv" | "shelf"
  *   skewMs         server clock minus this device's clock, for in-sync playback
  *
  * Presence for "last seen" and the streak: note_presence() on arrival, every
@@ -36,6 +37,7 @@ const initialState = {
   videos: [],
   watch: null,
   trophies: null,
+  togetherSince: null,
   panel: null,
   skewMs: null, // server clock − this device's clock (ms), measured on our TV writes
 };
@@ -124,7 +126,7 @@ export const useRoomStore = create((set, get) => ({
   },
 
   async refreshAll() {
-    await Promise.all(["streak", "seen", "notes", "memories", "videos", "watch"].map((area) => get().refresh(area)));
+    await Promise.all(["couple", "streak", "seen", "notes", "memories", "videos", "watch"].map((area) => get().refresh(area)));
   },
 
   async refresh(area) {
@@ -159,9 +161,12 @@ export const useRoomStore = create((set, get) => ({
         const { data } = await supabase.from("couple_watch").select("source, playing, at_seconds, updated_at, updated_by, version").maybeSingle();
         if (here === ctx && data) get().receiveWatch(data);
         else if (here === ctx) set({ watch: null });
+      } else if (area === "couple") {
+        const { data } = await supabase.from("couples").select("together_since, paired_at").maybeSingle();
+        if (here === ctx && data) set({ togetherSince: data.together_since ?? data.paired_at });
       } else if (area === "trophies") {
         const { data } = await supabase.rpc("couple_trophies");
-        if (here === ctx) set({ trophies: data ?? null });
+        if (here === ctx) set({ trophies: data ?? null, ...(data && { togetherSince: data.together_since ?? data.paired_at }) });
       }
     } catch (error) {
       logConnection("room", `couldn't load ${area}: ${error?.message ?? error}`);

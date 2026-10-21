@@ -1,13 +1,16 @@
-import { useEffect, useMemo, useState } from "react";
+import { useFrame } from "@react-three/fiber";
+import { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { palette } from "@/lib/design/tokens";
+import { anniversaryLabel, togetherSince } from "@/lib/room/together";
 import { useRoomStore } from "@/store/roomStore";
 import { createTextTexture, getMaterials, mix } from "../materials";
 
 /**
  * Wall-mounted features, showing what the couple has left in the room
  * (store/roomStore.js): memory photos in the frames, notes on the board, and
- * what's on the TV. Each keeps an inviting empty state.
+ * what's on the TV, plus a glowing heart counting your days together (opens
+ * "Us"). Each keeps an inviting empty state.
  */
 
 /** A flat label in the world. Disposes its texture on unmount. */
@@ -218,6 +221,92 @@ export function MessageBoard() {
           </mesh>
         </group>
       )}
+    </group>
+  );
+}
+
+/** A heart outline (three.js's classic), centred and about 0.55 m across. */
+function heartGeometry() {
+  const shape = new THREE.Shape();
+  shape.moveTo(25, 25);
+  shape.bezierCurveTo(25, 25, 20, 0, 0, 0);
+  shape.bezierCurveTo(-30, 0, -30, 35, -30, 35);
+  shape.bezierCurveTo(-30, 55, -10, 77, 25, 95);
+  shape.bezierCurveTo(60, 77, 80, 55, 80, 35);
+  shape.bezierCurveTo(80, 35, 80, 0, 50, 0);
+  shape.bezierCurveTo(35, 0, 25, 25, 25, 25);
+  const geometry = new THREE.ExtrudeGeometry(shape, { depth: 8, bevelEnabled: true, bevelThickness: 4, bevelSize: 4, bevelSegments: 4, curveSegments: 20 });
+  geometry.center();
+  geometry.rotateZ(Math.PI); // the shape is drawn point-up
+  geometry.scale(0.005, 0.005, 0.005);
+  return geometry;
+}
+
+/** A soft round glow (canvas radial gradient) for behind the heart. */
+function glowTexture() {
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = 128;
+  const ctx = canvas.getContext("2d");
+  const gradient = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
+  gradient.addColorStop(0, "rgba(255, 92, 138, 0.85)");
+  gradient.addColorStop(0.45, "rgba(255, 79, 126, 0.3)");
+  gradient.addColorStop(1, "rgba(255, 79, 126, 0)");
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, 128, 128);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
+}
+
+/** lub-dub: two quick swells, then rest (period 1.5 s). */
+const heartbeat = (t) => {
+  const phase = (t % 1.5) / 1.5;
+  const pulse = (center, width) => Math.max(0, 1 - Math.abs(phase - center) / width);
+  return pulse(0.12, 0.1) * 0.09 + pulse(0.36, 0.1) * 0.06;
+};
+
+/** The glowing heart on the back wall: your days together (couples.together_since). */
+export function LoveHeart({ reducedMotion = false }) {
+  const since = useRoomStore((state) => state.togetherSince);
+  const heart = useRef();
+  const glow = useRef();
+  const geometry = useMemo(heartGeometry, []);
+  const material = useMemo(() => new THREE.MeshStandardMaterial({ color: "#ff4f7e", emissive: "#ff2e6e", emissiveIntensity: 1.1, roughness: 0.35, metalness: 0.1, toneMapped: false }), []);
+  const glowMaterial = useMemo(() => new THREE.MeshBasicMaterial({ map: glowTexture(), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false }), []);
+  useEffect(
+    () => () => {
+      geometry.dispose();
+      material.dispose();
+      glowMaterial.map?.dispose();
+      glowMaterial.dispose();
+    },
+    [geometry, material, glowMaterial],
+  );
+
+  useFrame(({ clock }) => {
+    if (reducedMotion || !heart.current) return;
+    const beat = heartbeat(clock.elapsedTime);
+    heart.current.scale.setScalar(1 + beat);
+    if (glow.current) glow.current.material.opacity = 0.75 + beat * 3;
+  });
+
+  const lines = useMemo(() => {
+    if (!since) return [{ text: "Us", size: 40, weight: 700, color: palette.whiteSoft }];
+    const time = togetherSince(since);
+    const special = time.today.monthsary;
+    return [
+      { text: `${time.days.toLocaleString()} days together`, size: 40, weight: 700, color: palette.whiteSoft },
+      { text: special ? `Happy ${anniversaryLabel(special)}! 🎉` : `${anniversaryLabel(time.next.months)} in ${time.next.inDays} days`, size: 26, color: "#ff8fb1" },
+    ];
+  }, [since]);
+
+  return (
+    <group position={[0, 1.86, 0]}>
+      <mesh ref={glow} position={[0, 0, 0.02]} material={glowMaterial}>
+        <planeGeometry args={[1.25, 1.25]} />
+      </mesh>
+      <mesh ref={heart} position={[0, 0, 0.07]} geometry={geometry} material={material} />
+      <WorldLabel lines={lines} width={1.1} height={0.24} position={[0, -0.5, 0.03]} pixelWidth={640} pixelHeight={140} />
     </group>
   );
 }

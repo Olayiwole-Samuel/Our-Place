@@ -3,6 +3,7 @@
 import { Pencil, Trophy } from "lucide-react";
 import { useState } from "react";
 import { gameRegistry } from "@/lib/game/catalog";
+import { anniversaryLabel, durationText, togetherSince } from "@/lib/room/together";
 import { useRoomStore } from "@/store/roomStore";
 import { RoomPanel } from "./RoomPanel";
 
@@ -13,52 +14,6 @@ import { RoomPanel } from "./RoomPanel";
  * only (couple_trophies(), couple_streak()). "Together" counts from the day you
  * got together (couples.together_since, editable here), else from pairing.
  */
-const DAY = 86_400_000;
-
-const localDay = (date) => new Date(date.getFullYear(), date.getMonth(), date.getDate());
-/** Adds months, keeping the day (31 Jan + 1 month → 28/29 Feb). */
-const addMonths = (date, months) => {
-  const target = new Date(date.getFullYear(), date.getMonth() + months, 1);
-  const last = new Date(target.getFullYear(), target.getMonth() + 1, 0).getDate();
-  return new Date(target.getFullYear(), target.getMonth(), Math.min(date.getDate(), last));
-};
-
-/**
- * How long you've been together, in your own calendar: { since, days, months,
- * extraDays, next: { months, on, inDays } } — next = the coming monthsary.
- * `since` is "YYYY-MM-DD" (a calendar day) or an ISO timestamp.
- */
-export function togetherSince(since, now = new Date()) {
-  const [y, m, d] = /^\d{4}-\d{2}-\d{2}$/.test(since) ? since.split("-").map(Number) : [];
-  const start = y ? new Date(y, m - 1, d) : localDay(new Date(since));
-  const today = localDay(now);
-  const days = Math.max(0, Math.round((today - start) / DAY));
-  let months = Math.max(0, (today.getFullYear() - start.getFullYear()) * 12 + today.getMonth() - start.getMonth());
-  if (months && addMonths(start, months) > today) months -= 1;
-  const extraDays = Math.max(0, Math.round((today - addMonths(start, months)) / DAY));
-  const nextOn = addMonths(start, months + 1);
-  return { since: start, days, months, extraDays, next: { months: months + 1, on: nextOn, inDays: Math.round((nextOn - today) / DAY) } };
-}
-
-const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
-/** "7 months, 14 days" / "1 year, 2 months" / "12 days". */
-export function durationText({ months, extraDays }) {
-  const years = Math.floor(months / 12);
-  const rest = months % 12;
-  if (years) return [plural(years, "year"), rest && plural(rest, "month")].filter(Boolean).join(", ");
-  if (months) return [plural(months, "month"), extraDays && plural(extraDays, "day")].filter(Boolean).join(", ");
-  return plural(extraDays, "day");
-}
-
-/** 8 → "8-month anniversary"; 12 → "1st anniversary". */
-export function anniversaryLabel(months) {
-  if (months % 12) return `${months}-month anniversary`;
-  const years = months / 12;
-  const teen = years % 100 >= 11 && years % 100 <= 13;
-  const suffix = teen ? "th" : ({ 1: "st", 2: "nd", 3: "rd" }[years % 10] ?? "th");
-  return `${years}${suffix} anniversary`;
-}
-
 /** Milestones: [id, icon, title, unlocked?(stats), detail]. */
 export function milestones(stats) {
   const together = stats.daysTogether;

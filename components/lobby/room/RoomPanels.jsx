@@ -1,7 +1,7 @@
 "use client";
 
 import { AnimatePresence, m } from "motion/react";
-import { House, Images, StickyNote, Trophy, Tv } from "lucide-react";
+import { Heart, House, Images, StickyNote, Trophy, Tv } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 import { useRoomStore } from "@/store/roomStore";
 import { HudButton } from "../comms/HudButton";
@@ -9,12 +9,32 @@ import { MemoriesPanel } from "./MemoriesPanel";
 import { NotesPanel } from "./NotesPanel";
 import { ShelfPanel } from "./ShelfPanel";
 import { TvPanel } from "./TvPanel";
+import { UsPanel, specialDay } from "./UsPanel";
+import { togetherSince } from "@/lib/room/together";
 
 /** Whichever room panel is open (walk up to it in the room, or use the Room button). */
 export function RoomPanels({ me, partner, partnerName }) {
   const panel = useRoomStore((state) => state.panel);
+  const since = useRoomStore((state) => state.togetherSince);
+  const myName = me.displayName?.split(" ")[0] || "You";
+
+  // On a monthsary or anniversary, "Us" opens by itself — once per day per device.
+  useEffect(() => {
+    const day = specialDay(since);
+    if (!day || useRoomStore.getState().panel) return;
+    const key = `our-place:us-celebrated:${day}`;
+    try {
+      if (window.localStorage.getItem(key)) return;
+      window.localStorage.setItem(key, "1");
+    } catch {
+      // private mode: still celebrate
+    }
+    useRoomStore.getState().openPanel("us");
+  }, [since]);
+
   return (
     <AnimatePresence>
+      {panel === "us" && <UsPanel key="us" myName={myName} partnerName={partnerName} />}
       {panel === "notes" && <NotesPanel key="notes" me={me.id} partnerName={partnerName} />}
       {panel === "memories" && <MemoriesPanel key="memories" me={me.id} partnerName={partnerName} />}
       {panel === "tv" && <TvPanel key="tv" me={me.id} partnerName={partnerName} />}
@@ -24,6 +44,7 @@ export function RoomPanels({ me, partner, partnerName }) {
 }
 
 const PLACES = [
+  { id: "us", label: "Us", Icon: Heart },
   { id: "tv", label: "TV", Icon: Tv },
   { id: "memories", label: "Memories", Icon: Images },
   { id: "notes", label: "Notes", Icon: StickyNote },
@@ -86,6 +107,22 @@ export function RoomMenu({ disabled = false }) {
         </AnimatePresence>
       </div>
     </div>
+  );
+}
+
+/** 💞 days together — opens "Us". */
+export function TogetherChip() {
+  const since = useRoomStore((state) => state.togetherSince);
+  if (!since) return null;
+  const { days, next, today } = togetherSince(since);
+  const label = `${days} days together${today.monthsary ? " — happy anniversary!" : `, next anniversary in ${next.inDays} days`}`;
+  return (
+    <button type="button" title={label} aria-label={`${label}. Open Us`} onClick={() => useRoomStore.getState().openPanel("us")} className={`together-chip panel pointer-events-auto flex h-[var(--control-size)] items-center gap-1 rounded-[var(--radius-md)] px-2.5 text-caption font-semibold text-[#ff8fb1] ${today.monthsary ? "is-special" : ""}`}>
+      <span aria-hidden="true" className="together-chip-heart">
+        💞
+      </span>
+      {days.toLocaleString()}
+    </button>
   );
 }
 

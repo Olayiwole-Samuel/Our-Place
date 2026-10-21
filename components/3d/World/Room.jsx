@@ -1,7 +1,7 @@
 import { Bookshelf, CoffeeTable, Couch, Door, FloorLamp, MediaConsole, Rug } from "../Furniture/Furniture";
 import { GameCorner } from "../Furniture/GameCorner";
 import { Plant } from "../Furniture/Plant";
-import { MessageBoard, PhotoWall, VideoScreen } from "../Furniture/WallFeatures";
+import { LoveHeart, MessageBoard, PhotoWall, VideoScreen } from "../Furniture/WallFeatures";
 import { RoomShell } from "../Environment/RoomShell";
 import { CameraOccluder } from "./CameraOccluder";
 
@@ -22,6 +22,7 @@ const OBJECT_COMPONENTS = {
   videoScreen: VideoScreen,
   messageBoard: MessageBoard,
   gameCorner: GameCorner,
+  loveHeart: LoveHeart,
 };
 
 export function Room({ room, timeOfDay, reducedMotion, runtime }) {
@@ -31,7 +32,7 @@ export function Room({ room, timeOfDay, reducedMotion, runtime }) {
       {room.objects.map((object) => {
         const Component = OBJECT_COMPONENTS[object.type];
         if (!Component) return null;
-        const extra = object.type === "plant" ? { stage: room.plantStage } : object.type === "gameCorner" ? { reducedMotion } : {};
+        const extra = object.type === "plant" ? { stage: room.plantStage } : object.type === "gameCorner" || object.type === "loveHeart" ? { reducedMotion } : {};
         return (
           <group key={object.id} name={object.id} position={[object.position[0], 0, object.position[1]]} rotation-y={object.rotation ?? 0}>
             {object.occluder && runtime ? (

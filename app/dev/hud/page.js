@@ -11,7 +11,8 @@ export const dynamic = "force-dynamic";
  *                       run their real rules with scripted moves)
  *   &phase=lobby|result  that game's ready screen or result instead of play
  *   ?chat=1              open the chat panel
- *   ?panel=notes|memories|tv|tv-playing|shelf   a room panel with sample data (?room=1: sample data only)
+ *   ?panel=us|notes|memories|tv|tv-playing|shelf   a room panel with sample data (?room=1: sample data only)
+ *   &since=YYYY-MM-DD   the day you got together (default 2026-03-06; a monthsary today shows the celebration)
  *   ?drawer=<category>   open the game menu (menu = the category list)
  *   ?me=female&partner=male   characters' looks (default: male)
  *   ?screen=pairing|character   the pairing screen or Character Studio instead

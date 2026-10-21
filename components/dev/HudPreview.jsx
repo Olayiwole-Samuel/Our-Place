@@ -204,6 +204,8 @@ function Scenario() {
             notes: 3,
             days_together_here: 31,
           },
+          // ?since=YYYY-MM-DD tries other dates (a monthsary or anniversary today shows the celebration).
+          togetherSince: params.get("since") ?? "2026-03-06",
           panel: (params.get("panel") ?? "").replace("tv-playing", "tv") || null,
         });
       }

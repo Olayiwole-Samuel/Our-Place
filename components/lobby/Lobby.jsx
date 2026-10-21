@@ -28,7 +28,7 @@ import { CommsDock } from "./comms/CommsDock";
 import { GameMenu } from "./games/GameMenu";
 import { GameStage } from "./games/GameStage";
 import { useCoupleGames } from "./games/useCoupleGames";
-import { NowPlayingChip, RoomMenu, RoomPanels, StreakBadge } from "./room/RoomPanels";
+import { NowPlayingChip, RoomMenu, RoomPanels, StreakBadge, TogetherChip } from "./room/RoomPanels";
 import { useCoupleComms, usePresenceNotices } from "./useCoupleComms";
 import { useCouplePresence, usePartnerPresenceEffects } from "./useCouplePresence";
 import { useWorldControls } from "./useWorldControls";
@@ -142,6 +142,7 @@ function LivingRoom({ me, partner, couple }) {
             <div className="flex min-w-0 items-start gap-2">
               <PartnerStatus />
               <StreakBadge />
+              <TogetherChip />
             </div>
             <OfflineBanner />
             <div className="pointer-events-auto flex shrink-0 items-center gap-2">
