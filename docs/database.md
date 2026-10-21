@@ -80,6 +80,10 @@ Functions callable by `authenticated`: `create_couple_invite()` and `join_couple
 | `send_emote(emote)` | Validates one of the 7 emotes, 1 s per-user limit (`private.emote_rate`), broadcasts `{ sender_id: auth.uid(), emote, at }` on `…:emotes`. Nothing stored. | `authenticated` |
 | Realtime send policy | Clients may broadcast/track only on `…:presence` and `…:lobby`. `…:chat`, `…:emotes` and `…:notifications` are written by the database only, so chat messages and emotes can't be forged. | — |
 
+`20261021000000_chat_replies.sql` adds replies: `messages.reply_to` (nullable) points at the message being answered. The foreign key is `(couple_id, reply_to) → messages (couple_id, id) on delete set null (reply_to)`, so a reply can only point at the same couple's message, and it stays if the original is deleted. `send_message(content, client_id, reply_to)` takes it as an optional third argument (two-argument calls work as before) and raises `chat:invalid_reply` for anything else. The broadcast payload includes `reply_to`. Before this migration is applied, the app sees that the column is missing and hides replies.
+
+Typing indicators ("… is typing") use `typing` broadcasts on the client-writable `…:presence` topic. They are live only and nothing is stored.
+
 `20261008000000_voice_signaling.sql` adds `…:voice` to the client-writable topics (direct-voice signaling between the two browsers; no audio, nothing stored).
 
 `20261012000000_couple_photos.sql`: `couple_photos (couple_id, slot, user_id, path)` plus the private `couple-photos` bucket. These are the couple's two together photos and one portrait per partner, used on personalised game boards. Members read their own couple's rows and files (RLS); only the server writes.

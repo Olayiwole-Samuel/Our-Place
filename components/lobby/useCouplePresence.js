@@ -5,6 +5,7 @@ import { isSupabaseConfigured } from "@/lib/config/env";
 import { reportError } from "@/lib/errors";
 import { joinCouplePresence } from "@/lib/realtime/couplePresence";
 import { PARTNER_AWAY_GRACE_MS } from "@/lib/world/partnerPresence";
+import { useChatStore } from "@/store/chatStore";
 import { toast } from "@/store/toastStore";
 import { useWorldStore } from "@/store/worldStore";
 
@@ -16,6 +17,7 @@ import { useWorldStore } from "@/store/worldStore";
  * - presence sync / deliberate leave → partner status machine (worldStore)
  * - a dropped partner connection → "away" for a grace period, then offline
  * - partner switched character → onPartnerCharacter (reload theirs)
+ * - "… is typing" both ways → chatStore (bindTyping / setPartnerTyping)
  * - arrival → "❤️ <name>'s here." toast (departure is shown calmly in the status, no toast)
  * - closing the tab / signing out → deliberate leave (instant for the partner)
  *
@@ -58,9 +60,11 @@ export function useCouplePresence({ runtime, coupleId, userId, partnerId, onPart
             onPartnerLeft: () => dispatch({ type: "partner_left" }),
             onPartnerCharacter: () => characterChanged.current?.(),
             onPartnerHint: (hint) => runtime.hintListeners?.forEach((listener) => listener(hint)),
+            onPartnerTyping: (on) => useChatStore.getState().setPartnerTyping(on),
           },
         });
         runtime.presence = presence;
+        useChatStore.getState().bindTyping((on) => presence.sendTyping(on));
       })
       .catch((error) => {
         reportError(error, { feature: "presence" });
@@ -80,6 +84,8 @@ export function useCouplePresence({ runtime, coupleId, userId, partnerId, onPart
       cancelled = true;
       window.removeEventListener("pagehide", onPageHide);
       window.removeEventListener("pageshow", onPageShow);
+      useChatStore.getState().stopTyping();
+      useChatStore.getState().bindTyping(null);
       presence?.leave();
       runtime.presence = null;
     };

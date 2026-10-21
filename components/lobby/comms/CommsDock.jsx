@@ -53,6 +53,7 @@ function Isolated({ name, children }) {
 function ChatControl({ meId, partnerName, runtime }) {
   const open = useChatStore((state) => state.open);
   const unread = useChatStore((state) => state.unread);
+  const partnerTyping = useChatStore((state) => state.partnerTyping);
   const panelId = useId();
   const buttonRef = useRef(null);
   const peek = usePartnerPeek(meId, open);
@@ -100,7 +101,7 @@ function ChatControl({ meId, partnerName, runtime }) {
       )}
       <HudButton
         ref={buttonRef}
-        label={open ? "Close chat" : unread ? `Open chat, ${unread} unread` : "Open chat"}
+        label={open ? "Close chat" : unread ? `Open chat, ${unread} unread` : partnerTyping ? `Open chat, ${partnerName} is typing` : "Open chat"}
         expanded={open}
         controls={open ? panelId : undefined}
         tone={open ? "active" : "default"}
@@ -109,6 +110,12 @@ function ChatControl({ meId, partnerName, runtime }) {
           !open && unread > 0 ? (
             <span aria-hidden="true" className="hud-numeral absolute -top-1.5 -right-1.5 grid h-5 min-w-5 place-items-center rounded-full bg-pink-500 px-1 text-[0.6875rem] leading-none text-black-950">
               {unread > 9 ? "9+" : unread}
+            </span>
+          ) : !open && partnerTyping ? (
+            <span aria-hidden="true" className="absolute -top-1 -right-1.5 flex h-4 items-center gap-0.5 rounded-full bg-green-500 px-1.5 animate-pulse motion-reduce:animate-none">
+              {[0, 1, 2].map((i) => (
+                <span key={i} className="size-1 rounded-full bg-black-950" />
+              ))}
             </span>
           ) : null
         }

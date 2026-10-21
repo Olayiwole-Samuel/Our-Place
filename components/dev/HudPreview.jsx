@@ -7,6 +7,7 @@ import { Lobby } from "@/components/lobby/Lobby";
 import { CharacterStudioScreen } from "@/components/studio/CharacterStudioScreen";
 import { galleryModelDescriptor } from "@/lib/character/gallery";
 import { useChatStore } from "@/store/chatStore";
+import { startChatSample } from "./chatSample";
 import { useGameStore } from "@/store/gameStore";
 import { useRoomStore } from "@/store/roomStore";
 import { useWorldStore } from "@/store/worldStore";
@@ -147,6 +148,7 @@ async function ruleSample(key) {
 function Scenario() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
+    let stopChat = null;
     const timer = setTimeout(() => {
       useWorldStore.getState().dispatchPartner({ type: "sync", partnerPresent: true });
       if (RULE_SAMPLES[params.get("game")]) {
@@ -167,7 +169,10 @@ function Scenario() {
         useGameStore.getState().receive({ ...sample, session });
         useGameStore.setState({ error: null });
       }
-      if (params.get("chat")) useChatStore.getState().setOpen(true);
+      if (params.get("chat")) {
+        useChatStore.getState().setOpen(true);
+        stopChat = startChatSample({ meId: ME.id, partnerId: PARTNER.id, coupleId: VIEWER.couple.couple.id, typing: Boolean(params.get("typing")) });
+      }
       if (params.get("panel") || params.get("room")) {
         // Sample room data (the preview has no session to load real data).
         const ago = (minutes) => new Date(Date.now() - minutes * 60_000).toISOString();
@@ -214,7 +219,10 @@ function Scenario() {
       }
       if (params.get("drawer")) useGameStore.getState().openCategory(params.get("drawer"));
     }, 2500);
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      stopChat?.();
+    };
   }, []);
   return null;
 }

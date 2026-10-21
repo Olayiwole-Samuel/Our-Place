@@ -20,7 +20,7 @@ function service() {
   return {
     loadPage: vi.fn(async () => ({ messages: [], hasOlder: false })),
     catchUp: vi.fn(async () => []),
-    send: vi.fn(async (content, clientId) => toMessage(row({ sender_id: ME, content, client_id: clientId }))),
+    send: vi.fn(async (content, clientId, replyTo = null) => toMessage(row({ sender_id: ME, content, client_id: clientId, reply_to: replyTo }))),
   };
 }
 
@@ -100,6 +100,105 @@ describe("communication HUD", () => {
     act(() => useChatStore.setState({ messages: [{ id: "local:x", clientId: "x", senderId: ME, type: "text", content: "lost", createdAt: Date.now(), micros: Date.now() * 1000, status: "failed", error: "network" }] }));
     expect(screen.getByRole("alert").textContent).toContain("Message failed to send");
     expect(screen.getByRole("button", { name: "Retry" })).toBeTruthy();
+  });
+});
+
+describe("replies", () => {
+  const openWith = (content) => {
+    dock();
+    fireEvent.click(screen.getByRole("button", { name: "Open chat" }));
+    const message = toMessage(row({ content }));
+    act(() => {
+      useChatStore.getState().receive(message);
+    });
+    return { message, bubble: screen.getByText(content).parentElement };
+  };
+  const touch = (target, type, x, y) => fireEvent[type](target, { pointerId: 7, pointerType: "touch", isPrimary: true, clientX: x, clientY: y });
+
+  it("swiping a message right starts a reply: quote above the composer, ✕ cancels", () => {
+    navigator.vibrate = vi.fn(() => true);
+    const { bubble } = openWith("Dinner at 8?");
+    touch(bubble, "pointerDown", 20, 100);
+    touch(bubble, "pointerMove", 34, 102); // locks sideways
+    touch(bubble, "pointerMove", 120, 104); // well past the trigger
+    expect(navigator.vibrate).toHaveBeenCalledTimes(1);
+    touch(bubble, "pointerUp", 120, 104);
+    const cancel = screen.getByRole("button", { name: "Cancel reply" });
+    expect(cancel.parentElement.textContent).toContain("Replying to Sam");
+    expect(cancel.parentElement.textContent).toContain("Dinner at 8?");
+    expect(document.activeElement).toBe(screen.getByLabelText("Message Sam"));
+    fireEvent.click(cancel);
+    expect(screen.queryByRole("button", { name: "Cancel reply" })).toBeNull();
+  });
+
+  it("a short swipe, or a vertical scroll, never starts a reply", () => {
+    const { bubble } = openWith("Just scrolling");
+    touch(bubble, "pointerDown", 20, 100);
+    touch(bubble, "pointerMove", 40, 102);
+    touch(bubble, "pointerUp", 40, 102); // not far enough
+    touch(bubble, "pointerDown", 20, 100);
+    touch(bubble, "pointerMove", 22, 130); // vertical: the list scrolls
+    touch(bubble, "pointerMove", 120, 140);
+    touch(bubble, "pointerUp", 120, 140);
+    expect(screen.queryByRole("button", { name: "Cancel reply" })).toBeNull();
+  });
+
+  it("the sent reply shows the quote; tapping it highlights the original", async () => {
+    const { message } = openWith("Movie tonight?");
+    fireEvent.click(screen.getByRole("button", { name: "Reply to Sam" })); // desktop: the hover button
+    const input = screen.getByLabelText("Message Sam");
+    fireEvent.change(input, { target: { value: "Yes!" } });
+    await act(async () => fireEvent.keyDown(input, { key: "Enter" }));
+    expect(screen.queryByRole("button", { name: "Cancel reply" })).toBeNull();
+    const quote = screen.getByRole("button", { name: /In reply to\s*Sam\s*Movie tonight\?/ });
+    fireEvent.click(quote);
+    const original = document.querySelector(`[data-message-id="${message.id}"]`);
+    await vi.waitFor(() => expect(original.querySelector(".opacity-100")).toBeTruthy());
+  });
+
+  it("Escape cancels a reply before it closes the chat", () => {
+    openWith("Escape me");
+    fireEvent.click(screen.getByRole("button", { name: "Reply to Sam" }));
+    const input = screen.getByLabelText("Message Sam");
+    fireEvent.keyDown(input, { key: "Escape" });
+    expect(screen.queryByRole("button", { name: "Cancel reply" })).toBeNull();
+    expect(useChatStore.getState().open).toBe(true);
+  });
+
+  it("before the database has replies, there are no reply controls", () => {
+    act(() => useChatStore.setState({ replies: false }));
+    const { bubble } = openWith("Old database");
+    expect(screen.queryByRole("button", { name: "Reply to Sam" })).toBeNull();
+    touch(bubble, "pointerDown", 20, 100);
+    touch(bubble, "pointerMove", 34, 100);
+    touch(bubble, "pointerMove", 120, 100);
+    touch(bubble, "pointerUp", 120, 100);
+    expect(screen.queryByRole("button", { name: "Cancel reply" })).toBeNull();
+  });
+});
+
+describe("typing indicator", () => {
+  it("shows the partner typing on the closed button, then in the open chat", () => {
+    dock();
+    act(() => useChatStore.getState().setPartnerTyping(true));
+    expect(screen.getByRole("button", { name: "Open chat, Sam is typing" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Open chat, Sam is typing" }));
+    expect(screen.getByText("typing…")).toBeTruthy();
+    expect(screen.getByTitle("Sam is typing")).toBeTruthy();
+    act(() => useChatStore.getState().setPartnerTyping(false));
+    expect(screen.queryByText("typing…")).toBeNull();
+  });
+
+  it("tells the partner while we type", () => {
+    const sent = [];
+    act(() => useChatStore.getState().bindTyping((on) => sent.push(on)));
+    dock();
+    fireEvent.click(screen.getByRole("button", { name: "Open chat" }));
+    const input = screen.getByLabelText("Message Sam");
+    fireEvent.change(input, { target: { value: "h" } });
+    fireEvent.change(input, { target: { value: "hi" } });
+    fireEvent.change(input, { target: { value: "" } });
+    expect(sent).toEqual([true, false]);
   });
 });
 

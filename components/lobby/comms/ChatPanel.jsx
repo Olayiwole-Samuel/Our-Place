@@ -1,15 +1,19 @@
 "use client";
 
-import { ArrowDown, LoaderCircle, SendHorizontal, X } from "lucide-react";
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { CHAT_ERROR_COPY, MAX_MESSAGE_LENGTH } from "@/lib/chat/messages";
+import { ArrowDown, LoaderCircle, Reply, SendHorizontal, X } from "lucide-react";
+import { useReducedMotion } from "motion/react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { CHAT_ERROR_COPY, MAX_MESSAGE_LENGTH, canReplyTo, quoteSnippet, resolveReply } from "@/lib/chat/messages";
 import { useChatStore } from "@/store/chatStore";
+import { MessageRow, TypingBubble } from "./MessageRow";
 
 const NEAR_BOTTOM_PX = 48;
 const NEAR_TOP_PX = 60;
+const HIGHLIGHT_MS = 1400;
+const JUMP_MAX_PAGES = 20; // how far back a quote tap will load to find its original
 let savedScroll = null; // { top, atBottom } — survives closing/reopening the panel
 
-const timeFormat = new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit" });
+const nextFrame = () => new Promise((resolve) => requestAnimationFrame(() => resolve()));
 const dateFormat = new Intl.DateTimeFormat(undefined, { weekday: "short", month: "short", day: "numeric" });
 
 function dayLabel(ms) {
@@ -24,6 +28,8 @@ function dayLabel(ms) {
  * The chat panel: floats over the world's bottom-right corner — and over an
  * open game, so the couple can keep talking while they play. Never navigates
  * away. Text is always rendered as text (React escapes it; no HTML injection).
+ * Swipe a message (or use its reply button) to answer it; "… is typing" shows
+ * in the header and as dots at the end of the list.
  */
 export function ChatPanel({ meId, partnerName, onClose, onComposerFocus, panelId }) {
   const status = useChatStore((state) => state.status);
@@ -31,6 +37,11 @@ export function ChatPanel({ meId, partnerName, onClose, onComposerFocus, panelId
   const messages = useChatStore((state) => state.messages);
   const hasOlder = useChatStore((state) => state.hasOlder);
   const loadingOlder = useChatStore((state) => state.loadingOlder);
+  const replies = useChatStore((state) => state.replies);
+  const replyingTo = useChatStore((state) => state.replyingTo);
+  const quoted = useChatStore((state) => state.quoted);
+  const partnerTyping = useChatStore((state) => state.partnerTyping);
+  const reduceMotion = useReducedMotion();
   const listRef = useRef(null);
   const inputRef = useRef(null);
   const anchor = useRef(null); // keeps the view still when older messages load above
@@ -38,6 +49,7 @@ export function ChatPanel({ meId, partnerName, onClose, onComposerFocus, panelId
   const [showJump, setShowJump] = useState(false);
   const [draft, setDraft] = useState("");
   const [composerError, setComposerError] = useState(null);
+  const [highlightId, setHighlightId] = useState(null);
   const keyboardInset = useKeyboardInset();
 
   // Restore scroll on open; remember it on close.
@@ -57,6 +69,7 @@ export function ChatPanel({ meId, partnerName, onClose, onComposerFocus, panelId
 
   useEffect(() => {
     inputRef.current?.focus({ preventScroll: true });
+    return () => useChatStore.getState().stopTyping();
   }, []);
 
   // New content: stay pinned to the bottom if the reader was there; keep the
@@ -74,6 +87,18 @@ export function ChatPanel({ meId, partnerName, onClose, onComposerFocus, panelId
     useChatStore.getState().markSeen();
   }, [messages]);
 
+  // The typing dots and the reply preview change the space at the bottom: stay pinned.
+  useLayoutEffect(() => {
+    const list = listRef.current;
+    if (list && atBottom.current) list.scrollTop = list.scrollHeight;
+  }, [partnerTyping, replyingTo]);
+
+  useEffect(() => {
+    if (!highlightId) return undefined;
+    const timer = setTimeout(() => setHighlightId(null), HIGHLIGHT_MS);
+    return () => clearTimeout(timer);
+  }, [highlightId]);
+
   const onScroll = useCallback(() => {
     const list = listRef.current;
     if (!list) return;
@@ -85,6 +110,37 @@ export function ChatPanel({ meId, partnerName, onClose, onComposerFocus, panelId
       store.loadOlder();
     }
   }, []);
+
+  const startReply = useCallback((message) => {
+    if (useChatStore.getState().startReply(message)) inputRef.current?.focus({ preventScroll: true });
+  }, []);
+
+  /** A quote was tapped: scroll its original into view (loading older pages if needed) and glow it. */
+  const jumpTo = useCallback(
+    async (id) => {
+      const list = listRef.current;
+      if (!list) return;
+      const find = () => list.querySelector(`[data-message-id="${id}"]`);
+      let target = find();
+      for (let page = 0; !target && page < JUMP_MAX_PAGES; page += 1) {
+        const store = useChatStore.getState();
+        if (!store.hasOlder || store.loadingOlder) break;
+        anchor.current = { top: list.scrollTop, height: list.scrollHeight };
+        atBottom.current = false;
+        await store.loadOlder();
+        await nextFrame();
+        anchor.current = null; // already used, or nothing loaded
+        target = find();
+      }
+      if (!target) return;
+      const listBox = list.getBoundingClientRect();
+      const box = target.getBoundingClientRect();
+      const top = list.scrollTop + (box.top - listBox.top) - Math.max(0, (list.clientHeight - box.height) / 2);
+      list.scrollTo({ top, behavior: reduceMotion ? "auto" : "smooth" });
+      setHighlightId(id);
+    },
+    [reduceMotion],
+  );
 
   const jumpToLatest = () => {
     const list = listRef.current;
@@ -112,7 +168,8 @@ export function ChatPanel({ meId, partnerName, onClose, onComposerFocus, panelId
       submit();
     } else if (event.key === "Escape") {
       event.preventDefault();
-      onClose();
+      if (useChatStore.getState().replyingTo) useChatStore.getState().cancelReply();
+      else onClose();
     }
   };
 
@@ -130,7 +187,11 @@ export function ChatPanel({ meId, partnerName, onClose, onComposerFocus, panelId
         <div className="flex min-w-0 items-center gap-2">
           <span aria-hidden="true" className={`size-1.5 shrink-0 rounded-full ${offline ? "bg-text-muted animate-pulse-live" : "bg-blue-400"}`} />
           <h2 className="truncate text-caption font-semibold text-white-soft">{partnerName}</h2>
-          {offline && <span className="text-micro text-text-muted">{connection === "closed" ? "offline" : "reconnecting…"}</span>}
+          {partnerTyping ? (
+            <span className="shrink-0 text-micro text-green-500">typing…</span>
+          ) : (
+            offline && <span className="text-micro text-text-muted">{connection === "closed" ? "offline" : "reconnecting…"}</span>
+          )}
         </div>
         <button
           type="button"
@@ -143,7 +204,7 @@ export function ChatPanel({ meId, partnerName, onClose, onComposerFocus, panelId
       </header>
 
       <div className="relative min-h-0 flex-1">
-        <div ref={listRef} onScroll={onScroll} role="log" aria-live="polite" aria-relevant="additions" className="h-full overflow-y-auto overscroll-contain px-3 py-2 short:py-1">
+        <div ref={listRef} onScroll={onScroll} role="log" aria-live="polite" aria-relevant="additions" className="h-full overflow-x-hidden overflow-y-auto overscroll-contain px-3 py-2 short:py-1">
           {hasOlder && (
             <div className="flex justify-center py-2 text-micro text-text-muted">
               {loadingOlder ? <LoaderCircle aria-label="Loading older messages" size={14} className="animate-spin motion-reduce:animate-none" /> : <span>Scroll up for older messages</span>}
@@ -159,7 +220,17 @@ export function ChatPanel({ meId, partnerName, onClose, onComposerFocus, panelId
             </p>
           )}
           {status === "ready" && messages.length === 0 && <p className="py-8 text-center text-caption text-text-muted">Say hi to {partnerName} ❤️</p>}
-          <MessageList messages={messages} meId={meId} partnerName={partnerName} />
+          <MessageList
+            messages={messages}
+            meId={meId}
+            partnerName={partnerName}
+            replies={replies}
+            quoted={quoted}
+            highlightId={highlightId}
+            onReply={startReply}
+            onQuote={jumpTo}
+          />
+          {partnerTyping && <TypingBubble name={partnerName} />}
         </div>
         {showJump && (
           <button
@@ -179,6 +250,7 @@ export function ChatPanel({ meId, partnerName, onClose, onComposerFocus, panelId
           submit();
         }}
       >
+        {replyingTo && <ReplyPreview message={replyingTo} name={replyingTo.senderId === meId ? "You" : partnerName} mine={replyingTo.senderId === meId} />}
         <div className="flex items-end gap-2 rounded-[var(--radius-md)] bg-black-950/60 py-1 pr-1 pl-3 focus-within:ring-1 focus-within:ring-green-500/70">
           <label htmlFor={`${panelId}-input`} className="sr-only">
             Message {partnerName}
@@ -194,6 +266,7 @@ export function ChatPanel({ meId, partnerName, onClose, onComposerFocus, panelId
             onFocus={onComposerFocus}
             onChange={(event) => {
               setDraft(event.target.value);
+              useChatStore.getState().noteTyping(event.target.value);
               if (composerError) setComposerError(null);
             }}
             onKeyDown={onKeyDown}
@@ -218,7 +291,8 @@ export function ChatPanel({ meId, partnerName, onClose, onComposerFocus, panelId
   );
 }
 
-function MessageList({ messages, meId, partnerName }) {
+function MessageList({ messages, meId, partnerName, replies, quoted, highlightId, onReply, onQuote }) {
+  const byId = useMemo(() => new Map(messages.map((message) => [message.id, message])), [messages]);
   const rows = [];
   let previous = null;
   for (const message of messages) {
@@ -239,44 +313,52 @@ function MessageList({ messages, meId, partnerName }) {
     } else {
       const mine = message.senderId === meId;
       const startsGroup = newDay || !previous || previous.type === "system" || previous.senderId !== message.senderId || message.createdAt - previous.createdAt > 5 * 60_000;
-      rows.push(<MessageRow key={message.clientId ?? message.id} message={message} mine={mine} startsGroup={startsGroup} senderName={mine ? "You" : partnerName} />);
+      const quote = replies ? resolveReply(message, byId, quoted) : null;
+      const quoteMine = quote?.state === "ready" && quote.senderId === meId;
+      rows.push(
+        <MessageRow
+          key={message.clientId ?? message.id}
+          message={message}
+          mine={mine}
+          startsGroup={startsGroup}
+          senderName={mine ? "You" : partnerName}
+          quote={quote}
+          quoteName={quoteMine ? "You" : partnerName}
+          quoteMine={quoteMine}
+          canReply={replies && canReplyTo(message)}
+          onReply={onReply}
+          onQuote={onQuote}
+          highlighted={highlightId === message.id}
+        />,
+      );
     }
     previous = message;
   }
   return rows;
 }
 
-function MessageRow({ message, mine, startsGroup, senderName }) {
-  const failed = message.status === "failed";
+/** Above the composer while answering a message: who and what, with ✕ to cancel. */
+function ReplyPreview({ message, name, mine }) {
   return (
-    <div className={`flex flex-col ${mine ? "items-end" : "items-start"} ${startsGroup ? "mt-2.5" : "mt-0.5"}`}>
-      {startsGroup && (
-        <div className={`mb-0.5 flex items-baseline gap-2 px-1 text-micro ${mine ? "flex-row-reverse" : ""}`}>
-          <span className={`font-semibold ${mine ? "text-green-500" : "text-pink-400"}`}>{senderName}</span>
-          <time dateTime={new Date(message.createdAt).toISOString()} className="text-text-muted">
-            {timeFormat.format(message.createdAt)}
-          </time>
-        </div>
-      )}
-      <p
-        className={`max-w-[88%] rounded-[var(--radius-sm)] px-2.5 py-1.5 text-body leading-snug break-words whitespace-pre-wrap ${
-          mine ? "bg-green-700/45 text-white-soft" : "border-l-2 border-pink-400/70 bg-black-700/70 text-white-soft"
-        } ${message.status === "sending" ? "opacity-60" : ""} ${failed ? "outline outline-1 outline-red-500/60" : ""}`}
-      >
-        {message.content}
-      </p>
-      {message.status === "sending" && <span className="px-1 text-micro text-text-muted">Sending…</span>}
-      {failed && (
-        <span role="alert" className="flex items-center gap-2 px-1 pt-0.5 text-micro text-pink-400">
-          {CHAT_ERROR_COPY[message.error] ?? "Message failed to send."}
-          <button type="button" className="font-semibold text-white-soft underline underline-offset-2" onClick={() => useChatStore.getState().retry(message.clientId)}>
-            Retry
-          </button>
-          <button type="button" className="text-text-muted underline underline-offset-2" onClick={() => useChatStore.getState().discard(message.clientId)}>
-            Remove
-          </button>
+    <div
+      className={`mb-1.5 flex items-center gap-2 rounded-[var(--radius-sm)] border-l-2 bg-black-950/60 py-1 pr-1 pl-2 [animation:panel-in_160ms_var(--ease-out-soft)] motion-reduce:animate-none short:mb-1 short:py-0 ${mine ? "border-green-500" : "border-pink-400"}`}
+    >
+      <Reply aria-hidden="true" size={14} strokeWidth={1.75} className="shrink-0 text-text-muted" />
+      <p className="min-w-0 flex-1 leading-tight short:flex short:items-baseline short:gap-1.5">
+        <span className={`block shrink-0 text-micro font-semibold ${mine ? "text-green-500" : "text-pink-400"}`}>
+          <span className="sr-only">Replying to </span>
+          {name}
         </span>
-      )}
+        <span className="block truncate text-caption text-text-secondary">{quoteSnippet(message.content)}</span>
+      </p>
+      <button
+        type="button"
+        aria-label="Cancel reply"
+        onClick={() => useChatStore.getState().cancelReply()}
+        className="grid size-8 shrink-0 place-items-center rounded-[var(--radius-sm)] text-text-muted transition-colors hover:bg-black-700 hover:text-white-soft short:size-7"
+      >
+        <X aria-hidden="true" size={16} strokeWidth={1.75} />
+      </button>
     </div>
   );
 }
