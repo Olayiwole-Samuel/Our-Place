@@ -860,6 +860,7 @@
   z-index: 45;
   display: flex;
   overflow: hidden;
+  pointer-events: auto; /* the HUD layer it lives in ignores taps; this page takes them */
   color: #fff4f7;
   background: radial-gradient(120% 90% at 30% 20%, #3a0f2e 0%, #1a0820 45%, #07040d 100%);
   padding: max(env(safe-area-inset-top), 12px) max(env(safe-area-inset-right), 16px) max(env(safe-area-inset-bottom), 12px) max(env(safe-area-inset-left), 16px);
