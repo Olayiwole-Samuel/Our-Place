@@ -99,6 +99,17 @@ describe("the shared TV", () => {
   it("clients can't read a video's storage key", async () => {
     expect(await fails(call(other.a, "select object_key from public.couple_videos"))).toMatch(/permission denied/);
   });
+
+  it("videos can be sorted into series: readable by the couple, written by the server, kept sane", async () => {
+    const insert = (series, season, episode) =>
+      db.query("insert into public.couple_videos (couple_id, uploader_id, kind, title, object_key, size_bytes, content_type, status, series, season, episode) values ($1, $2, 'movie', 'Ep', $3, 10, 'video/mp4', 'ready', $4, $5, $6) returning id", [other.coupleId, other.a, `${other.coupleId}/${series}-${episode}.mp4`, series, season, episode]);
+    await insert("Squid Game", 1, 3);
+    expect(await call(other.b, "select series, season, episode from public.couple_videos where series is not null")).toEqual([{ series: "Squid Game", season: 1, episode: 3 }]);
+    expect(await call(couple.a, "select series from public.couple_videos where series is not null")).toEqual([]);
+    expect(await fails(insert("   ", 1, 1))).toMatch(/couple_videos_series_name/);
+    expect(await fails(insert("Show", 100, 1))).toMatch(/couple_videos_season_range/);
+    expect(await fails(call(other.a, "update public.couple_videos set series = 'Mine'"))).toMatch(/permission denied/);
+  });
 });
 
 describe("memories, push and trophies", () => {

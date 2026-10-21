@@ -1,8 +1,9 @@
 "use client";
 
 import { AnimatePresence, m } from "motion/react";
-import { Heart, House, Images, StickyNote, Trophy, Tv } from "lucide-react";
+import { Heart, House, Images, StickyNote, Trophy, Tv, Upload } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
+import { useUploadStore } from "@/lib/room/uploads";
 import { useRoomStore } from "@/store/roomStore";
 import { HudButton } from "../comms/HudButton";
 import { MemoriesPanel } from "./MemoriesPanel";
@@ -34,6 +35,7 @@ export function RoomPanels({ me, partner, partnerName }) {
 
   return (
     <AnimatePresence>
+      {panel !== "tv" && <UploadChip key="upload" />}
       {panel === "us" && <UsPanel key="us" myName={myName} partnerName={partnerName} />}
       {panel === "notes" && <NotesPanel key="notes" me={me.id} partnerName={partnerName} />}
       {panel === "memories" && <MemoriesPanel key="memories" me={me.id} partnerName={partnerName} />}
@@ -107,6 +109,32 @@ export function RoomMenu({ disabled = false }) {
         </AnimatePresence>
       </div>
     </div>
+  );
+}
+
+/** A video still uploading (or paused) while the TV is closed — tap to open the TV. */
+function UploadChip() {
+  const current = useUploadStore((state) => state.current);
+  if (!current?.videoId || current.status === "failed") return null;
+  const pct = Math.min(100, Math.floor((current.loaded / Math.max(1, current.total)) * 100));
+  const paused = current.status === "paused";
+  return (
+    <m.button
+      type="button"
+      initial={{ opacity: 0, y: -6 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -6 }}
+      onClick={() => useRoomStore.getState().openPanel("tv")}
+      aria-label={`${paused ? "Upload paused" : "Uploading"} ${current.title}, ${pct}%. Open the TV`}
+      className="panel pointer-events-auto absolute top-14 left-1/2 z-20 flex -translate-x-1/2 items-center gap-2 rounded-full py-1 pr-3 pl-2 text-micro tracking-normal text-white-soft short:top-12"
+    >
+      <Upload aria-hidden="true" size={13} className={paused ? "text-[#ffb35c]" : "text-green-500"} />
+      <span className="max-w-[10rem] truncate">{current.title}</span>
+      <span className="h-1 w-14 overflow-hidden rounded-full bg-black-950">
+        <span className={`block h-full transition-[width] duration-300 ${paused ? "bg-[#ffb35c]" : "bg-green-500"}`} style={{ width: `${pct}%` }} />
+      </span>
+      <span className="font-semibold">{paused ? "Paused" : `${pct}%`}</span>
+    </m.button>
   );
 }
 

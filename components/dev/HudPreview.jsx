@@ -185,6 +185,9 @@ function Scenario() {
           videos: [
             { id: "v1", uploaderId: ME.id, kind: "movie", title: "The Wedding Party", sizeBytes: 1.4e9, status: "ready", createdAt: ago(100) },
             { id: "v2", uploaderId: PARTNER.id, kind: "clip", title: "Beach day", sizeBytes: 8.2e7, status: "ready", createdAt: ago(50) },
+            { id: "s1", uploaderId: ME.id, kind: "movie", title: "Squid Game S01E01 Red Light Green Light", sizeBytes: 6.1e8, status: "ready", createdAt: ago(40) },
+            { id: "s2", uploaderId: ME.id, kind: "movie", title: "Squid Game S01E02 Hell", sizeBytes: 5.8e8, status: "ready", createdAt: ago(30) },
+            { id: "s3", uploaderId: ME.id, kind: "movie", title: "Squid Game S01E03 The Man with the Umbrella", sizeBytes: 9.4e8, status: "uploading", createdAt: ago(20) },
           ],
           watch: params.get("panel") === "tv-playing" ? { source: { type: "youtube", id: "dQw4w9WgXcQ", title: "Never Gonna Give You Up" }, playing: false, atSeconds: 12, updatedAt: new Date().toISOString(), updatedBy: PARTNER.id, version: 1 } : null,
           trophies: {

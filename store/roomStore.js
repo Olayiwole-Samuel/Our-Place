@@ -14,17 +14,20 @@ import { openResilientChannel } from "@/lib/realtime/resilientChannel";
  *   partnerSeenAt  when your partner was last in Our Place (ISO) or null
  *   notes          message-board notes, newest first; unseenNotes = partner's notes you haven't opened
  *   memories       memory-wall photos { id, url, caption, takenOn, uploaderId, createdAt }
- *   videos         TV library { id, kind, title, sizeBytes, status, uploaderId }
+ *   videos         TV library { id, kind, title, sizeBytes, status, uploaderId, series, season, episode }
  *   watch          what the TV plays: { source, playing, atSeconds, updatedAt, updatedBy, version } | null
  *   trophies       bookshelf counts (couple_trophies()), loaded when the shelf opens
  *   togetherSince  the day you got together ("YYYY-MM-DD"), else when you paired (ISO)
  *   panel          which room panel is open: null | "us" | "notes" | "memories" | "tv" | "shelf"
  *   skewMs         server clock minus this device's clock, for in-sync playback
+ *   partnerWaiting the TV is held for your partner's slow connection: { since } | null
+ *                  (a hint on the lobby topic; it fades by itself if they go quiet)
  *
  * Presence for "last seen" and the streak: note_presence() on arrival, every
  * 2 minutes while the room is open and visible, and when leaving.
  */
 const PRESENCE_EVERY_MS = 120_000;
+const WAITING_FADES_MS = 12_000; // a "waiting for my connection" hint lasts this long unless repeated
 const SIGNED_URL_SECONDS = 3600;
 
 const initialState = {
@@ -40,6 +43,7 @@ const initialState = {
   togetherSince: null,
   panel: null,
   skewMs: null, // server clock − this device's clock (ms), measured on our TV writes
+  partnerWaiting: null,
 };
 
 let ctx = null; // { supabase, coupleId, userId, partnerId, channel, timer, cleanups }
@@ -98,12 +102,22 @@ export const useRoomStore = create((set, get) => ({
       options: { config: { private: true, broadcast: { self: true, ack: false } } },
       area: "room",
       bind: (channel) =>
-        channel.on("broadcast", { event: "room" }, ({ payload }) => {
-          if (here !== ctx || !payload?.area) return;
-          // The lobby topic is also client-writable, so an announcement is only a
-          // hint: what changed is always re-read from the database.
-          get().refresh(payload.area);
-        }),
+        channel
+          .on("broadcast", { event: "room" }, ({ payload }) => {
+            if (here !== ctx || !payload?.area) return;
+            // The lobby topic is also client-writable, so an announcement is only a
+            // hint: what changed is always re-read from the database.
+            get().refresh(payload.area);
+          })
+          .on("broadcast", { event: "tv-wait" }, ({ payload }) => {
+            // The partner's TV is loading: only shown as a reason; the pause itself is shared TV state.
+            if (here !== ctx || payload?.userId !== here.partnerId) return;
+            clearTimeout(here.waitingTimer);
+            if (payload.waiting) {
+              set({ partnerWaiting: { since: get().partnerWaiting?.since ?? Date.now() } });
+              here.waitingTimer = setTimeout(() => here === ctx && set({ partnerWaiting: null }), WAITING_FADES_MS);
+            } else set({ partnerWaiting: null });
+          }),
       onStatus: (status) => {
         // Back after a drop: catch up on anything missed.
         if (status === "SUBSCRIBED" && here === ctx && get().ready) get().refreshAll();
@@ -119,6 +133,7 @@ export const useRoomStore = create((set, get) => ({
     const closing = ctx;
     ctx = null;
     clearInterval(closing.timer);
+    clearTimeout(closing.waitingTimer);
     closing.cleanups.forEach((cleanup) => cleanup());
     closing.supabase.rpc("note_presence", { tz: zone() }).then(() => {}, () => {}); // "last here" = now
     closing.channel?.close();
@@ -155,8 +170,11 @@ export const useRoomStore = create((set, get) => ({
         }
         if (here === ctx) set({ memories: rows.map((r) => ({ id: r.id, uploaderId: r.uploader_id, url: signed.get(r.path) ?? null, caption: r.caption, takenOn: r.taken_on, createdAt: r.created_at })) });
       } else if (area === "videos") {
-        const { data } = await supabase.from("couple_videos").select("id, uploader_id, kind, title, size_bytes, content_type, status, created_at").order("created_at", { ascending: false });
-        if (here === ctx) set({ videos: (data ?? []).map((v) => ({ id: v.id, uploaderId: v.uploader_id, kind: v.kind, title: v.title, sizeBytes: Number(v.size_bytes), contentType: v.content_type, status: v.status, createdAt: v.created_at })) });
+        const columns = "id, uploader_id, kind, title, size_bytes, content_type, status, created_at";
+        const list = (select) => supabase.from("couple_videos").select(select).order("created_at", { ascending: false });
+        let { data, error } = await list(`${columns}, series, season, episode`);
+        if (error) ({ data } = await list(columns)); // series columns not migrated yet: titles still group episodes
+        if (here === ctx) set({ videos: (data ?? []).map((v) => ({ id: v.id, uploaderId: v.uploader_id, kind: v.kind, title: v.title, sizeBytes: Number(v.size_bytes), contentType: v.content_type, status: v.status, createdAt: v.created_at, series: v.series ?? null, season: v.season ?? null, episode: v.episode ?? null })) });
       } else if (area === "watch") {
         const { data } = await supabase.from("couple_watch").select("source, playing, at_seconds, updated_at, updated_by, version").maybeSingle();
         if (here === ctx && data) get().receiveWatch(data);
@@ -209,6 +227,15 @@ export const useRoomStore = create((set, get) => ({
     await get().refresh("trophies");
     return null;
   },
+
+  /** Tell the partner this screen is (or isn't) waiting for the video to load. */
+  announceWaiting(waiting) {
+    const channel = ctx?.channel?.channel;
+    if (!channel) return;
+    Promise.resolve(channel.send({ type: "broadcast", event: "tv-wait", payload: { userId: ctx.userId, waiting: Boolean(waiting) } })).catch(() => {});
+  },
+  /** "Keep watching" without waiting for the partner. */
+  stopWaiting: () => set({ partnerWaiting: null }),
 
   /** Sets what the TV plays; returns an error code or null. */
   async setWatch({ source, playing, atSeconds }) {
