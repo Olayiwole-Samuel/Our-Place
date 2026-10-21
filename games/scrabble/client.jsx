@@ -36,6 +36,7 @@ export default function WordBoard({ view, me, partner, names = {}, status, busy,
   const [zoom, setZoom] = useState(false);
   const [confirm, setConfirm] = useState(null); // "pass" | "resign"
   const scroller = useRef(null);
+  const mountTurn = useRef(view.turn); // plays from before this board opened don't animate
 
   // Keep the local rack order in step with the server's rack.
   const rackIds = view.rack.map((tile) => tile.id).join();
@@ -66,6 +67,8 @@ export default function WordBoard({ view, me, partner, names = {}, status, busy,
   const rack = order.map((id) => rackById[id]).filter(Boolean);
   const pendingAt = (row, col) => pending.find((p) => p.row === row && p.col === col);
   const lastCells = new Set(view.lastMove?.type === "place" ? view.lastMove.cells : []);
+  const fresh = view.turn > mountTurn.current; // the last move happened while you watched
+  const dropDelay = (cell) => `${Math.max(0, (view.lastMove?.cells ?? []).indexOf(cell)) * 70}ms`;
 
   const preview = useMemo(() => {
     if (!pending.length) return null;
@@ -149,7 +152,8 @@ export default function WordBoard({ view, me, partner, names = {}, status, busy,
                   >
                     {letter ? (
                       <span
-                        className={`words-tile absolute inset-[1px] grid place-items-center rounded-[3px] font-bold ${mine ? "bg-[#fff1b8] ring-2 ring-green-500" : lastCells.has(`${row},${col}`) ? "bg-[#fbe7a8]" : "bg-[#f6e3b4]"} text-[#2b2118] shadow-[0_1px_0_#b89a5c]`}
+                        className={`words-tile absolute inset-[1px] grid place-items-center rounded-[3px] font-bold ${mine ? "bg-[#fff1b8] ring-2 ring-green-500" : lastCells.has(`${row},${col}`) ? `bg-[#fbe7a8] ${fresh ? "words-drop" : ""}` : "bg-[#f6e3b4]"} text-[#2b2118] shadow-[0_1px_0_#b89a5c]`}
+                        style={!mine && fresh && lastCells.has(`${row},${col}`) ? { animationDelay: dropDelay(`${row},${col}`) } : undefined}
                       >
                         {letter}
                         {!blank && <sub className="words-value absolute right-[8%] bottom-[4%] font-semibold">{LETTER_VALUES[letter]}</sub>}
@@ -175,9 +179,15 @@ export default function WordBoard({ view, me, partner, names = {}, status, busy,
             [me, "You"],
             [partner, partnerName],
           ].map(([id, name]) => (
-            <div key={id} className={`flex items-baseline justify-between gap-1 rounded-[var(--radius-sm)] px-2 py-1 short:py-0.5 ${view.current === id && active ? "bg-green-700/50 ring-1 ring-green-500" : "bg-black-800"}`}>
+            <div key={id} className={`relative flex items-baseline justify-between gap-1 rounded-[var(--radius-sm)] px-2 py-1 transition-colors duration-300 short:py-0.5 ${view.current === id && active ? "bg-green-700/50 ring-1 ring-green-500" : "bg-black-800"}`}>
               <span className="block truncate text-micro tracking-normal text-text-muted">{name}</span>
-              <span className="text-body font-semibold text-white-soft short:text-caption">{score(id)}</span>
+              <span className="text-body font-semibold text-white-soft tabular-nums short:text-caption">{score(id)}</span>
+              {fresh && view.lastMove?.type === "place" && view.lastMove.by === id && (
+                <span key={view.turn} aria-hidden="true" className={`score-float text-caption ${view.lastMove.bingo ? "text-[#ffd166]" : "text-green-500"}`}>
+                  +{view.lastMove.score}
+                  {view.lastMove.bingo ? " bingo!" : ""}
+                </span>
+              )}
             </div>
           ))}
         </div>

@@ -88,6 +88,7 @@ describe("Would You Rather rules", () => {
     session = ok(act(session, B, "next"));
     expect(view(session, A)).toMatchObject({ round: 2, phase: "answering", myAnswer: null, partnerAnswered: false, myNext: false });
     expect(view(session, A).question.id).toBe(deck[1].id);
+    expect(view(session, B)).toMatchObject({ roundsPlayed: 1, matches: 1 }); // both chose A: a running tally both can see
     expect(act(session, A, "next").error.code).toBe("not_revealed");
   });
 
@@ -100,7 +101,7 @@ describe("Would You Rather rules", () => {
       session = ok(act(session, B, "next"));
     }
     expect(session.status).toBe("completed");
-    expect(session.result).toMatchObject({ outcome: "completed", winnerId: null, scores: null, summary: { headline: "That was fun ❤️", rounds: 2 } });
+    expect(session.result).toMatchObject({ outcome: "completed", winnerId: null, scores: null, summary: { headline: "That was fun ❤️", rounds: 2, agreed: 1, line: "You agreed on 1 of 2 — you think alike ❤️" } });
     expect(countsTowardWinStreak(definition, session.result)).toBe(false);
     expect(definition.winStreakEligible).toBe(false);
     expect(act(session, A, "answer", { choice: "A" }).error.code).toBe("session_not_active");

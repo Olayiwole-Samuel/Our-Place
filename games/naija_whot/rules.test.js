@@ -217,4 +217,11 @@ describe("ending", () => {
     expect(session.state.market).toHaveLength(1);
     expect(session.state.reshuffles).toBe(1);
   });
+
+  it("tender = reshuffle: with nothing left to reshuffle, the market is finished and the cards are counted", () => {
+    // Only the call card is on the pile and the market is empty: drawing can't happen, so nobody is stuck passing.
+    const session = ok(market(table({ a: ["circle-10"], b: ["square-7"], top: "triangle-12", market: [], pile: ["triangle-12"], settings: { tender: "reshuffle" }, current: B }), B));
+    expect(session.status).toBe("completed");
+    expect(session.result).toMatchObject({ outcome: "win", winnerId: B, scores: { [A]: 10, [B]: 7 }, summary: { reason: "tender" } });
+  });
 });

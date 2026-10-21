@@ -74,17 +74,24 @@ function drawCards(state, playerId, count, random) {
   let pile = [...state.pile];
   const hand = [...state.hands[playerId]];
   let reshuffles = state.reshuffles;
+  let exhausted = false;
   for (let i = 0; i < count; i += 1) {
     if (!market.length && state.settings.tender === "reshuffle" && pile.length > 1) {
       market = random.shuffle(pile.slice(0, -1));
       pile = pile.slice(-1);
       reshuffles += 1;
     }
-    if (!market.length) break;
+    if (!market.length) {
+      exhausted = true;
+      break;
+    }
     hand.push(market.pop());
   }
   const next = { ...state, market, pile, reshuffles, hands: { ...state.hands, [playerId]: hand } };
   if (!market.length && state.settings.tender === "count") return { ...next, ended: { by: "tender" } };
+  // Reshuffle with nothing left to reshuffle (every other card is in a hand):
+  // the market is truly finished, so count — otherwise both would pass forever.
+  if (exhausted) return { ...next, ended: { by: "tender" } };
   return next;
 }
 

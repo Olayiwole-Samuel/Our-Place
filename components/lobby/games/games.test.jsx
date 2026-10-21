@@ -7,6 +7,7 @@ import { gameAvailability, gameLabels } from "@/lib/game/gating";
 import { gameRegistry } from "@/lib/game/catalog";
 import { useChatStore } from "@/store/chatStore";
 import { useGameStore } from "@/store/gameStore";
+import { useRoomStore } from "@/store/roomStore";
 import { useWorldStore } from "@/store/worldStore";
 import { GameMenu } from "./GameMenu";
 import { GameStage } from "./GameStage";
@@ -153,6 +154,32 @@ describe("launch → play → result", () => {
     expect(fetchMock).toHaveBeenCalledWith(`/api/games/sessions/${SESSION_ID}/ready`, expect.objectContaining({ body: JSON.stringify({ ready: true }) }));
   });
 
+  it("lobby: shows your all-time head-to-head record in this game", () => {
+    act(() => {
+      useRoomStore.setState({ trophies: { wins: [{ game_id: "tic_tac_toe", user_id: ME.id, wins: 3 }, { game_id: "tic_tac_toe", user_id: PARTNER.id, wins: 5 }, { game_id: "chess", user_id: ME.id, wins: 9 }] } });
+      useGameStore.getState().receive({ session: session({ players: [ME.id, PARTNER.id] }) });
+    });
+    stage();
+    const record = screen.getByLabelText("Tic Tac Toe record: you 3, King 5");
+    expect(record.textContent).toContain("You 3");
+    expect(record.textContent).toContain("5 King"); // chess wins aren't counted here
+    act(() => useRoomStore.setState({ trophies: null }));
+  });
+
+  it("a rejected move shows briefly at the top of the game, then clears itself", async () => {
+    vi.useFakeTimers();
+    try {
+      act(() => useGameStore.getState().receive({ session: session({ status: "active", players: [ME.id, PARTNER.id], ready: [ME.id, PARTNER.id], version: 1 }), view: board() }));
+      stage();
+      act(() => useGameStore.setState({ rejection: "That square is taken." }));
+      expect(screen.getByRole("alert").textContent).toBe("That square is taken.");
+      act(() => vi.advanceTimersByTime(3600));
+      expect(useGameStore.getState().rejection).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("lobby: says when the partner isn't here", () => {
     act(() => {
       useWorldStore.getState().dispatchPartner({ type: "partner_left" });
@@ -258,10 +285,10 @@ describe("launch → play → result", () => {
 describe("Tic Tac Toe client", () => {
   it("only lets you play your own turn, on empty squares", () => {
     const act_ = vi.fn();
-    const { rerender } = render(<TicTacToe view={board({ turn: { order: [PARTNER.id, ME.id], index: 0, number: 1 } })} me={ME.id} status="active" act={act_} />);
+    const { rerender } = render(<TicTacToe view={board({ turn: { order: [PARTNER.id, ME.id], index: 0, number: 1 } })} me={ME.id} partner={PARTNER.id} names={{ [PARTNER.id]: "King" }} status="active" act={act_} />);
     fireEvent.click(screen.getByRole("gridcell", { name: "Row 1, column 1: empty" }));
     expect(act_).not.toHaveBeenCalled();
-    expect(screen.getByText("Their move…")).toBeTruthy();
+    expect(screen.getByText("King's move…")).toBeTruthy();
     rerender(<TicTacToe view={board({ cells: [PARTNER.id, null, null, null, null, null, null, null, null] })} me={ME.id} status="active" act={act_} />);
     fireEvent.click(screen.getByRole("gridcell", { name: "Row 1, column 1: O" }));
     expect(act_).not.toHaveBeenCalled();

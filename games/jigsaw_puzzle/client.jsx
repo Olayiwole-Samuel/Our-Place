@@ -1,6 +1,7 @@
 "use client";
 
 import { Eye, EyeOff, RotateCcw } from "lucide-react";
+import { useReducedMotion } from "motion/react";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { useCouplePhotos } from "@/lib/couple/photos";
 import { playSound } from "@/lib/ui/sounds";
@@ -92,12 +93,19 @@ function Table({ view, act, hints, imageSrc, partnerName, active }) {
   const [nudge, setNudge] = useState(null);
   const grabbing = useRef(null);
   const lastHint = useRef(0);
+  const reduced = useReducedMotion();
   const { grid, pieces, edges } = view;
   const bounds = tableBounds(grid);
   const viewBox = `${bounds.minX - 0.4} ${bounds.minY - 0.4} ${bounds.maxX - bounds.minX + 1.8} ${bounds.maxY - bounds.minY + 1.8}`;
 
   const paths = useMemo(() => pieces.map((piece) => piecePath(pieceSides(edges, grid, piece.col, piece.row))), [pieces, edges, grid]);
   const membersOf = (group) => pieces.map((p, i) => (p.group === group ? i : -1)).filter((i) => i >= 0);
+
+  useEffect(() => {
+    if (!nudge) return undefined;
+    const timer = setTimeout(() => setNudge(null), 3000);
+    return () => clearTimeout(timer);
+  }, [nudge]);
 
   // The server's answer replaces our local idea of where things are.
   useEffect(() => {
@@ -258,13 +266,16 @@ function Table({ view, act, hints, imageSrc, partnerName, active }) {
           const [ox, oy] = offsetFor(index);
           const heldByPartner = view.holds[piece.group] === "partner" || (partnerDrag && pieces[partnerDrag.piece]?.group === piece.group);
           const dragging = drag?.members.includes(index);
+          const partnerMoving = partnerDrag && pieces[partnerDrag.piece]?.group === piece.group;
+          // Your own drag follows your finger exactly; everything else glides: your
+          // partner's live drag (updates ~10×/s) and the server's snap into place.
+          const transition = dragging || reduced ? "none" : partnerMoving ? "transform 0.12s linear" : "transform 0.24s cubic-bezier(0.22, 1, 0.36, 1)";
           return (
             <g
               key={index}
-              transform={`translate(${piece.x + ox} ${piece.y + oy})`}
               onPointerDown={(event) => onPointerDown(event, index)}
               className={piece.placed ? "" : heldByPartner ? "cursor-not-allowed" : "cursor-grab"}
-              style={dragging ? { filter: "drop-shadow(0 0.08px 0.12px rgba(0,0,0,0.6))" } : undefined}
+              style={{ transform: `translate(${piece.x + ox}px, ${piece.y + oy}px)`, transition, ...(dragging ? { filter: "drop-shadow(0 0.08px 0.12px rgba(0,0,0,0.6))" } : {}) }}
             >
               <image href={imageSrc} x={-piece.col} y={-piece.row} width={grid.cols} height={grid.rows} preserveAspectRatio="xMidYMid slice" clipPath={`url(#${prefix}-clip-${index})`} />
               <path d={paths[index]} fill="none" stroke={heldByPartner ? "#f3a6b9" : piece.placed ? "rgba(0,0,0,0.25)" : "rgba(255,255,255,0.55)"} strokeWidth={heldByPartner ? 0.05 : 0.02} />

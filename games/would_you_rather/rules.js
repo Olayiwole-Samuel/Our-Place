@@ -27,6 +27,8 @@ export const DEFAULT_ROUNDS = 10;
 const CHOICES = new Set(["A", "B"]);
 
 const others = (state, playerId) => Object.keys(state.answers).filter((id) => id !== playerId);
+/** Rounds where you both chose the same. */
+const matchesIn = (history) => history.filter(({ answers }) => new Set(Object.values(answers)).size === 1).length;
 
 const rules = {
   async prepare({ coupleId, options, random, services }) {
@@ -88,9 +90,9 @@ const rules = {
   getResult(state) {
     if (state.phase !== "finished") return null;
     const played = state.history.length;
-    const agreed = state.history.filter(({ answers }) => new Set(Object.values(answers)).size === 1).length;
-    const mood = played === 0 ? "See you next time ❤️" : agreed * 2 >= played ? "You think alike ❤️" : "Opposites attract 👀";
-    return { outcome: "completed", summary: { headline: "That was fun ❤️", line: mood, rounds: played } };
+    const agreed = matchesIn(state.history);
+    const mood = played === 0 ? "See you next time ❤️" : `You agreed on ${agreed} of ${played} — ${agreed * 2 >= played ? "you think alike ❤️" : "opposites attract 👀"}`;
+    return { outcome: "completed", summary: { headline: "That was fun ❤️", line: mood, rounds: played, agreed } };
   },
 
   /** What one player may see: never the partner's answer before the reveal, never future questions. */
@@ -112,6 +114,7 @@ const rules = {
       myNext: Boolean(state.next[playerId]),
       partnerNext: Boolean(state.next[partner]),
       roundsPlayed: state.history.length,
+      matches: matchesIn(state.history),
     };
   },
 };

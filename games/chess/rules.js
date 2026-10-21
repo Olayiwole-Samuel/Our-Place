@@ -152,7 +152,7 @@ const rules = {
     const lines =
       outcome === "win"
         ? reason === "checkmate"
-          ? { winner: `Checkmate in ${state.moves.length} moves.`, loser: "{winner} checkmated your king." }
+          ? { winner: `Checkmate in ${Math.ceil(state.moves.length / 2)} moves.`, loser: "{winner} checkmated your king." } // a move = one turn each
           : { winner: "Your partner resigned.", loser: "You resigned." }
         : null;
     return { outcome, winnerId, summary: { headline: HEADLINES[reason] ?? "Game over", reason, line: outcome === "draw" ? HEADLINES[reason] : undefined, lines, moves: state.moves.length } };

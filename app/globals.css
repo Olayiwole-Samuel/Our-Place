@@ -1464,3 +1464,133 @@
     animation: none;
   }
 }
+
+/* ── Game polish: finish confetti, marks, tiles, slides (games/*) ─────────── */
+.game-confetti {
+  position: absolute;
+  top: -24px;
+  line-height: 1;
+  animation: us-fall 3s cubic-bezier(0.3, 0.1, 0.6, 1) forwards;
+  text-shadow: 0 0 6px rgba(255, 255, 255, 0.35);
+}
+
+/* Tic Tac Toe: a mark lands with a little pop; the winning line glows. */
+.ttt-mark {
+  display: inline-block;
+  animation: ttt-pop 0.32s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@keyframes ttt-pop {
+  0% {
+    transform: scale(0.2) rotate(-25deg);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1) rotate(0);
+    opacity: 1;
+  }
+}
+.ttt-win {
+  animation: ttt-glow 1.2s ease-in-out infinite alternate;
+}
+@keyframes ttt-glow {
+  0% {
+    box-shadow: 0 0 0 0 rgba(126, 217, 87, 0);
+  }
+  100% {
+    box-shadow: 0 0 18px 2px rgba(126, 217, 87, 0.55);
+  }
+}
+
+/* Chess: the piece that just moved slides from its old square (in squares). */
+.chess-slide {
+  animation: chess-slide 0.26s cubic-bezier(0.22, 1, 0.36, 1);
+}
+@keyframes chess-slide {
+  0% {
+    transform: translate(calc(var(--dx) * 100%), calc(var(--dy) * 100%));
+  }
+  100% {
+    transform: translate(0, 0);
+  }
+}
+
+/* Word board: the word just played drops in, letter by letter; a score floats up. */
+.words-drop {
+  animation: words-drop 0.38s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+@keyframes words-drop {
+  0% {
+    transform: translateY(-40%) scale(1.25);
+    opacity: 0;
+  }
+  100% {
+    transform: none;
+    opacity: 1;
+  }
+}
+.score-float {
+  position: absolute;
+  right: 0.4rem;
+  top: -0.2rem;
+  pointer-events: none;
+  font-weight: 700;
+  animation: score-float 1.6s ease-out forwards;
+}
+@keyframes score-float {
+  0% {
+    transform: translateY(6px);
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-22px);
+    opacity: 0;
+  }
+}
+
+/* Would You Rather: the reveal. */
+.wyr-reveal {
+  animation: wyr-reveal 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+@keyframes wyr-reveal {
+  0% {
+    transform: scale(0.6);
+    opacity: 0;
+  }
+  100% {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+/* Whot: a waiting penalty pulses on the call card. */
+.whot-pending {
+  animation: whot-pending 1s ease-in-out infinite alternate;
+}
+@keyframes whot-pending {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(255, 79, 126, 0.5);
+  }
+  100% {
+    transform: scale(1.08);
+    box-shadow: 0 0 14px 2px rgba(255, 79, 126, 0.55);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .game-confetti {
+    display: none;
+  }
+  .ttt-mark,
+  .ttt-win,
+  .chess-slide,
+  .words-drop,
+  .score-float,
+  .wyr-reveal,
+  .whot-pending {
+    animation: none;
+  }
+}

@@ -14,7 +14,7 @@ import { useEffect, useRef } from "react";
  */
 export default function WouldYouRather({ view, partner, names = {}, status, busy, act }) {
   const partnerName = names[partner] ?? "Your partner";
-  const { phase, question, myAnswer, partnerAnswered, partnerAnswer, myNext, partnerNext, round, rounds } = view;
+  const { phase, question, myAnswer, partnerAnswered, partnerAnswer, myNext, partnerNext, round, rounds, roundsPlayed = 0, matches = 0 } = view;
   const revealing = phase === "revealing" || (phase === "finished" && myAnswer && partnerAnswer);
   const canAnswer = status === "active" && phase === "answering" && !myAnswer && !busy;
   const firstOption = useRef(null);
@@ -53,8 +53,12 @@ export default function WouldYouRather({ view, partner, names = {}, status, busy
         <span className="text-body leading-snug text-white-soft">{text}</span>
         {revealing && (mine || theirs) && (
           <span className="mt-auto flex flex-wrap gap-1.5" aria-label={`Chosen by ${[mine && "you", theirs && partnerName].filter(Boolean).join(" and ")}`}>
-            {mine && <span className="rounded-full bg-green-600 px-2 py-0.5 text-micro tracking-normal text-white">You</span>}
-            {theirs && <span className="rounded-full bg-pink-500 px-2 py-0.5 text-micro tracking-normal text-black-950">{partnerName}</span>}
+            {mine && <span className="wyr-reveal rounded-full bg-green-600 px-2 py-0.5 text-micro tracking-normal text-white">You</span>}
+            {theirs && (
+              <span className="wyr-reveal rounded-full bg-pink-500 px-2 py-0.5 text-micro tracking-normal text-black-950" style={{ animationDelay: "120ms" }}>
+                {partnerName}
+              </span>
+            )}
           </span>
         )}
       </m.button>
@@ -66,6 +70,11 @@ export default function WouldYouRather({ view, partner, names = {}, status, busy
       <div className="flex items-baseline justify-between gap-3">
         <p className="micro-caps text-pink-400">Would you rather…</p>
         <p className="text-micro tracking-normal text-text-muted">
+          {roundsPlayed > 0 && (
+            <span className="mr-2 text-pink-400" aria-label={`You've matched ${matches} of ${roundsPlayed}`}>
+              ❤️ {matches}/{roundsPlayed} matched
+            </span>
+          )}
           Round {round} of {rounds}
         </p>
       </div>
@@ -76,7 +85,13 @@ export default function WouldYouRather({ view, partner, names = {}, status, busy
       </m.div>
 
       <p role="status" aria-live="polite" className="min-h-5 text-center text-caption text-text-secondary">
-        {line}
+        {revealing ? (
+          <span key={`${round}-reveal`} className={`wyr-reveal inline-block ${myAnswer === partnerAnswer ? "font-semibold text-pink-400" : ""}`}>
+            {line}
+          </span>
+        ) : (
+          line
+        )}
       </p>
 
       {phase === "revealing" && (

@@ -1,14 +1,16 @@
 "use client";
 
-import { AnimatePresence, m } from "motion/react";
+import { AnimatePresence, m, useReducedMotion } from "motion/react";
 import { Check, CircleHelp, Home, LogOut, RotateCcw } from "lucide-react";
-import { Component, Suspense, lazy, useEffect, useRef, useState } from "react";
+import { Component, Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
 import { ProfileAvatar } from "@/components/ui/ProfileAvatar";
 import { gameRegistry } from "@/lib/game/catalog";
 import { guideFor } from "@/lib/game/guides";
 import { loadGameClient } from "@/lib/game/loader";
+import { playSound } from "@/lib/ui/sounds";
 import { useChatStore } from "@/store/chatStore";
 import { useGameStore, sessionPhase } from "@/store/gameStore";
+import { useRoomStore } from "@/store/roomStore";
 import { GameGuide } from "./GameGuide";
 import { useWorldStore } from "@/store/worldStore";
 
@@ -60,7 +62,7 @@ export function GameStage({ me, partner, onEmote, hints }) {
             initial={{ opacity: 0, y: 12, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
-            className="game-shell panel pointer-events-auto flex flex-col overflow-hidden rounded-[var(--radius-lg)] shadow-[0_24px_64px_rgba(0,0,0,0.5)]"
+            className="game-shell panel pointer-events-auto relative flex flex-col overflow-hidden rounded-[var(--radius-lg)] shadow-[0_24px_64px_rgba(0,0,0,0.5)]"
           >
             {phase === "lobby" && <Launch me={me} partner={partner} definition={definition} session={session} />}
             {(phase === "playing" || phase === "result") && <Shell me={me} partner={partner} definition={definition} session={session} phase={phase} onEmote={onEmote} hints={hints} />}
@@ -152,6 +154,7 @@ function Launch({ me, partner, definition, session }) {
         <span aria-hidden="true" className="mt-5 text-pink-400">+</span>
         <PlayerChip profile={partner} label={partnerName} ready={partnerReady} waiting={!partnerJoined} />
       </div>
+      <HeadToHead definition={definition} me={me.id} partner={partner.id} partnerName={partnerName} />
       <p role="status" aria-live="polite" className="text-caption text-text-secondary">
         {line}
       </p>
@@ -183,6 +186,97 @@ function Launch({ me, partner, definition, session }) {
         </button>
       </div>
       {guideOpen && <GameGuide definition={definition} onClose={() => setGuideOpen(false)} />}
+    </div>
+  );
+}
+
+/**
+ * Your all-time record against each other in this game ("You 7 · 9 King"),
+ * from the bookshelf's numbers (couple_trophies(), counted by the database).
+ * Re-read when it mounts, so the finish screen shows the game just won.
+ * Competitive games only, and only once there's a winner to count.
+ */
+function HeadToHead({ definition, me, partner, partnerName, refreshKey = null }) {
+  const trophies = useRoomStore((state) => state.trophies);
+  useEffect(() => {
+    if (definition.mode === "competitive") useRoomStore.getState().refresh("trophies");
+  }, [definition.id, definition.mode, refreshKey]);
+  if (definition.mode !== "competitive" || !trophies) return null;
+  const wins = (id) => (trophies.wins ?? []).filter((row) => row.game_id === definition.id && row.user_id === id).reduce((sum, row) => sum + Number(row.wins), 0);
+  const [mine, theirs] = [wins(me), wins(partner)];
+  if (!mine && !theirs) return null;
+  const lead = mine === theirs ? null : mine > theirs ? "me" : "partner";
+  return (
+    <p aria-label={`${definition.name} record: you ${mine}, ${partnerName} ${theirs}`} className="flex items-center gap-2 rounded-full bg-black-800/80 px-3 py-1 text-caption text-text-secondary">
+      <span className="micro-caps text-text-muted">Head to head</span>
+      <span className={lead === "me" ? "font-semibold text-green-500" : "text-white-soft"}>You {mine}</span>
+      <span aria-hidden="true" className="text-text-muted">·</span>
+      <span className={lead === "partner" ? "font-semibold text-pink-400" : "text-white-soft"}>
+        {theirs} {partnerName}
+      </span>
+    </p>
+  );
+}
+
+/** A rejected move ("That square is taken."): a small toast at the top of the game that clears itself. */
+function RejectionToast() {
+  const rejection = useGameStore((state) => state.rejection);
+  useEffect(() => {
+    if (!rejection) return undefined;
+    const timer = setTimeout(() => useGameStore.getState().clearRejection(), 3500);
+    return () => clearTimeout(timer);
+  }, [rejection]);
+  return (
+    <div className="pointer-events-none absolute inset-x-0 top-[3.25rem] z-30 flex justify-center px-3 short:top-11">
+      <AnimatePresence>
+        {rejection && (
+          <m.p
+            key={rejection}
+            role="alert"
+            initial={{ opacity: 0, y: -8, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -6, transition: { duration: 0.15 } }}
+            transition={{ type: "spring", stiffness: 420, damping: 30 }}
+            className="max-w-[min(28rem,92%)] rounded-full border border-pink-400/40 bg-black-950/95 px-3.5 py-1.5 text-center text-caption text-pink-400 shadow-[0_8px_24px_rgba(0,0,0,0.45)]"
+          >
+            {rejection}
+          </m.p>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+/**
+ * The finish: confetti and a bright chime when you win (hearts when you finish
+ * something together), a soft note when your partner wins. Once per game.
+ */
+function Celebration({ kind }) {
+  const reduced = useReducedMotion();
+  const [on, setOn] = useState(true);
+  useEffect(() => {
+    playSound(kind === "lost" ? "lose" : kind === "draw" ? "move" : "win");
+    const timer = setTimeout(() => setOn(false), 4200);
+    return () => clearTimeout(timer);
+  }, [kind]);
+  const pieces = useMemo(() => {
+    let seed = kind.length * 97 + 13;
+    const random = () => {
+      seed = (seed * 16807) % 2147483647;
+      return seed / 2147483647;
+    };
+    const glyphs = kind === "together" ? ["♥", "♥", "✦"] : ["●", "■", "▲", "♥", "✦"];
+    const colors = kind === "together" ? ["#ff8fb1", "#ff4f7e", "#ffd1e0"] : ["#7ed957", "#ffd166", "#ff8fb1", "#7dd3fc", "#ffffff"];
+    return Array.from({ length: 42 }, (_, i) => ({ left: random() * 100, delay: random() * 0.9, duration: 2.2 + random() * 1.6, size: 8 + random() * 10, spin: (random() - 0.5) * 720, drift: (random() - 0.5) * 140, glyph: glyphs[i % glyphs.length], color: colors[i % colors.length] }));
+  }, [kind]);
+  if (!on || reduced || kind === "lost" || kind === "draw") return null;
+  return (
+    <div aria-hidden="true" className="pointer-events-none absolute inset-0 z-20 overflow-hidden">
+      {pieces.map((piece, i) => (
+        <span key={i} className="game-confetti" style={{ left: `${piece.left}%`, fontSize: piece.size, color: piece.color, animationDelay: `${piece.delay}s`, animationDuration: `${piece.duration}s`, "--spin": `${piece.spin}deg`, "--drift": `${piece.drift}px` }}>
+          {piece.glyph}
+        </span>
+      ))}
     </div>
   );
 }
@@ -286,7 +380,6 @@ function WinnerRow({ me, partner, session, partnerName }) {
 function Shell({ me, partner, definition, session, phase, onEmote, hints }) {
   const view = useGameStore((state) => state.view);
   const pending = useGameStore((state) => state.pending);
-  const rejection = useGameStore((state) => state.rejection);
   const error = useGameStore((state) => state.error);
   const connection = useGameStore((state) => state.connection);
   const partnerStatus = useWorldStore((state) => state.partner.status);
@@ -305,6 +398,7 @@ function Shell({ me, partner, definition, session, phase, onEmote, hints }) {
   }, [phase, session, me.id, onEmote]);
 
   const outcome = session.status === "cancelled" ? "cancelled" : (session.result?.outcome ?? null);
+  const celebration = outcome === "win" ? (session.winnerId === me.id ? "won" : "lost") : outcome === "completed" ? "together" : outcome === "draw" ? "draw" : null;
   const playAgain = async () => {
     const gameId = session.gameId;
     useGameStore.getState().dismiss();
@@ -347,6 +441,7 @@ function Shell({ me, partner, definition, session, phase, onEmote, hints }) {
             </p>
             {(outcome === "completed" || outcome === "win") && resultLine(session, me.id, partnerName) && <p className="-mt-2 text-caption text-text-secondary">{resultLine(session, me.id, partnerName)}</p>}
             {outcome === "win" && <WinnerRow me={me} partner={partner} session={session} partnerName={partnerName} />}
+            {(outcome === "win" || outcome === "draw") && <HeadToHead definition={definition} me={me.id} partner={partner.id} partnerName={partnerName} refreshKey={session.id} />}
             <div className="flex gap-2">
               {outcome !== "abandoned" && (
                 <button type="button" onClick={playAgain} className="flex min-h-11 items-center gap-2 rounded-[var(--radius-md)] bg-green-600 px-4 text-body font-semibold text-white">
@@ -386,11 +481,6 @@ function Shell({ me, partner, definition, session, phase, onEmote, hints }) {
             // A game that ended early (left or cancelled) has no board; the result above says it all.
             phase !== "result" && <p className="py-10 text-center text-caption text-text-muted">Loading…</p>
           )}
-          {rejection && (
-            <p role="alert" className="mt-3 text-center text-caption text-pink-400">
-              {rejection}
-            </p>
-          )}
           {error && (
             <p role="alert" className="mt-3 text-center text-caption text-pink-400">
               {error.message}
@@ -405,6 +495,8 @@ function Shell({ me, partner, definition, session, phase, onEmote, hints }) {
 
       </div>
 
+      <RejectionToast />
+      {phase === "result" && celebration && <Celebration key={session.id} kind={celebration} />}
       {guideOpen && <GameGuide definition={definition} onClose={() => setGuideOpen(false)} />}
       {phase === "playing" && confirmLeave && (
         <footer className="flex shrink-0 flex-wrap items-center justify-center gap-2 border-t border-[var(--border-subtle)] p-3 short:p-2">

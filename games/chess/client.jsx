@@ -24,6 +24,8 @@ const VALUE = { p: 1, n: 3, b: 3, r: 5, q: 9, k: 0 };
 const PROMOTION_CHOICES = ["q", "r", "b", "n"];
 
 const squareName = (row, col) => `${FILES[col]}${8 - row}`;
+/** Castling moves the rook too: king's destination → the rook's [from, to]. */
+const CASTLE_ROOK = { g1: ["h1", "f1"], c1: ["a1", "d1"], g8: ["h8", "f8"], c8: ["a8", "d8"] };
 
 export default function Chess({ view, me, partner, names = {}, status, busy, act }) {
   const partnerName = names[partner] ?? "Your partner";
@@ -37,6 +39,8 @@ export default function Chess({ view, me, partner, names = {}, status, busy, act
   const [drag, setDrag] = useState(null); // { from, x, y }
   const boardRef = useRef(null);
   const historyRef = useRef(null);
+  const mountPly = useRef(view.ply); // moves from before this board opened don't slide
+  const draggedMove = useRef(null); // a move you dragged is already where you dropped it
 
   // Rows/columns in screen order (flipped for Black).
   const order = useMemo(() => {
@@ -106,7 +110,7 @@ export default function Chess({ view, me, partner, names = {}, status, busy, act
       const target = document.elementFromPoint(event.clientX, event.clientY)?.closest?.("[data-square]")?.dataset.square;
       const wasDrag = drag.moved;
       setDrag(null);
-      if (wasDrag && target && target !== drag.from) tryMove(drag.from, target);
+      if (wasDrag && target && target !== drag.from && tryMove(drag.from, target)) draggedMove.current = `${drag.from}${target}`;
     };
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", up);
@@ -137,6 +141,24 @@ export default function Chess({ view, me, partner, names = {}, status, busy, act
       setPromotion(null);
     }
   };
+
+  // The last move slides in (a castling rook too), measured in squares on screen.
+  const screenOf = (square) => {
+    const col = FILES.indexOf(square[0]);
+    const row = 8 - Number(square[1]);
+    return flipped ? [7 - col, 7 - row] : [col, row];
+  };
+  const slides = {};
+  const last = view.lastMove;
+  if (last && view.ply > mountPly.current && draggedMove.current !== `${last.from}${last.to}`) {
+    const pairs = [[last.from, last.to]];
+    if (/[kq]/.test(last.flags ?? "") && CASTLE_ROOK[last.to]) pairs.push(CASTLE_ROOK[last.to]);
+    for (const [from, to] of pairs) {
+      const [fx, fy] = screenOf(from);
+      const [tx, ty] = screenOf(to);
+      slides[to] = { "--dx": fx - tx, "--dy": fy - ty };
+    }
+  }
 
   const myCaptures = view.captured[view.myColor === "w" ? "b" : "w"] ?? [];
   const theirCaptures = view.captured[view.myColor] ?? [];
@@ -200,11 +222,12 @@ export default function Chess({ view, me, partner, names = {}, status, busy, act
                     {showRank && <span aria-hidden="true" className={`chess-coord absolute top-[3%] left-[5%] ${light ? "text-[#5f6f45]" : "text-[#e9e4d4]"}`}>{8 - row}</span>}
                     {showFile && <span aria-hidden="true" className={`chess-coord absolute right-[5%] bottom-[2%] ${light ? "text-[#5f6f45]" : "text-[#e9e4d4]"}`}>{FILES[col]}</span>}
                     {piece && (
-                      <span
-                        aria-hidden="true"
-                        className={`chess-piece relative ${piece[0] === "w" ? "chess-white" : "chess-black"} ${drag?.from === square && drag.moved ? "opacity-30" : ""} ${myTurn && piece[0] === view.myColor && view.legal.targets[square]?.length ? "cursor-grab" : ""}`}
-                      >
-                        {GLYPH[piece[1]]}
+                      <span key={slides[square] ? `${square}-${view.ply}` : square} aria-hidden="true" className={`absolute inset-0 grid place-items-center ${slides[square] ? "chess-slide z-[5]" : ""}`} style={slides[square]}>
+                        <span
+                          className={`chess-piece relative ${piece[0] === "w" ? "chess-white" : "chess-black"} ${drag?.from === square && drag.moved ? "opacity-30" : ""} ${myTurn && piece[0] === view.myColor && view.legal.targets[square]?.length ? "cursor-grab" : ""}`}
+                        >
+                          {GLYPH[piece[1]]}
+                        </span>
                       </span>
                     )}
                     {isTarget && (

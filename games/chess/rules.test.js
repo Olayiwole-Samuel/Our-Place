@@ -108,6 +108,7 @@ describe("game end", () => {
     const session = play(start(), "e2e4", "e7e5", "f1c4", "b8c6", "d1h5", "g8f6", "h5f7");
     expect(session.status).toBe("completed");
     expect(session.result).toMatchObject({ outcome: "win", winnerId: A, summary: { reason: "checkmate" } });
+    expect(session.result.summary.lines.winner).toBe("Checkmate in 4 moves."); // 7 half-moves = 4 moves
     expect(countsTowardWinStreak(definition, session.result)).toBe(true);
     expect(code(act(session, B, "move", { from: "a7", to: "a6" }))).toBe("session_not_active");
   });

@@ -38,6 +38,11 @@ export default function NaijaWhot({ view, me, partner, names = {}, status, busy,
     setWhotCard(null);
     setNudge(null);
   }, [view.turn]);
+  useEffect(() => {
+    if (!nudge) return undefined;
+    const timer = setTimeout(() => setNudge(null), 3000);
+    return () => clearTimeout(timer);
+  }, [nudge]);
 
   if (view.phase === "settings") return <Settings view={view} busy={busy} act={act} partnerName={partnerName} me={me} />;
 
@@ -91,11 +96,19 @@ export default function NaijaWhot({ view, me, partner, names = {}, status, busy,
           {view.current === partner && active && <span className="rounded-full bg-pink-500/20 px-2 py-0.5 text-micro tracking-normal text-pink-400">Playing</span>}
         </div>
         <div aria-hidden="true" className="flex h-[var(--whot-back-h)] items-center">
-          {(view.partnerHand ?? Array.from({ length: Math.min(view.partnerCount, 14) })).map((cardId, index) => (
-            <div key={cardId ?? index} className="-ml-[calc(var(--whot-back-w)*0.62)] first:ml-0">
-              {cardId ? <CardFace id={cardId} size="back" /> : <CardBack size="back" />}
-            </div>
-          ))}
+          <AnimatePresence initial={false}>
+            {(view.partnerHand ?? Array.from({ length: Math.min(view.partnerCount, 14) })).map((cardId, index) => (
+              <m.div
+                key={cardId ?? index}
+                initial={reduced ? false : { y: 24, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                exit={reduced ? undefined : { y: 30, opacity: 0, transition: { duration: 0.2 } }}
+                className="-ml-[calc(var(--whot-back-w)*0.62)] first:ml-0"
+              >
+                {cardId ? <CardFace id={cardId} size="back" /> : <CardBack size="back" />}
+              </m.div>
+            ))}
+          </AnimatePresence>
         </div>
 
         {/* Table: market and call card */}
@@ -122,19 +135,25 @@ export default function NaijaWhot({ view, me, partner, names = {}, status, busy,
             {myTurn && <span className="text-micro font-semibold tracking-normal text-green-500">{view.pending ? `Pick ${view.pending.count}` : "Go to market"}</span>}
           </button>
 
-          <div className="flex flex-col items-center gap-1">
+          <div className="relative flex flex-col items-center gap-1">
             <AnimatePresence mode="popLayout" initial={false}>
               {view.top && (
                 <m.div
                   key={view.top}
-                  initial={reduced ? false : { y: -40, rotate: -8, opacity: 0 }}
-                  animate={{ y: 0, rotate: 0, opacity: 1 }}
-                  transition={{ type: "spring", stiffness: 380, damping: 28 }}
+                  // The card flies in from whoever played it: your hand below, your partner's above.
+                  initial={reduced ? false : view.last?.by === me ? { y: 70, rotate: 10, scale: 0.9, opacity: 0 } : { y: -70, rotate: -10, scale: 0.9, opacity: 0 }}
+                  animate={{ y: 0, rotate: 0, scale: 1, opacity: 1 }}
+                  transition={{ type: "spring", stiffness: 360, damping: 26 }}
                 >
                   <CardFace id={view.top} size="table" />
                 </m.div>
               )}
             </AnimatePresence>
+            {view.pending && active && (
+              <span role="status" className="whot-pending absolute -top-2 -right-3 z-10 rounded-full bg-pink-500 px-2 py-0.5 text-micro font-bold tracking-normal text-black-950">
+                Pick {view.pending.count}
+              </span>
+            )}
             <span className="text-micro tracking-normal text-text-secondary">
               {view.requestedShape ? (
                 <>
