@@ -12,7 +12,8 @@ import { PAIRING_ERROR } from "@/lib/couple/errors";
  *
  *   status      "loading" | "unpaired" | "paired"
  *   me          own profile { id, displayName, avatarUrl, avatarThumbnail }
- *   partner     partner profile (paired only)
+ *   partner     partner profile (paired only); displayName is YOUR nickname for them when
+ *               you've set one ({ nickname, accountName } keep both)
  *   couple      { id, pairedAt } (paired only)
  *   invite      { code, expiresAt } | null (unpaired only)
  *   justPaired  true from the moment pairing is observed until the celebration is acknowledged
@@ -67,6 +68,13 @@ export function createCoupleStore(initialServerState, { onSessionExpired } = {})
         const result = handle(await coupleApi.join(code));
         if (result.ok) apply(result.data);
         if (!result.ok && result.code === PAIRING_ERROR.ALREADY_PAIRED) await get().refresh();
+        return result;
+      },
+
+      /** What you call your partner ("" clears it). The server returns the fresh couple, nickname applied. */
+      setNickname: async (nickname) => {
+        const result = handle(await coupleApi.setNickname(nickname));
+        if (result.ok) apply(result.data);
         return result;
       },
 

@@ -9,6 +9,7 @@ import { setSoundsEnabled, soundsEnabled, subscribeSounds } from "@/lib/ui/sound
 import { usePerformanceStore } from "@/store/performanceStore";
 import { useAuthStore } from "@/store/authStore";
 import { CharacterSwitch } from "./CharacterSwitch";
+import { NicknameSetting } from "./NicknameSetting";
 import { PushSetting } from "./PushControls";
 
 /**
@@ -69,6 +70,7 @@ export function AccountMenu({ beforeSignOut, runtime, partnerName = "your partne
             className="panel absolute top-full right-0 z-20 mt-2 flex max-h-[calc(100dvh-var(--safe-top)-var(--safe-bottom)-2*var(--edge-gap)-var(--control-size)-16px)] w-60 origin-top-right flex-col gap-2 overflow-y-auto overscroll-contain rounded-[var(--radius-md)] p-2"
           >
             {email && <p className="truncate px-2 pt-1 text-caption text-text-muted">{email}</p>}
+            <NicknameSetting />
             <CharacterSwitch runtime={runtime} />
             <PushSetting partnerName={partnerName} />
             <SoundToggle />

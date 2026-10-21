@@ -3,6 +3,7 @@
 import { MicOff, Volume2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { ProfileAvatar } from "@/components/ui/ProfileAvatar";
+import { shortName } from "@/lib/couple/names";
 import { useCoupleStore } from "@/store/coupleStore";
 import { lastSeenText, useRoomStore } from "@/store/roomStore";
 import { useVoiceStore } from "@/store/voiceStore";
@@ -25,7 +26,7 @@ export function PartnerStatus() {
   }, [status]);
   if (!partner) return null;
 
-  const name = partner.displayName?.split(" ")[0] || "Your person";
+  const name = shortName(partner);
   const line =
     status === "online"
       ? { text: "Here with you", dot: "bg-pink-400" }

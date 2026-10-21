@@ -4,6 +4,7 @@ import { m } from "motion/react";
 import { useEffect } from "react";
 import { Atmosphere } from "@/components/brand/Atmosphere";
 import { Button } from "@/components/ui/Button";
+import { shortName } from "@/lib/couple/names";
 import { useCoupleStore } from "@/store/coupleStore";
 
 const AUTO_CONTINUE_MS = 5200;
@@ -23,7 +24,7 @@ export function PairingSuccess() {
     return () => clearTimeout(timer);
   }, [acknowledge]);
 
-  const partnerName = partner?.displayName?.split(" ")[0];
+  const partnerName = partner ? shortName(partner, "") : "";
 
   return (
     <main className="app-viewport">

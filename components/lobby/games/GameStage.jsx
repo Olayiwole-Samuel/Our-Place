@@ -4,6 +4,7 @@ import { AnimatePresence, m, useReducedMotion } from "motion/react";
 import { Check, CircleHelp, Home, LogOut, RotateCcw } from "lucide-react";
 import { Component, Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
 import { ProfileAvatar } from "@/components/ui/ProfileAvatar";
+import { shortName } from "@/lib/couple/names";
 import { gameRegistry } from "@/lib/game/catalog";
 import { guideFor } from "@/lib/game/guides";
 import { loadGameClient } from "@/lib/game/loader";
@@ -73,7 +74,7 @@ export function GameStage({ me, partner, onEmote, hints }) {
   );
 }
 
-const firstName = (profile, fallback) => profile?.displayName?.split(" ")[0] || fallback;
+const firstName = (profile, fallback) => shortName(profile, fallback);
 
 function Invite({ partner, definition }) {
   const pending = useGameStore((state) => state.pending);

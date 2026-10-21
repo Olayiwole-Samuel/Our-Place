@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { palette } from "@/lib/design/tokens";
 import { useVoiceStore } from "@/store/voiceStore";
+import { shortName } from "@/lib/couple/names";
 import { useWorldStore } from "@/store/worldStore";
 import { createTextTexture } from "../materials";
 import { Avatar } from "./Avatar";
@@ -93,7 +94,7 @@ function PresentPartner({ runtime, profile, character, away, reducedMotion }) {
     }
   });
 
-  const name = profile?.displayName?.split(" ")[0] || "Your person";
+  const name = shortName(profile);
 
   return (
     <group ref={group}>

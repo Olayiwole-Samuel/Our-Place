@@ -29,6 +29,7 @@ import { GameMenu } from "./games/GameMenu";
 import { GameStage } from "./games/GameStage";
 import { useCoupleGames } from "./games/useCoupleGames";
 import { NowPlayingChip, RoomMenu, RoomPanels, StreakBadge, TogetherChip } from "./room/RoomPanels";
+import { shortName } from "@/lib/couple/names";
 import { useCoupleComms, usePresenceNotices } from "./useCoupleComms";
 import { useCouplePresence, usePartnerPresenceEffects } from "./useCouplePresence";
 import { useWorldControls } from "./useWorldControls";
@@ -62,7 +63,7 @@ function LivingRoom({ me, partner, couple }) {
   const loadStage = useWorldStore((state) => state.loadStage);
   const connection = useWorldStore((state) => state.connection);
   const partnerStatus = useWorldStore((state) => state.partner.status);
-  const partnerName = partner.displayName?.split(" ")[0] || "Your person";
+  const partnerName = shortName(partner);
   // Saved characters (server-confirmed), shown as the chosen male/female look —
   // or the default look until someone picks one (lib/character/looks.js).
   const savedMine = useCharacterStore((state) => state.mine);
