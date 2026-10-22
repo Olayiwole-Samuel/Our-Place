@@ -151,7 +151,8 @@ const MODELS = {
       {[-0.1, 0.1].map((x, i) => (
         <group key={x} position={[x, 0, 0]}>
           <Mesh geometry={cyl(0.08, 0.065, 0.05, 20)} material={mat("#d9dde3", { roughness: 0.3, metalness: 0.6 })} position={[0, 0.03, 0]} />
-          <Mesh geometry={cyl(0.068, 0.068, 0.005, 20)} material={mat(i ? "#7ab8e8" : "#8a5a33", i ? { roughness: 0.1 } : {})} position={[0, 0.052, 0]} shadow={false} />
+          {/* Water in the right bowl; the left one fills when you feed the dog (Food.jsx). */}
+          {i === 1 && <Mesh geometry={cyl(0.068, 0.068, 0.005, 20)} material={mat("#7ab8e8", { roughness: 0.1 })} position={[0, 0.052, 0]} shadow={false} />}
         </group>
       ))}
     </>

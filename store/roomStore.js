@@ -77,8 +77,9 @@ const toPet = (row) =>
         actionAt: row.action_at ? Date.parse(row.action_at) : null,
         actionBy: row.action_by,
         actionData: row.action_data ?? null,
+        createdAt: row.created_at ? Date.parse(row.created_at) : null,
       }
-    : { name: null, fedAt: null, pettedAt: null, playedAt: null, action: null, actionAt: null, actionBy: null, actionData: null };
+    : { name: null, fedAt: null, pettedAt: null, playedAt: null, action: null, actionAt: null, actionBy: null, actionData: null, createdAt: null };
 
 /** "room:not_enough_hearts" → "not_enough_hearts" (the database's error codes). */
 const codeOf = (error) => error?.message?.match(/room:([a-z_]+)/)?.[1] ?? "unknown";
@@ -217,7 +218,7 @@ export const useRoomStore = create((set, get) => ({
         const [{ data: hearts }, { data: unlocks }] = await Promise.all([supabase.rpc("couple_hearts"), supabase.from("couple_unlocks").select("item")]);
         if (here === ctx) set({ hearts: hearts ?? null, unlocks: new Set((unlocks ?? []).map((u) => u.item)) });
       } else if (area === "pet") {
-        const { data, error } = await supabase.from("couple_pets").select("name, fed_at, petted_at, played_at, action, action_at, action_by, action_data").maybeSingle();
+        const { data, error } = await supabase.from("couple_pets").select("name, fed_at, petted_at, played_at, action, action_at, action_by, action_data, created_at").maybeSingle();
         if (!error && here === ctx) set({ pet: toPet(data) });
       } else if (area === "trophies") {
         const { data } = await supabase.rpc("couple_trophies");

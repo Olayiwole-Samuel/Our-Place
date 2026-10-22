@@ -3,7 +3,7 @@
 import { m } from "motion/react";
 import { PawPrint, Pencil, X } from "lucide-react";
 import { useEffect, useState } from "react";
-import { dogAt, moodOf } from "@/lib/pet/behaviour";
+import { dogAt, growthOf, moodOf } from "@/lib/pet/behaviour";
 import { decorColliders } from "@/lib/room/decor";
 import { livingRoom, roomColliders } from "@/lib/world/rooms/livingRoom";
 import { useRoomStore } from "@/store/roomStore";
@@ -29,13 +29,14 @@ const ACTIONS = [
 
 const MESSAGES = { rate_limited: "One at a time 🐾", unavailable: "Your dog isn't set up yet.", invalid: "That didn't work — try again." };
 
-function worldOf(room, decor, coupleId) {
+function worldOf(room, decor, coupleId, createdAt) {
   return {
     key: decor.map((d) => `${d.item}@${d.x.toFixed(2)},${d.z.toFixed(2)},${d.rotation.toFixed(2)}`).join("|") || "empty",
     seed: coupleId ?? "our-place",
     bounds: room.bounds,
     colliders: [...roomColliders(room), ...decorColliders(decor)],
     placed: decor,
+    dogSize: growthOf(createdAt ?? null, Date.now()).size,
   };
 }
 
@@ -90,7 +91,7 @@ export function DogPanel({ runtime }) {
   const name = pet?.name;
   const mood = moodOf(pet, now);
   const room = runtime?.room ?? livingRoom;
-  const world = worldOf(room, decor, coupleId);
+  const world = worldOf(room, decor, coupleId, pet?.createdAt);
 
   const ask = async (action) => {
     const serverNow = Date.now() + (useRoomStore.getState().skewMs ?? 0);
@@ -131,7 +132,7 @@ export function DogPanel({ runtime }) {
             <button type="button" onClick={() => setNaming(true)} className="inline-flex items-center gap-1 font-semibold hover:text-pink-400" aria-label={`Rename ${name}`}>
               {name} <Pencil aria-hidden="true" size={11} className="text-text-muted" />
             </button>{" "}
-            {mood.text} {mood.icon} <span className="text-micro tracking-normal text-text-muted">· fed {ago(pet?.fedAt)}</span>
+            {mood.text} {mood.icon} <span className="text-micro tracking-normal text-text-muted">· {growthOf(pet?.createdAt ?? null, now).label} · fed {ago(pet?.fedAt)}</span>
           </p>
         )}
         <button type="button" aria-label="Close" onClick={() => useRoomStore.getState().closePanel()} className="grid size-8 shrink-0 place-items-center rounded-full text-text-muted hover:bg-black-700">

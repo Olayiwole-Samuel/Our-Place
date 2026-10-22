@@ -220,6 +220,7 @@ function Scenario() {
           coupleId: "preview-couple",
           pet: {
             name: params.get("dogname") ?? "Snowy",
+            createdAt: Date.now() - Number(params.get("age") ?? 3) * 86_400_000, // ?age=days (grows over ~60)
             fedAt: ago(60 * 3),
             pettedAt: ago(30),
             playedAt: ago(60 * 9),

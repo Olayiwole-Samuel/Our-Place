@@ -4,6 +4,7 @@ import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { mergeVertices } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { clone as cloneSkinned } from "three/examples/jsm/utils/SkeletonUtils.js";
 import { palette } from "@/lib/design/tokens";
 import { createTextTexture, getBlobShadowTexture } from "../materials";
@@ -20,7 +21,6 @@ import { createTextTexture, getBlobShadowTexture } from "../materials";
  * frame by the caller: { x, z, ry, anim, pose, wag, hearts, ball, carrying }.
  */
 export const DOG_MODEL = "/models/pets/maltese.glb";
-const HEIGHT = 0.36; // metres to the top of the head: a Maltese next to a 1.7 m person
 const HEAD_HEIGHT = 0.27; // the head bone (behind the eyes)
 const COAT = "#f4efe6";
 const COAT_LIGHT = "#fffdf8";
@@ -32,46 +32,38 @@ const CLIPS = { idle: "Idle", look: "Idle_2", sniff: "Idle_2_HeadLow", walk: "Wa
  * low the body sits (fraction of height). Tuned by eye in /dev/dog.
  */
 export const POSES = {
-  stand: { drop: 0, bones: {} },
+  // Measured in /dev/dog: the front legs swing on their y axis, the back legs on x.
+  stand: { bones: {} },
   sit: {
-    drop: 0.12,
     bones: {
-      Body: [-0.42, 0, 0],
-      BackUpperLegL: [-1.0, 0, 0],
-      BackUpperLegR: [-1.0, 0, 0],
-      BackLowerLegL: [1.5, 0, 0],
-      BackLowerLegR: [1.5, 0, 0],
-      FrontUpperLegL: [0.25, 0, 0],
-      FrontUpperLegR: [0.25, 0, 0],
-      Neck1: [-0.2, 0, 0],
-      Head: [-0.15, 0, 0],
+      Body: [-0.5, 0, 0],
+      BackUpperLegL: [-1.5, 0, 0],
+      BackUpperLegR: [-1.5, 0, 0],
+      BackLowerLegL: [-2.0, 0, 0],
+      BackLowerLegR: [-2.0, 0, 0],
+      Neck1: [-0.25, 0, 0],
+      Head: [-0.2, 0, 0],
     },
   },
   lie: {
-    drop: 0.42,
     bones: {
-      FrontUpperLegL: [1.25, 0, 0],
-      FrontUpperLegR: [1.25, 0, 0],
-      FrontLowerLegL: [-0.15, 0, 0],
-      FrontLowerLegR: [-0.15, 0, 0],
-      BackUpperLegL: [-1.35, 0, 0],
-      BackUpperLegR: [-1.35, 0, 0],
-      BackLowerLegL: [2.1, 0, 0],
-      BackLowerLegR: [2.1, 0, 0],
+      FrontUpperLegL: [0, 1.2, 0],
+      FrontUpperLegR: [0, 1.2, 0],
+      BackUpperLegL: [-1.7, 0, 0],
+      BackUpperLegR: [-1.7, 0, 0],
+      BackLowerLegL: [-2.0, 0, 0],
+      BackLowerLegR: [-2.0, 0, 0],
       Neck1: [-0.25, 0, 0],
     },
   },
   sleep: {
-    drop: 0.44,
     bones: {
-      FrontUpperLegL: [1.25, 0, 0],
-      FrontUpperLegR: [1.25, 0, 0],
-      FrontLowerLegL: [-0.15, 0, 0],
-      FrontLowerLegR: [-0.15, 0, 0],
-      BackUpperLegL: [-1.35, 0, 0],
-      BackUpperLegR: [-1.35, 0, 0],
-      BackLowerLegL: [2.1, 0, 0],
-      BackLowerLegR: [2.1, 0, 0],
+      FrontUpperLegL: [0, 1.2, 0],
+      FrontUpperLegR: [0, 1.2, 0],
+      BackUpperLegL: [-1.7, 0, 0],
+      BackUpperLegR: [-1.7, 0, 0],
+      BackLowerLegL: [-2.0, 0, 0],
+      BackLowerLegR: [-2.0, 0, 0],
       Neck1: [-0.55, 0.35, 0],
       Head: [-0.35, 0.2, 0],
     },
@@ -80,6 +72,17 @@ export const POSES = {
 /** Floppy Maltese ears: each ear bone bends down a little more. */
 export const EAR_FLOP = { Ear1L: [0, 0, 1.75], Ear2L: [0, 0, 0.45], Ear1R: [0, 0, -1.75], Ear2R: [0, 0, -0.45] };
 const TAIL_BONES = ["Tail1", "Tail2"];
+/**
+ * The paws hang off separate foot bones (the model's IK targets), not the legs:
+ * when a pose folds a leg, its foot is carried along with it, or the paw would
+ * stay planted and prop the dog up (or poke through the floor).
+ */
+const FEET = [
+  ["IKFrontLegL", "FrontLowerLegL"],
+  ["IKFrontLegR", "FrontLowerLegR"],
+  ["IKBackLegL", "BackLowerLegL"],
+  ["IKBackLegR", "BackLowerLegR"],
+];
 
 let modelPromise = null;
 function loadDog() {
@@ -108,6 +111,23 @@ function recolour(scene) {
   });
 }
 
+/** Smooths a faceted mesh: shared corners get one averaged normal. */
+function smooth(geometry) {
+  const plain = geometry.clone();
+  plain.deleteAttribute("normal");
+  const merged = mergeVertices(plain, 1e-4);
+  merged.computeVertexNormals();
+  merged.groups = geometry.groups.map((group) => ({ ...group }));
+  return merged;
+}
+
+/** Smooth the low-poly body (soft, rounded shading instead of flat facets). */
+function smoothBody(root) {
+  root.traverse((node) => {
+    if (node.isSkinnedMesh) node.geometry = smooth(node.geometry);
+  });
+}
+
 /** The dog's model, ready to animate: { root, mixer, actions, bones, rest }. */
 function useDogModel() {
   const [model, setModel] = useState(null);
@@ -129,6 +149,9 @@ function useDogModel() {
         const scale = head && head.y > 0 ? HEAD_HEIGHT / head.y : 1;
         root.scale.set(scale * 1.12, scale * 0.86, scale); // a Maltese: shorter legs, rounder body
         if (head && tail) root.position.set(-((head.x + tail.x) / 2) * scale, 0, -((head.z + tail.z) / 2) * scale);
+        smoothBody(root);
+        const body = [];
+        root.traverse((node) => node.isSkinnedMesh && body.push(node));
         const mixer = new THREE.AnimationMixer(root);
         const actions = {};
         for (const [key, name] of Object.entries(CLIPS)) {
@@ -142,7 +165,16 @@ function useDogModel() {
         // Rest rotations of every bone we bend, so bends never pile up frame after frame.
         const bent = new Set([...Object.values(POSES).flatMap((pose) => Object.keys(pose.bones)), ...Object.keys(EAR_FLOP), ...TAIL_BONES]);
         const rest = [...bent].filter((name) => bones[name]).map((name) => [bones[name], bones[name].quaternion.clone()]);
-        made = { root, mixer, actions, bones, rest };
+        // Each foot's place relative to its lower leg, at rest (to carry it in poses).
+        root.updateMatrixWorld(true);
+        const feet = FEET.filter(([foot, leg]) => bones[foot] && bones[leg]).map(([foot, leg]) => ({
+          foot: bones[foot],
+          leg: bones[leg],
+          offset: bones[leg].matrixWorld.clone().invert().multiply(bones[foot].matrixWorld),
+          restPosition: bones[foot].position.clone(),
+          restQuaternion: bones[foot].quaternion.clone(),
+        }));
+        made = { root, mixer, actions, bones, rest, body, feet };
         if (process.env.NODE_ENV !== "production") window.__ourPlaceDog = { ...made, POSES, EAR_FLOP }; // devtools / /dev/dog tuning (edit live)
         setModel(made);
       })
@@ -150,7 +182,11 @@ function useDogModel() {
     return () => {
       live = false;
       made?.mixer.stopAllAction();
-      made?.root.traverse((node) => node.isMesh && [].concat(node.material).forEach((m) => m.dispose()));
+      made?.root.traverse((node) => {
+        if (!node.isMesh) return;
+        [].concat(node.material).forEach((m) => m.dispose());
+        node.geometry.dispose();
+      });
     };
   }, []);
   return model;
@@ -192,14 +228,20 @@ function NameTag({ name }) {
   );
 }
 
+const probe = new THREE.Vector3();
+const footMatrix = new THREE.Matrix4();
+const parentInverse = new THREE.Matrix4();
+const footPosition = new THREE.Vector3();
+const footQuaternion = new THREE.Quaternion();
+const footScale = new THREE.Vector3();
 const ballMaterial = new THREE.MeshStandardMaterial({ color: "#c8e64b", roughness: 0.8 });
 
-export function Dog({ stateRef, name, reducedMotion = false }) {
+export function Dog({ stateRef, name, growth = null, reducedMotion = false }) {
   const model = useDogModel();
   const group = useRef();
   const body = useRef();
   const ball = useRef();
-  const current = useRef({ anim: null, poseWeights: { sit: 0, lie: 0, sleep: 0 }, wagPhase: 0, flinch: 0 });
+  const current = useRef({ anim: null, poseWeights: { sit: 0, lie: 0, sleep: 0 }, wagPhase: 0, flinch: 0, frame: 0, ground: 0 });
   const shadow = useMemo(() => new THREE.MeshBasicMaterial({ map: getBlobShadowTexture(), transparent: true, depthWrite: false, opacity: 0.7 }), []);
   useEffect(() => () => shadow.dispose(), [shadow]);
 
@@ -243,16 +285,18 @@ export function Dog({ stateRef, name, reducedMotion = false }) {
       c.anim = anim;
     }
     for (const [bone, quaternion] of model.rest) bone.quaternion.copy(quaternion);
+    for (const foot of model.feet) {
+      foot.foot.position.copy(foot.restPosition);
+      foot.foot.quaternion.copy(foot.restQuaternion);
+    }
     model.mixer.update(reducedMotion && (anim === "walk" || anim === "run") ? dt * 0.5 : dt);
 
     // Poses on top of the animation, eased in and out.
     const pose = state.pose ?? "stand";
     for (const name of ["sit", "lie", "sleep"]) c.poseWeights[name] += ((pose === name ? 1 : 0) - c.poseWeights[name]) * (1 - Math.exp(-6 * dt));
-    let drop = 0;
     for (const [poseName, weight] of Object.entries(c.poseWeights)) {
       if (weight < 0.001) continue;
       const def = POSES[poseName];
-      drop += def.drop * weight;
       for (const [bone, [x, y, z]] of Object.entries(def.bones)) {
         const b = model.bones[bone];
         if (!b) continue;
@@ -280,7 +324,37 @@ export function Dog({ stateRef, name, reducedMotion = false }) {
       const b = model.bones[name];
       if (b) b.rotation.y += swing * (i ? 0.6 : 1);
     });
-    if (body.current) body.current.position.y = -drop * HEIGHT * 0.5;
+    // Feet follow folded legs (weighted by how far into a pose it is).
+    const posed = Math.max(c.poseWeights.sit, c.poseWeights.lie, c.poseWeights.sleep);
+    if (posed > 0.001) {
+      model.root.updateMatrixWorld(true);
+      for (const { foot, leg, offset } of model.feet) {
+        footMatrix.multiplyMatrices(leg.matrixWorld, offset);
+        footMatrix.premultiply(parentInverse.copy(foot.parent.matrixWorld).invert());
+        footMatrix.decompose(footPosition, footQuaternion, footScale);
+        foot.position.lerp(footPosition, posed);
+        foot.quaternion.slerp(footQuaternion, posed);
+      }
+    }
+    // Growing up: a puppy's head is big for its body.
+    if (model.bones.Head && growth) model.bones.Head.scale.setScalar(growth.head);
+    // On the floor, never in it: every few frames find the body's lowest point
+    // and settle the dog so it just touches the floor, whatever the pose.
+    if (body.current && c.frame++ % 4 === 0) {
+      model.root.updateMatrixWorld(true);
+      let lowest = Infinity;
+      for (const mesh of model.body) {
+        const count = mesh.geometry.attributes.position.count;
+        for (let i = 0; i < count; i += 3) {
+          mesh.getVertexPosition(i, probe).applyMatrix4(mesh.matrixWorld);
+          if (probe.y < lowest) lowest = probe.y;
+        }
+      }
+      const floorY = g.position.y;
+      if (Number.isFinite(lowest)) c.ground = body.current.position.y - (lowest - floorY) / (g.scale.y || 1);
+    }
+    if (body.current) body.current.position.y += (c.ground - body.current.position.y) * (1 - Math.exp(-10 * dt));
+    if (growth) g.scale.setScalar(growth.size);
   });
 
   return (

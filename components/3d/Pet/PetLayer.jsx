@@ -2,11 +2,12 @@
 
 import { useFrame } from "@react-three/fiber";
 import { useMemo, useRef } from "react";
-import { dogAt } from "@/lib/pet/behaviour";
+import { dogAt, growthOf } from "@/lib/pet/behaviour";
 import { decorColliders } from "@/lib/room/decor";
 import { roomColliders } from "@/lib/world/rooms/livingRoom";
 import { useRoomStore } from "@/store/roomStore";
 import { Dog } from "./Dog";
+import { Food } from "./Food";
 
 /**
  * Your dog in the room: each frame, where it is and what it's doing comes from
@@ -26,8 +27,9 @@ export function PetLayer({ runtime, reducedMotion }) {
       bounds: runtime.room.bounds,
       colliders: [...roomColliders(runtime.room), ...decorColliders(decor)],
       placed: decor,
+      dogSize: growthOf(pet?.createdAt ?? null, Date.now()).size,
     }),
-    [decor, coupleId, runtime.room],
+    [decor, coupleId, runtime.room, pet?.createdAt],
   );
 
   useFrame(() => {
@@ -39,5 +41,12 @@ export function PetLayer({ runtime, reducedMotion }) {
 
   // Before the dog's row exists (or the migration), it still lives here, unnamed.
   if (stateRef.current === null) stateRef.current = dogAt(pet, world, Date.now());
-  return <Dog stateRef={stateRef} name={pet?.name ?? null} reducedMotion={reducedMotion} />;
+  // Grows from a puppy over its first two months with you (re-read each minute is plenty).
+  const growth = growthOf(pet?.createdAt ?? null, Date.now());
+  return (
+    <>
+      <Dog stateRef={stateRef} name={pet?.name ?? null} growth={growth} reducedMotion={reducedMotion} />
+      <Food stateRef={stateRef} />
+    </>
+  );
 }
