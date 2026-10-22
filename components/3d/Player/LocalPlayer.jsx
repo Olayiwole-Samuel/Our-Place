@@ -4,7 +4,10 @@ import { standUp } from "@/lib/world/actions";
 import { moveWithCollisions } from "@/lib/world/collision";
 import { findNearestInteractable } from "@/lib/world/interactions";
 import { lerpAngle } from "@/lib/world/interpolation";
+import { decorColliders } from "@/lib/room/decor";
 import { PLAYER_RADIUS, roomColliders, roomInteractables } from "@/lib/world/rooms/livingRoom";
+import { useDecorStore } from "@/store/decorStore";
+import { useRoomStore } from "@/store/roomStore";
 import { useWorldStore } from "@/store/worldStore";
 import { Avatar } from "./Avatar";
 
@@ -12,6 +15,7 @@ const WALK_SPEED = 1.6; // m/s — a relaxed indoor walk, matched to the walk cy
 const TURN_SHARPNESS = 12;
 const DEAD_ZONE = 0.08;
 const INTERACTION_CHECK_S = 0.1; // 10 Hz, not every frame
+const DOG_REACH = 1.0; // metres: close enough to play with the dog
 
 /**
  * The player you control. Each frame:
@@ -24,16 +28,18 @@ export function LocalPlayer({ runtime, character, reducedMotion }) {
   const group = useRef();
   const motion = useRef({ anim: runtime.localPose.anim, speed: 0 });
   const sinceInteractionCheck = useRef(INTERACTION_CHECK_S);
+  const decor = useRoomStore((state) => state.decor);
   const env = useMemo(
-    () => ({ radius: PLAYER_RADIUS, bounds: runtime.room.bounds, colliders: roomColliders(runtime.room) }),
-    [runtime.room],
+    () => ({ radius: PLAYER_RADIUS, bounds: runtime.room.bounds, colliders: [...roomColliders(runtime.room), ...decorColliders(decor)] }),
+    [runtime.room, decor],
   );
   const interactables = useMemo(() => roomInteractables(runtime.room), [runtime.room]);
 
   useFrame((_, rawDelta) => {
     const dt = Math.min(rawDelta, 0.05); // no huge jumps after a tab switch
     const pose = runtime.localPose;
-    const move = runtime.input.getMove();
+    // Decorating: you stay put while the room is arranged around you.
+    const move = useDecorStore.getState().active ? { x: 0, y: 0 } : runtime.input.getMove();
     const magnitude = Math.hypot(move.x, move.y);
     const store = useWorldStore.getState();
 
@@ -73,7 +79,9 @@ export function LocalPlayer({ runtime, character, reducedMotion }) {
     sinceInteractionCheck.current += dt;
     if (sinceInteractionCheck.current >= INTERACTION_CHECK_S) {
       sinceInteractionCheck.current = 0;
-      store.setInteractionTarget(pose.anim === "sit" ? null : findNearestInteractable(pose, interactables));
+      // The dog moves around, so it joins the things you can walk up to wherever it is.
+      const dog = runtime.pet && { id: "dog", type: "dog", label: runtime.pet.name ?? "Your dog", verb: "Play", x: runtime.pet.x, z: runtime.pet.z, radius: DOG_REACH };
+      store.setInteractionTarget(pose.anim === "sit" || useDecorStore.getState().active ? null : findNearestInteractable(pose, dog ? [dog, ...interactables] : interactables));
     }
   });
 

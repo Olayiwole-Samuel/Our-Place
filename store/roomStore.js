@@ -21,6 +21,11 @@ import { openResilientChannel } from "@/lib/realtime/resilientChannel";
  *   panel          which room panel is open: null | "us" | "notes" | "memories" | "tv" | "shelf"
  *   skewMs         server clock minus this device's clock, for in-sync playback
  *   partnerWaiting the TV is held for your partner's slow connection: { since } | null
+ *   decor          things you placed: [{ id, item, x, z, rotation, placedBy }]
+ *   unlocks        items unlocked with hearts: Set of item ids
+ *   hearts         { earned, spent, balance, parts } | null (couple_hearts())
+ *   pet            your dog: { name, fedAt, pettedAt, playedAt, action, actionAt (ms, server clock), actionBy, actionData } | null
+ *   coupleId       seeds the dog's routine (the same on both screens)
  *                  (a hint on the lobby topic; it fades by itself if they go quiet)
  *
  * Presence for "last seen" and the streak: note_presence() on arrival, every
@@ -44,6 +49,11 @@ const initialState = {
   panel: null,
   skewMs: null, // server clock − this device's clock (ms), measured on our TV writes
   partnerWaiting: null,
+  decor: [],
+  unlocks: new Set(),
+  hearts: null,
+  pet: null,
+  coupleId: null,
 };
 
 let ctx = null; // { supabase, coupleId, userId, partnerId, channel, timer, cleanups }
@@ -55,6 +65,23 @@ const zone = () => {
     return "Africa/Lagos";
   }
 };
+
+const toPet = (row) =>
+  row
+    ? {
+        name: row.name ?? null,
+        fedAt: row.fed_at,
+        pettedAt: row.petted_at,
+        playedAt: row.played_at,
+        action: row.action,
+        actionAt: row.action_at ? Date.parse(row.action_at) : null,
+        actionBy: row.action_by,
+        actionData: row.action_data ?? null,
+      }
+    : { name: null, fedAt: null, pettedAt: null, playedAt: null, action: null, actionAt: null, actionBy: null, actionData: null };
+
+/** "room:not_enough_hearts" → "not_enough_hearts" (the database's error codes). */
+const codeOf = (error) => error?.message?.match(/room:([a-z_]+)/)?.[1] ?? "unknown";
 
 const toWatch = (row) =>
   row && {
@@ -74,6 +101,7 @@ export const useRoomStore = create((set, get) => ({
     if (get().preview) return () => {}; // dev preview (/dev/hud): sample data, no session
     get().close();
     ctx = { supabase, coupleId, userId, partnerId, cleanups: [] };
+    set({ coupleId });
     const here = ctx;
 
     const presence = () => {
@@ -141,7 +169,7 @@ export const useRoomStore = create((set, get) => ({
   },
 
   async refreshAll() {
-    await Promise.all(["couple", "streak", "seen", "notes", "memories", "videos", "watch"].map((area) => get().refresh(area)));
+    await Promise.all(["couple", "streak", "seen", "notes", "memories", "videos", "watch", "decor", "pet", "hearts"].map((area) => get().refresh(area)));
   },
 
   async refresh(area) {
@@ -182,6 +210,15 @@ export const useRoomStore = create((set, get) => ({
       } else if (area === "couple") {
         const { data } = await supabase.from("couples").select("together_since, paired_at").maybeSingle();
         if (here === ctx && data) set({ togetherSince: data.together_since ?? data.paired_at });
+      } else if (area === "decor") {
+        const { data, error } = await supabase.from("couple_decor").select("id, item, x, z, rotation, placed_by").order("created_at");
+        if (!error && here === ctx) set({ decor: (data ?? []).map((d) => ({ id: d.id, item: d.item, x: Number(d.x), z: Number(d.z), rotation: Number(d.rotation), placedBy: d.placed_by })) });
+      } else if (area === "hearts") {
+        const [{ data: hearts }, { data: unlocks }] = await Promise.all([supabase.rpc("couple_hearts"), supabase.from("couple_unlocks").select("item")]);
+        if (here === ctx) set({ hearts: hearts ?? null, unlocks: new Set((unlocks ?? []).map((u) => u.item)) });
+      } else if (area === "pet") {
+        const { data, error } = await supabase.from("couple_pets").select("name, fed_at, petted_at, played_at, action, action_at, action_by, action_data").maybeSingle();
+        if (!error && here === ctx) set({ pet: toPet(data) });
       } else if (area === "trophies") {
         const { data } = await supabase.rpc("couple_trophies");
         if (here === ctx) set({ trophies: data ?? null, ...(data && { togetherSince: data.together_since ?? data.paired_at }) });
@@ -225,6 +262,64 @@ export const useRoomStore = create((set, get) => ({
     const { error } = await ctx.supabase.rpc("set_together_since", { day });
     if (error) return error.message.match(/room:([a-z_]+)/)?.[1] ?? "unknown";
     await get().refresh("trophies");
+    return null;
+  },
+
+  // ── Decorating (prices and limits are checked again by the database) ─────
+  async unlockDecor(item) {
+    if (!ctx) return "unavailable";
+    const { data, error } = await ctx.supabase.rpc("unlock_decor", { item });
+    if (error) return codeOf(error);
+    set({ hearts: data, unlocks: new Set([...get().unlocks, item]) });
+    return null;
+  },
+  async placeDecor({ item, x, z, rotation }) {
+    if (!ctx) return "unavailable";
+    const { error } = await ctx.supabase.rpc("place_decor", { item, x, z, rotation });
+    if (error) return codeOf(error);
+    await get().refresh("decor");
+    return null;
+  },
+  async moveDecor({ id, x, z, rotation }) {
+    if (!ctx) return "unavailable";
+    // Show it at once; the database confirms (and the partner's screen follows).
+    set({ decor: get().decor.map((d) => (d.id === id ? { ...d, x, z, rotation } : d)) });
+    const { error } = await ctx.supabase.rpc("move_decor", { decor_id: id, x, z, rotation });
+    if (error) {
+      await get().refresh("decor");
+      return codeOf(error);
+    }
+    return null;
+  },
+  async removeDecor(id) {
+    if (!ctx) return "unavailable";
+    set({ decor: get().decor.filter((d) => d.id !== id) });
+    const { error } = await ctx.supabase.rpc("remove_decor", { decor_id: id });
+    if (error) await get().refresh("decor");
+    return error ? codeOf(error) : null;
+  },
+
+  // ── The dog ───────────────────────────────────────────────────────────────
+  /** Ask the dog to do something; `data` = { start, from, to } positions (lib/pet/behaviour.js). */
+  async petDo(action, data = {}) {
+    if (!ctx) return "unavailable";
+    const sentAt = Date.now();
+    const { data: row, error } = await ctx.supabase.rpc("pet_do", { action, data });
+    if (error) return codeOf(error);
+    const pet = toPet(Array.isArray(row) ? row[0] : row);
+    // Measure the clock offset on this write too (the dog's moments use the server's clock).
+    if (pet.actionAt) {
+      const skew = pet.actionAt - (sentAt + Date.now()) / 2;
+      if (Number.isFinite(skew)) set({ skewMs: get().skewMs === null ? skew : Math.round(get().skewMs * 0.5 + skew * 0.5) });
+    }
+    set({ pet });
+    return null;
+  },
+  async namePet(name) {
+    if (!ctx) return "unavailable";
+    const { data: row, error } = await ctx.supabase.rpc("name_pet", { name });
+    if (error) return codeOf(error);
+    set({ pet: { ...get().pet, ...toPet(Array.isArray(row) ? row[0] : row) } });
     return null;
   },
 

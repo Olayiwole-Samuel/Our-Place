@@ -1,6 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useRef } from "react";
+import { floorPoint, thingAt } from "@/lib/room/floorPick";
+import { useDecorStore } from "@/store/decorStore";
+import { useRoomStore } from "@/store/roomStore";
 import { isTypingTarget } from "@/lib/world/input";
 import { useChatStore } from "@/store/chatStore";
 import { useWorldStore } from "@/store/worldStore";
@@ -109,15 +112,34 @@ export function useWorldControls(runtime) {
   }, [runtime]);
 
   // Drag to look (mouse or a finger on the world, not on HUD controls).
+  // Decorate mode: a tap / drag on the floor moves what you're placing, and a
+  // tap on something placed picks it up; dragging empty floor still looks around.
   const drag = useRef(null);
   const lookHandlers = {
     onPointerDown: (event) => {
       if (event.button !== 0) return;
+      const decor = useDecorStore.getState();
+      if (decor.active) {
+        const point = floorPoint(runtime.view, event.clientX, event.clientY);
+        const thing = point && !decor.placing ? thingAt(useRoomStore.getState().decor, point) : null;
+        if (point && (decor.placing || thing)) {
+          if (thing) decor.startMoving(thing);
+          else decor.moveTo(point.x, point.z);
+          drag.current = { id: event.pointerId, place: true };
+          event.currentTarget.setPointerCapture?.(event.pointerId);
+          return;
+        }
+      }
       drag.current = { id: event.pointerId, x: event.clientX };
       event.currentTarget.setPointerCapture?.(event.pointerId);
     },
     onPointerMove: (event) => {
       if (drag.current?.id !== event.pointerId) return;
+      if (drag.current.place) {
+        const point = floorPoint(runtime.view, event.clientX, event.clientY);
+        if (point) useDecorStore.getState().moveTo(point.x, point.z);
+        return;
+      }
       runtime.camera.yaw -= (event.clientX - drag.current.x) * LOOK_SENSITIVITY;
       drag.current.x = event.clientX;
     },

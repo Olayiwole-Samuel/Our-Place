@@ -34,6 +34,19 @@ Browser state: `store/roomStore.js`. Panels: `components/lobby/room/`.
 3. Put `B2_KEY_ID`, `B2_APPLICATION_KEY`, `B2_BUCKET`, `B2_ENDPOINT` in `.env` and in Vercel.
 4. Run `node scripts/b2-cors.mjs` once so the website may upload to the bucket.
 
+## Your dog
+
+- A Maltese mix that lives in the room (`couple_pets`, one per couple), named together the first time you meet it. The model is **Shiba Inu by Quaternius (CC0, poly.pizza)**, recoloured cream-white with floppy ears and shorter legs (`components/3d/Pet/Dog.jsx`); its own clips (walk, gallop, idles, eating, flinches, a jump) play underneath, and sit / lie down / sleep are poses made by bending its bones (tune live in `/dev/dog`).
+- **The same dog on both screens without streaming it**: where it is and what it's doing is a pure function of the server's clock (`lib/pet/behaviour.js`). Between requests it follows a seeded routine in 14-second moments — wander, sniff, look around, sit, lie down, nap in its bed or house, drink at its bowl, play by its toys, and sleep through the night (Lagos time) — walking around furniture on an A* path (`lib/pet/path.js`).
+- **Requests** (`pet_do`: pet, treat, feed, fetch, sit, lie, come, sleep) carry where they happen (where the dog is, where you are, where the ball lands), so both screens play exactly the same timeline; a new request always takes over. Walk up to it and press *Play*, or Room → Dog: a bar along the bottom, so you can watch it.
+- It remembers when it was last fed, petted and played with: hungry after 10 h, bored after 8 h, wants cuddles after 6 h.
+
+## Decorating
+
+- Room → **Decorate**: the room from above (drag to go round), a tray of things by kind (dog stuff, rugs, seats, tables, lights, plants, fun — `lib/room/decor.js`). Pick one, tap or drag on the floor to put it there (green = fine, pink = not here), Turn, Place. Tap anything you placed to move, turn or remove it. Things you place block walking (and the dog walks around them); only rugs can go under furniture.
+- **Hearts**, earned together and computed by the database (`couple_hearts()`): 20 a day you were both here, 10 a finished game, 15 a memory photo, 5 a note, 1 per 10 messages, 50 a month together, 5 per day of your best streak. Some things are free; the rest unlock for good with hearts (`unlock_decor`). Prices live in `private.decor_rule()` and a test keeps them equal to the app's.
+- Everything is saved (`couple_decor`, `couple_unlocks`) and appears on both screens at once (lobby topic, areas `decor` / `hearts` / `pet`). Needs `20261023000000_pet_and_decor.sql`.
+
 ## Phone notifications
 
 Web Push with VAPID keys (`NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`). Each device turns them on

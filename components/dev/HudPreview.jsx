@@ -9,6 +9,8 @@ import { galleryModelDescriptor } from "@/lib/character/gallery";
 import { useChatStore } from "@/store/chatStore";
 import { startChatSample } from "./chatSample";
 import { useGameStore } from "@/store/gameStore";
+import { livingRoom } from "@/lib/world/rooms/livingRoom";
+import { useDecorStore } from "@/store/decorStore";
 import { useRoomStore } from "@/store/roomStore";
 import { useWorldStore } from "@/store/worldStore";
 
@@ -214,6 +216,30 @@ function Scenario() {
           },
           // ?since=YYYY-MM-DD tries other dates (a monthsary or anniversary today shows the celebration).
           togetherSince: params.get("since") ?? "2026-03-06",
+          // The dog and some furniture (?pet=sit|fetch|… asks the dog something now).
+          coupleId: "preview-couple",
+          pet: {
+            name: params.get("dogname") ?? "Snowy",
+            fedAt: ago(60 * 3),
+            pettedAt: ago(30),
+            playedAt: ago(60 * 9),
+            action: params.get("pet"),
+            actionAt: params.get("pet") ? Date.now() : null,
+            actionBy: ME.id,
+            actionData: { start: { x: 0.6, z: 1.9 }, from: { x: -0.75, z: 1.15 }, to: { x: 1.6, z: 3.2 } },
+          },
+          decor: [
+            { id: "d1", item: "round_rug", x: 1.6, z: 2.6, rotation: 0 },
+            { id: "d2", item: "dog_house", x: -3.7, z: 3.3, rotation: Math.PI / 2 },
+            { id: "d3", item: "dog_bed", x: -2.7, z: 3.4, rotation: 0 },
+            { id: "d4", item: "dog_bowl", x: -3.9, z: 2.2, rotation: Math.PI / 2 },
+            { id: "d5", item: "bean_bag", x: 2.4, z: 2.2, rotation: 0 },
+            { id: "d6", item: "warm_lamp", x: 3.9, z: 3.5, rotation: 0 },
+            { id: "d7", item: "monstera", x: -1.2, z: 3.5, rotation: 0 },
+            { id: "d8", item: "dinner_table", x: 2.6, z: 0.9, rotation: Math.PI / 2 },
+          ],
+          hearts: { earned: 620, spent: 370, balance: 250, parts: {} },
+          unlocks: new Set(["bean_bag", "warm_lamp", "monstera", "dinner_table"]),
           panel: (params.get("panel") ?? "").replace("tv-playing", "tv") || null,
         });
       }
@@ -243,6 +269,7 @@ function lookCharacter(id, userId) {
 export function HudPreview() {
   const params = new URLSearchParams(window.location.search);
   if (params.get("panel") || params.get("room")) useRoomStore.setState({ preview: true });
+  if (params.get("decorate") && !useDecorStore.getState().active) useDecorStore.getState().open(livingRoom);
   const screen = params.get("screen");
   const viewer = { ...VIEWER, characters: { mine: lookCharacter(params.get("me"), ME.id), partner: lookCharacter(params.get("partner"), PARTNER.id) } };
   if (screen === "pairing") {

@@ -28,6 +28,8 @@ import { CommsDock } from "./comms/CommsDock";
 import { GameMenu } from "./games/GameMenu";
 import { GameStage } from "./games/GameStage";
 import { useCoupleGames } from "./games/useCoupleGames";
+import { DecorateTray } from "./room/DecorateTray";
+import { useDecorStore } from "@/store/decorStore";
 import { NowPlayingChip, RoomMenu, RoomPanels, StreakBadge, TogetherChip } from "./room/RoomPanels";
 import { shortName } from "@/lib/couple/names";
 import { useCoupleComms, usePresenceNotices } from "./useCoupleComms";
@@ -99,6 +101,7 @@ function LivingRoom({ me, partner, couple }) {
     };
   }, [couple.id, me.id, partner.id]);
   const roomPanel = useRoomStore((state) => state.panel);
+  const decorating = useDecorStore((state) => state.active);
   const inGame = useWorldStore((state) => state.inGame);
   const chatOpen = useChatStore((state) => state.open);
   const lookLocked = useWorldStore((state) => state.lookLocked);
@@ -164,7 +167,7 @@ function LivingRoom({ me, partner, couple }) {
           </div>
 
           {/* Hidden while chatting: the chat panel covers the middle on most screens. */}
-          {!inGame && !chatOpen && !roomPanel && (
+          {!inGame && !chatOpen && !roomPanel && !decorating && (
             <div className="hud-center flex flex-col items-center gap-2">
               <NowPlayingChip me={me.id} partnerName={partnerName} />
               <PushPrompt partnerName={partnerName} />
@@ -189,7 +192,8 @@ function LivingRoom({ me, partner, couple }) {
           {/* Right edge: the floating game menu (reserved for it since Phase 3). */}
           <GameMenu disabled={inGame} />
           <RoomMenu disabled={inGame} />
-          <RoomPanels me={me} partner={partner} partnerName={partnerName} />
+          <RoomPanels me={me} partner={partner} partnerName={partnerName} runtime={runtime} />
+          <DecorateTray />
           <GameStage me={me} partner={partner} onEmote={triggerEmote} hints={hints} />
         </div>
       )}

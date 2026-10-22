@@ -1,6 +1,7 @@
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
+import { useDecorStore } from "@/store/decorStore";
 
 const DISTANCE = 2.9; // metres behind the player
 const HEIGHT = 1.8; // camera height above the floor
@@ -9,6 +10,7 @@ const WALL_MARGIN = 0.2;
 const CEILING_MARGIN = 0.25;
 const FOLLOW_SHARPNESS = 6; // higher = tighter follow
 const SEATED_DISTANCE = 2.4;
+const OVERVIEW_DISTANCE = 3.6; // Decorate: how far from the middle of the room
 
 /**
  * Third-person follow camera.
@@ -52,6 +54,21 @@ export function ThirdPersonCamera({ runtime }) {
   useFrame((_, rawDelta) => {
     if (!initialised.current) return;
     const dt = Math.min(rawDelta, 0.05);
+    if (useDecorStore.getState().active) {
+      // Decorate: high up near the ceiling, looking down across the room (drag to go round).
+      const { yaw } = runtime.camera;
+      const { bounds, size } = runtime.room;
+      desired.current.set(
+        THREE.MathUtils.clamp(Math.sin(yaw) * OVERVIEW_DISTANCE, bounds.minX + WALL_MARGIN, bounds.maxX - WALL_MARGIN),
+        size.height - CEILING_MARGIN - 0.05,
+        THREE.MathUtils.clamp(Math.cos(yaw) * OVERVIEW_DISTANCE, bounds.minZ + WALL_MARGIN, bounds.maxZ - WALL_MARGIN),
+      );
+      const follow = 1 - Math.exp(-4 * dt);
+      camera.position.lerp(desired.current, follow);
+      lookAt.current.lerp(focus.current.set(-Math.sin(yaw) * 0.9, 0, -Math.cos(yaw) * 0.9), follow);
+      camera.lookAt(lookAt.current);
+      return;
+    }
     const { x, z } = runtime.localPose;
     place({ x, z }, desired.current);
     const follow = 1 - Math.exp(-FOLLOW_SHARPNESS * dt);

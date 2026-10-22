@@ -1,12 +1,15 @@
 "use client";
 
 import { AnimatePresence, m } from "motion/react";
-import { Heart, House, Images, StickyNote, Trophy, Tv, Upload } from "lucide-react";
+import { Heart, House, Images, PawPrint, Sofa, StickyNote, Trophy, Tv, Upload } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 import { useUploadStore } from "@/lib/room/uploads";
+import { livingRoom } from "@/lib/world/rooms/livingRoom";
+import { useDecorStore } from "@/store/decorStore";
 import { useRoomStore } from "@/store/roomStore";
 import { HudButton } from "../comms/HudButton";
 import { MemoriesPanel } from "./MemoriesPanel";
+import { DogPanel } from "./DogPanel";
 import { NotesPanel } from "./NotesPanel";
 import { ShelfPanel } from "./ShelfPanel";
 import { TvPanel } from "./TvPanel";
@@ -14,7 +17,7 @@ import { UsPanel, specialDay } from "./UsPanel";
 import { togetherSince } from "@/lib/room/together";
 
 /** Whichever room panel is open (walk up to it in the room, or use the Room button). */
-export function RoomPanels({ me, partner, partnerName }) {
+export function RoomPanels({ me, partner, partnerName, runtime }) {
   const panel = useRoomStore((state) => state.panel);
   const since = useRoomStore((state) => state.togetherSince);
   const myName = me.displayName?.split(" ")[0] || "You";
@@ -37,6 +40,7 @@ export function RoomPanels({ me, partner, partnerName }) {
     <AnimatePresence>
       {panel !== "tv" && <UploadChip key="upload" />}
       {panel === "us" && <UsPanel key="us" myName={myName} partnerName={partnerName} />}
+      {panel === "dog" && <DogPanel key="dog" runtime={runtime} />}
       {panel === "notes" && <NotesPanel key="notes" me={me.id} partnerName={partnerName} />}
       {panel === "memories" && <MemoriesPanel key="memories" me={me.id} partnerName={partnerName} />}
       {panel === "tv" && <TvPanel key="tv" me={me.id} partnerName={partnerName} />}
@@ -47,6 +51,8 @@ export function RoomPanels({ me, partner, partnerName }) {
 
 const PLACES = [
   { id: "us", label: "Us", Icon: Heart },
+  { id: "dog", label: "Dog", Icon: PawPrint },
+  { id: "decorate", label: "Decorate", Icon: Sofa },
   { id: "tv", label: "TV", Icon: Tv },
   { id: "memories", label: "Memories", Icon: Images },
   { id: "notes", label: "Notes", Icon: StickyNote },
@@ -95,7 +101,10 @@ export function RoomMenu({ disabled = false }) {
                     type="button"
                     onClick={() => {
                       setOpen(false);
-                      useRoomStore.getState().openPanel(id);
+                      if (id === "decorate") {
+                        useRoomStore.getState().closePanel();
+                        useDecorStore.getState().open(livingRoom);
+                      } else useRoomStore.getState().openPanel(id);
                     }}
                     className="flex min-h-10 w-full items-center gap-2 rounded-[var(--radius-sm)] px-3 text-left text-caption text-white-soft hover:bg-black-700 short:min-h-8"
                   >
