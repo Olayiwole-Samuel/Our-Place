@@ -15,7 +15,7 @@ import { mix } from "../materials";
  */
 const SHADOW_MAP = { low: 512, high: 1024 };
 
-export function Lighting({ timeOfDay, lampPosition, shadows = "off" }) {
+export function Lighting({ timeOfDay, lampPosition, accentPosition = [-1.9, 2.4, -3.4], shadows = "off" }) {
   const lampColor = useMemo(() => mix(palette.whiteSoft, palette.pink400, timeOfDay.warmth), [timeOfDay]);
   const { ambient, key, lamp, accent, ceiling } = timeOfDay;
   const ceilingColor = useMemo(() => mix(palette.whiteSoft, palette.pink400, timeOfDay.warmth * 0.5), [timeOfDay]);
@@ -43,7 +43,7 @@ export function Lighting({ timeOfDay, lampPosition, shadows = "off" }) {
         <pointLight position={[lampPosition[0], 1.55, lampPosition[1]]} intensity={lamp.intensity} distance={8} decay={2} color={lampColor} />
       )}
       {ceiling && <pointLight position={[0, 2.7, 0]} intensity={ceiling.intensity} distance={12} decay={2} color={ceilingColor} />}
-      <pointLight position={[-1.9, 2.4, -3.4]} intensity={accent.intensity} distance={3.2} decay={2} color={palette.pink400} />
+      <pointLight position={accentPosition} intensity={accent.intensity} distance={3.2} decay={2} color={palette.pink400} />
     </>
   );
 }

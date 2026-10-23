@@ -1,5 +1,7 @@
 "use client";
 
+import { whereIs } from "@/lib/world/rooms";
+import { travel } from "@/lib/world/travel";
 import { MicOff, Volume2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { ProfileAvatar } from "@/components/ui/ProfileAvatar";
@@ -14,7 +16,9 @@ import { useWorldStore } from "@/store/worldStore";
  * out in words (not colour alone) and only says "here" when Realtime presence
  * confirms it.
  */
-export function PartnerStatus() {
+export function PartnerStatus({ runtime = null }) {
+  const myRoom = useWorldStore((state) => state.roomId);
+  const theirRoom = useWorldStore((state) => state.partnerRoom);
   const partner = useCoupleStore((state) => state.partner);
   const status = useWorldStore((state) => state.partner.status);
   const connection = useWorldStore((state) => state.connection);
@@ -29,7 +33,9 @@ export function PartnerStatus() {
   const name = shortName(partner);
   const line =
     status === "online"
-      ? { text: "Here with you", dot: "bg-pink-400" }
+      ? (theirRoom ?? "living_room") === myRoom
+        ? { text: "Here with you", dot: "bg-pink-400" }
+        : { text: whereIs(theirRoom).replace(/^./, (c) => c.toUpperCase()), dot: "bg-pink-400", go: theirRoom }
       : status === "away"
         ? { text: "Reconnecting…", dot: "bg-text-muted animate-pulse-live" }
         : status === "offline"
@@ -49,6 +55,11 @@ export function PartnerStatus() {
         <span className="flex items-center gap-1.5 text-caption whitespace-nowrap text-text-secondary">
           <span aria-hidden="true" className={`size-1.5 shrink-0 rounded-full ${line.dot}`} />
           {line.text}
+          {line.go && runtime && (
+            <button type="button" onClick={() => travel(runtime, line.go)} className="ml-1 rounded-full bg-pink-500/20 px-2 text-micro font-semibold tracking-normal text-pink-400 hover:bg-pink-500/30">
+              Go
+            </button>
+          )}
         </span>
       </div>
     </div>

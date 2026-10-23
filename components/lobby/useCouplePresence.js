@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { roomById } from "@/lib/world/rooms";
 import { isSupabaseConfigured } from "@/lib/config/env";
 import { reportError } from "@/lib/errors";
 import { joinCouplePresence } from "@/lib/realtime/couplePresence";
@@ -37,6 +38,13 @@ export function useCouplePresence({ runtime, coupleId, userId, partnerId, onPart
     let presence = null;
     let cancelled = false;
     const dispatch = (event) => useWorldStore.getState().dispatchPartner(event);
+    // Which room they're in. Moving rooms starts their movement afresh (no
+    // sliding across from where they stood in the other room).
+    const partnerIn = (room) => {
+      if (runtime.partnerRoom !== room) runtime.partnerBuffer.clear();
+      runtime.partnerRoom = room;
+      useWorldStore.getState().setPartnerRoom(room);
+    };
 
     import("@/lib/supabase/client")
       .then(({ getSupabaseBrowserClient }) => {
@@ -46,17 +54,21 @@ export function useCouplePresence({ runtime, coupleId, userId, partnerId, onPart
           coupleId,
           userId,
           partnerId,
-          bounds: runtime.room.bounds,
+          bounds: (room) => roomById(room).bounds,
           initialPose: runtime.localPose,
           handlers: {
             onConnection: (status) => useWorldStore.getState().setConnection(status),
             onPartnerSync: ({ present, pose }) => {
               // The tracked pose is only the partner's resting pose: use it to place
               // them on arrival, never to override live movement already streaming in.
+              if (present && pose) partnerIn(pose.room);
               if (present && pose && runtime.partnerBuffer.size === 0) runtime.partnerBuffer.push(pose, performance.now());
               dispatch({ type: "sync", partnerPresent: present });
             },
-            onPartnerPose: (pose) => runtime.partnerBuffer.push(pose, performance.now()),
+            onPartnerPose: (pose) => {
+              partnerIn(pose.room);
+              runtime.partnerBuffer.push(pose, performance.now());
+            },
             onPartnerLeft: () => dispatch({ type: "partner_left" }),
             onPartnerCharacter: () => characterChanged.current?.(),
             onPartnerHint: (hint) => runtime.hintListeners?.forEach((listener) => listener(hint)),

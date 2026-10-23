@@ -6,7 +6,9 @@ import { useEffect, useState } from "react";
 import { dogAt, growthOf, moodOf } from "@/lib/pet/behaviour";
 import { decorColliders } from "@/lib/room/decor";
 import { livingRoom, roomColliders } from "@/lib/world/rooms/livingRoom";
+import { travel } from "@/lib/world/travel";
 import { useRoomStore } from "@/store/roomStore";
+import { useWorldStore } from "@/store/worldStore";
 
 /**
  * Your dog: a bar along the bottom (so you can watch it while you play) with
@@ -90,7 +92,8 @@ export function DogPanel({ runtime }) {
 
   const name = pet?.name;
   const mood = moodOf(pet, now);
-  const room = runtime?.room ?? livingRoom;
+  const room = livingRoom; // where the dog lives, wherever you are
+  const roomId = useWorldStore((state) => state.roomId);
   const world = worldOf(room, decor, coupleId, pet?.createdAt);
 
   const ask = async (action) => {
@@ -140,6 +143,14 @@ export function DogPanel({ runtime }) {
         </button>
       </header>
       {!name && <p className="text-micro tracking-normal text-text-secondary">Your new Maltese mix is here 🐾 — give them a name together.</p>}
+      {roomId !== "living_room" ? (
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-caption text-text-secondary">{name ?? "Your dog"} is in the living room.</p>
+          <button type="button" onClick={() => travel(runtime, "living_room", "door")} className="min-h-9 rounded-[var(--radius-md)] bg-green-600 px-3 text-caption font-semibold text-white">
+            Go to {name ?? "them"}
+          </button>
+        </div>
+      ) : (
       <div className="grid grid-cols-8 gap-1.5 short:gap-1">
         {ACTIONS.map((action) => (
           <button
@@ -155,6 +166,7 @@ export function DogPanel({ runtime }) {
           </button>
         ))}
       </div>
+      )}
       {message && (
         <p role="status" className="text-center text-micro tracking-normal text-pink-400">
           {message}

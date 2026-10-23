@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef } from "react";
 import { floorPoint, thingAt } from "@/lib/room/floorPick";
 import { useDecorStore } from "@/store/decorStore";
+import { useRangeStore } from "@/store/rangeStore";
 import { useRoomStore } from "@/store/roomStore";
 import { isTypingTarget } from "@/lib/world/input";
 import { useChatStore } from "@/store/chatStore";
@@ -22,6 +23,8 @@ const LOCKED_SENSITIVITY = 0.0035; // radians per pixel of mouse movement while 
  * spread onto the world container.
  */
 export function useWorldControls(runtime) {
+  // Development only: the runtime the controls drive (for devtools / quick checks).
+  if (process.env.NODE_ENV !== "production" && typeof window !== "undefined") window.__ourPlaceControls = runtime;
   const interact = useCallback(() => {
     const world = useWorldStore.getState();
     const target = world.interactionTarget;
@@ -29,7 +32,7 @@ export function useWorldControls(runtime) {
     const handler = INTERACTION_HANDLERS[target.type];
     if (!handler) return;
     if (handler.kind === "action") {
-      handler.run({ runtime, world });
+      handler.run({ runtime, world, target, object: runtime.room.objects.find((thing) => thing.id === target.id) ?? null });
       world.setInteractionTarget(null);
     } else {
       world.openInteraction(target.id);
@@ -118,6 +121,12 @@ export function useWorldControls(runtime) {
   const lookHandlers = {
     onPointerDown: (event) => {
       if (event.button !== 0) return;
+      // At a lane: a tap / click fires where you tapped (no looking around).
+      const range = useRangeStore.getState();
+      if (range.lane !== null) {
+        range.aim(event.clientX, event.clientY);
+        return;
+      }
       const decor = useDecorStore.getState();
       if (decor.active) {
         const point = floorPoint(runtime.view, event.clientX, event.clientY);

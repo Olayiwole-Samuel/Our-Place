@@ -47,6 +47,14 @@ Browser state: `store/roomStore.js`. Panels: `components/lobby/room/`.
 - **Hearts**, earned together and computed by the database (`couple_hearts()`): 20 a day you were both here, 10 a finished game, 15 a memory photo, 5 a note, 1 per 10 messages, 50 a month together, 5 per day of your best streak. Some things are free; the rest unlock for good with hearts (`unlock_decor`). Prices live in `private.decor_rule()` and a test keeps them equal to the app's.
 - Everything is saved (`couple_decor`, `couple_unlocks`) and appears on both screens at once (lobby topic, areas `decor` / `hearts` / `pet`). Needs `20261023000000_pet_and_decor.sql`.
 
+## The house: hallway, game room, range
+
+- The living room's door leads to a **hallway** (`lib/world/rooms/hallway.js`) with a door to the **game room**, the **range**, and two "coming soon" doors (bedroom, balcony). Rooms are data like the living room (`lib/world/rooms/*`, listed in `rooms/index.js`); `Room.jsx` draws each object `type` (new pieces: `components/3d/Rooms/RoomPieces.jsx`, `components/3d/Range/*`).
+- **Moving**: walk up to a door and press Go — a short fade (`lib/world/travel.js`), and you're just inside the door you came through. Each of you can be in a different room: presence carries `room` with your pose (`lib/realtime/couplePresence.js`), your partner's character shows only when you share a room, and their status says where they are, with **Go** to join them. Your dog and the things you placed stay in the living room (the dog bar offers "Go to …" from elsewhere; Decorate takes you home first). Chat and voice work everywhere.
+- **Game room**: the big screen opens the games menu, the arcade cabinets and the table open their kinds of games, a scoreboard shows your head-to-head record (`couple_trophies`), neon along the walls.
+- **Range**: walk up to a lane and press Shoot — first-person at your lane, rules and Start, 3-2-1, then 45 seconds of targets popping up (plates, sliding movers, small gold ones worth double). Tap / click to shoot; bullseye 10 · middle 7 · edge 4, ×2 after 3 hits in a row, ×3 after 6 (`lib/range/targets.js`). Rounds are saved (`record_range_score`, migration `20261024000000_range_scores.sql`) and the board by the door shows both of your bests and the latest rounds; your partner sees your live score while you both shoot.
+- **Picture frames** in the hallway show your memory photos: walk up and press Choose to pick which photo hangs in each frame; frames you haven't chosen show your newest photos (`lib/room/frames.js`, migration `20261024100000_wall_frames.sql`).
+
 ## Phone notifications
 
 Web Push with VAPID keys (`NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`). Each device turns them on

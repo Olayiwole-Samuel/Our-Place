@@ -38,7 +38,10 @@ function NameTag({ name }) {
  */
 export function RemotePlayer({ runtime, profile, character, reducedMotion }) {
   const status = useWorldStore((state) => state.partner.status);
-  const visible = status === "online" || status === "away";
+  const myRoom = useWorldStore((state) => state.roomId);
+  const theirRoom = useWorldStore((state) => state.partnerRoom);
+  // Here, and in the same room as you (each of you can be in a different one).
+  const visible = (status === "online" || status === "away") && (theirRoom ?? "living_room") === myRoom;
   if (!visible) return null;
   return <PresentPartner runtime={runtime} profile={profile} character={character} away={status === "away"} reducedMotion={reducedMotion} />;
 }

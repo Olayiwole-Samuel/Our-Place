@@ -5,10 +5,12 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { palette } from "@/lib/design/tokens";
 import { PROFILES, effectiveDpr } from "@/lib/performance/profiles";
 import { usePerformanceStore } from "@/store/performanceStore";
+import { useWorldStore } from "@/store/worldStore";
 import { TIME_OF_DAY, timeOfDayFor } from "@/lib/world/timeOfDay";
 import { ThirdPersonCamera } from "../Camera/ThirdPersonCamera";
 import { DecorLayer } from "../Decor/DecorLayer";
 import { PetLayer } from "../Pet/PetLayer";
+import { RangePlay } from "../Range/RangePlay";
 import { Lighting } from "../Environment/Lighting";
 import { LocalPlayer } from "../Player/LocalPlayer";
 import { RemotePlayer } from "../Player/RemotePlayer";
@@ -47,13 +49,17 @@ export default function World({ runtime, partner, myCharacter, partnerCharacter,
   // Quality: the tier's profile (lib/performance). Antialiasing and the initial
   // pixel ratio are fixed when the canvas is created; everything else adapts live.
   const tier = usePerformanceStore((state) => state.tier);
+  // The room you're in (travel.js swaps runtime.room, then this re-renders the world).
+  const roomId = useWorldStore((state) => state.roomId);
+  const room = runtime.room;
+  const home = roomId === "living_room";
   const profile = PROFILES[tier];
   const [created] = useState(() => ({ antialias: profile.antialias, dpr: effectiveDpr(profile.renderScales[0], window.devicePixelRatio) }));
   const timeOfDay = useMemo(
-    () => (runtime.room.lighting === "auto" ? timeOfDayFor() : (TIME_OF_DAY[runtime.room.lighting] ?? timeOfDayFor())),
-    [runtime.room.lighting],
+    () => (room.lighting === "auto" ? timeOfDayFor() : (TIME_OF_DAY[room.lighting] ?? timeOfDayFor())),
+    [room.lighting],
   );
-  const lamp = runtime.room.objects.find((object) => object.type === "floorLamp")?.position;
+  const lamp = room.objects.find((object) => object.type === "floorLamp")?.position;
 
   useEffect(() => {
     // Development only: lets devtools inspect the world runtime.
@@ -89,10 +95,12 @@ export default function World({ runtime, partner, myCharacter, partnerCharacter,
     >
       <FrameDriver runtime={runtime} />
       <fog attach="fog" args={[palette.black950, 9, 20]} />
-      <Lighting timeOfDay={timeOfDay} lampPosition={lamp} shadows={profile.shadows} />
-      <Room room={runtime.room} timeOfDay={timeOfDay} reducedMotion={reducedMotion || profile.environment === "static"} runtime={runtime} />
-      <DecorLayer />
-      <PetLayer runtime={runtime} reducedMotion={reducedMotion} />
+      <Lighting timeOfDay={timeOfDay} lampPosition={lamp} accentPosition={room.accentLight} shadows={profile.shadows} />
+      <Room key={roomId} room={room} timeOfDay={timeOfDay} reducedMotion={reducedMotion || profile.environment === "static"} runtime={runtime} />
+      {/* Your furniture and your dog live in the living room. */}
+      {home && <DecorLayer />}
+      {home && <PetLayer runtime={runtime} reducedMotion={reducedMotion} />}
+      {roomId === "range_room" && <RangePlay runtime={runtime} />}
       <LocalPlayer runtime={runtime} character={myCharacter} reducedMotion={reducedMotion} />
       <RemotePlayer runtime={runtime} profile={partner} character={partnerCharacter} reducedMotion={reducedMotion} />
       <ThirdPersonCamera runtime={runtime} />

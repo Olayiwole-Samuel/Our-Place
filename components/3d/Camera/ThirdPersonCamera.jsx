@@ -1,7 +1,9 @@
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
+import { LANES } from "@/lib/range/targets";
 import { useDecorStore } from "@/store/decorStore";
+import { useRangeStore } from "@/store/rangeStore";
 
 const DISTANCE = 2.9; // metres behind the player
 const HEIGHT = 1.8; // camera height above the floor
@@ -54,6 +56,16 @@ export function ThirdPersonCamera({ runtime }) {
   useFrame((_, rawDelta) => {
     if (!initialised.current) return;
     const dt = Math.min(rawDelta, 0.05);
+    const lane = useRangeStore.getState().lane;
+    if (lane !== null && runtime.room.id === "range_room") {
+      // At a lane: your own eyes, looking down your lane at the targets.
+      const x = LANES[lane] ?? 0;
+      const follow = 1 - Math.exp(-6 * dt);
+      camera.position.lerp(desired.current.set(x, 1.5, 2.1), follow);
+      lookAt.current.lerp(focus.current.set(x, 1.2, -6), follow);
+      camera.lookAt(lookAt.current);
+      return;
+    }
     if (useDecorStore.getState().active) {
       // Decorate: high up near the ceiling, looking down across the room (drag to go round).
       const { yaw } = runtime.camera;

@@ -7,6 +7,7 @@ import { lerpAngle } from "@/lib/world/interpolation";
 import { decorColliders } from "@/lib/room/decor";
 import { PLAYER_RADIUS, roomColliders, roomInteractables } from "@/lib/world/rooms/livingRoom";
 import { useDecorStore } from "@/store/decorStore";
+import { useRangeStore } from "@/store/rangeStore";
 import { useRoomStore } from "@/store/roomStore";
 import { useWorldStore } from "@/store/worldStore";
 import { Avatar } from "./Avatar";
@@ -39,7 +40,8 @@ export function LocalPlayer({ runtime, character, reducedMotion }) {
     const dt = Math.min(rawDelta, 0.05); // no huge jumps after a tab switch
     const pose = runtime.localPose;
     // Decorating: you stay put while the room is arranged around you.
-    const move = useDecorStore.getState().active ? { x: 0, y: 0 } : runtime.input.getMove();
+    const busy = useDecorStore.getState().active || useRangeStore.getState().lane !== null;
+    const move = busy ? { x: 0, y: 0 } : runtime.input.getMove();
     const magnitude = Math.hypot(move.x, move.y);
     const store = useWorldStore.getState();
 
@@ -70,6 +72,8 @@ export function LocalPlayer({ runtime, character, reducedMotion }) {
     motion.current.speed = magnitude;
     motion.current.emote = runtime.emotes.local; // { name, id } — a new id plays once
     if (group.current) {
+      // At a range lane you look through your own eyes: your character steps out of the way.
+      group.current.visible = useRangeStore.getState().lane === null;
       group.current.position.set(pose.x, 0, pose.z);
       group.current.rotation.y = pose.ry;
     }
@@ -81,7 +85,7 @@ export function LocalPlayer({ runtime, character, reducedMotion }) {
       sinceInteractionCheck.current = 0;
       // The dog moves around, so it joins the things you can walk up to wherever it is.
       const dog = runtime.pet && { id: "dog", type: "dog", label: runtime.pet.name ?? "Your dog", verb: "Play", x: runtime.pet.x, z: runtime.pet.z, radius: DOG_REACH };
-      store.setInteractionTarget(pose.anim === "sit" || useDecorStore.getState().active ? null : findNearestInteractable(pose, dog ? [dog, ...interactables] : interactables));
+      store.setInteractionTarget(pose.anim === "sit" || busy ? null : findNearestInteractable(pose, dog ? [dog, ...interactables] : interactables));
     }
   });
 

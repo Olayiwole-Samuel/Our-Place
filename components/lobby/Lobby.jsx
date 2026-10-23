@@ -28,7 +28,9 @@ import { CommsDock } from "./comms/CommsDock";
 import { GameMenu } from "./games/GameMenu";
 import { GameStage } from "./games/GameStage";
 import { useCoupleGames } from "./games/useCoupleGames";
+import { RangeHud } from "./range/RangeHud";
 import { DecorateTray } from "./room/DecorateTray";
+import { useRangeStore } from "@/store/rangeStore";
 import { useDecorStore } from "@/store/decorStore";
 import { NowPlayingChip, RoomMenu, RoomPanels, StreakBadge, TogetherChip } from "./room/RoomPanels";
 import { shortName } from "@/lib/couple/names";
@@ -66,6 +68,10 @@ function LivingRoom({ me, partner, couple }) {
   const connection = useWorldStore((state) => state.connection);
   const partnerStatus = useWorldStore((state) => state.partner.status);
   const partnerName = shortName(partner);
+  // The 3D world shows it too (the game room's scoreboard).
+  useEffect(() => {
+    runtime.partnerName = partnerName;
+  }, [runtime, partnerName]);
   // Saved characters (server-confirmed), shown as the chosen male/female look —
   // or the default look until someone picks one (lib/character/looks.js).
   const savedMine = useCharacterStore((state) => state.mine);
@@ -102,6 +108,8 @@ function LivingRoom({ me, partner, couple }) {
   }, [couple.id, me.id, partner.id]);
   const roomPanel = useRoomStore((state) => state.panel);
   const decorating = useDecorStore((state) => state.active);
+  const fading = useWorldStore((state) => state.fading);
+  const atLane = useRangeStore((state) => state.lane !== null);
   const inGame = useWorldStore((state) => state.inGame);
   const chatOpen = useChatStore((state) => state.open);
   const lookLocked = useWorldStore((state) => state.lookLocked);
@@ -144,7 +152,7 @@ function LivingRoom({ me, partner, couple }) {
         <div className="hud pointer-events-none absolute inset-0 z-20 safe-inset" data-touch={touch ? "true" : "false"} data-ingame={inGame ? "true" : "false"}>
           <header className="flex items-start justify-between gap-2">
             <div className="flex min-w-0 items-start gap-2">
-              <PartnerStatus />
+              <PartnerStatus runtime={runtime} />
               <StreakBadge />
               <TogetherChip />
             </div>
@@ -163,11 +171,11 @@ function LivingRoom({ me, partner, couple }) {
           </header>
 
           <div className="hud-corner-left flex flex-col items-start gap-2">
-            {touch ? !inGame && <Joystick input={runtime.input} /> : <Wordmark size="sm" className="opacity-80" />}
+            {touch ? !inGame && !atLane && <Joystick input={runtime.input} /> : <Wordmark size="sm" className="opacity-80" />}
           </div>
 
           {/* Hidden while chatting: the chat panel covers the middle on most screens. */}
-          {!inGame && !chatOpen && !roomPanel && !decorating && (
+          {!inGame && !chatOpen && !roomPanel && !decorating && !atLane && (
             <div className="hud-center flex flex-col items-center gap-2">
               <NowPlayingChip me={me.id} partnerName={partnerName} />
               <PushPrompt partnerName={partnerName} />
@@ -191,9 +199,12 @@ function LivingRoom({ me, partner, couple }) {
 
           {/* Right edge: the floating game menu (reserved for it since Phase 3). */}
           <GameMenu disabled={inGame} />
-          <RoomMenu disabled={inGame} />
+          <RoomMenu disabled={inGame} runtime={runtime} />
           <RoomPanels me={me} partner={partner} partnerName={partnerName} runtime={runtime} />
           <DecorateTray />
+          <RangeHud runtime={runtime} partnerName={partnerName} />
+          {/* Going through a door: a quick fade. */}
+          <div aria-hidden="true" className={`pointer-events-none fixed inset-0 z-50 bg-black transition-opacity duration-200 ${fading ? "opacity-100" : "opacity-0"}`} />
           <GameStage me={me} partner={partner} onEmote={triggerEmote} hints={hints} />
         </div>
       )}

@@ -22,6 +22,9 @@ import { initialPartnerPresence, partnerPresenceReducer } from "@/lib/world/part
  *   inGame      a game launch/shell is open: movement keys and the joystick pause
  *               (characters stay present; chat, voice and emotes keep working)
  *   lookLocked  desktop cursor lock (Ctrl): the mouse turns the camera without dragging
+ *   roomId      the room you're in (lib/world/rooms) — moving rooms: lib/world/travel.js
+ *   partnerRoom the room your partner is in (from their presence), or null
+ *   fading      the short fade while going through a door
  */
 const initialState = {
   loadStage: "engine",
@@ -32,6 +35,9 @@ const initialState = {
   seated: false,
   inGame: false,
   lookLocked: false,
+  roomId: "living_room",
+  partnerRoom: null,
+  fading: false,
 };
 
 export const useWorldStore = create((set, get) => ({
@@ -59,5 +65,10 @@ export const useWorldStore = create((set, get) => ({
   setLookLocked: (lookLocked) => {
     if (get().lookLocked !== lookLocked) set({ lookLocked });
   },
+  setRoom: (roomId) => set({ roomId, interactionTarget: null, activeInteraction: null, seated: false }),
+  setPartnerRoom: (partnerRoom) => {
+    if (get().partnerRoom !== partnerRoom) set({ partnerRoom });
+  },
+  setFading: (fading) => set({ fading }),
   reset: () => set(initialState),
 }));

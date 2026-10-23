@@ -1,4 +1,7 @@
 import { sitDown } from "@/lib/world/actions";
+import { travel } from "@/lib/world/travel";
+import { LANES } from "@/lib/range/targets";
+import { useRangeStore } from "@/store/rangeStore";
 import { useGameStore } from "@/store/gameStore";
 import { useRoomStore } from "@/store/roomStore";
 
@@ -22,6 +25,8 @@ export const INTERACTION_HANDLERS = {
   videoScreen: { kind: "action", run: () => useRoomStore.getState().openPanel("tv") },
   bookshelf: { kind: "action", run: () => useRoomStore.getState().openPanel("shelf") },
   loveHeart: { kind: "action", run: () => useRoomStore.getState().openPanel("us") },
+  // A wall of picture frames: choose which of your photos hangs in each.
+  artFrames: { kind: "action", run: ({ object }) => useRoomStore.getState().openPanel("frames", object?.id ?? null) },
   dog: { kind: "action", run: () => useRoomStore.getState().openPanel("dog") },
   plant: {
     kind: "card",
@@ -34,9 +39,24 @@ export const INTERACTION_HANDLERS = {
     kind: "action",
     run: () => useGameStore.getState().openCategory("talk_party"),
   },
-  door: {
+  // Through to another room (lib/world/rooms, lib/world/travel.js).
+  door: { kind: "action", run: ({ runtime, object }) => object?.destination && travel(runtime, object.destination.room, object.destination.door) },
+  soonDoor: {
     kind: "card",
-    title: "More of Our Place",
-    body: "This door will lead to other rooms you can explore together. Coming soon.",
+    title: "Coming soon",
+    body: "This room isn't ready yet — it's next on the list. For now, try the game room and the range.",
+  },
+  // The game room: the big screen opens the games menu; cabinets and the table their own kinds of games.
+  gameScreen: { kind: "action", run: () => useGameStore.getState().openMenu() },
+  arcade: { kind: "action", run: ({ object }) => useGameStore.getState().openCategory(object?.category ?? "quick_casual") },
+  gameTable: { kind: "action", run: ({ object }) => useGameStore.getState().openCategory(object?.category ?? "board_strategy") },
+  // The range: step up to your lane (your partner sees you there) and take aim.
+  rangeLane: {
+    kind: "action",
+    run: ({ runtime, object }) => {
+      const lane = object?.lane ?? 0;
+      Object.assign(runtime.localPose, { x: LANES[lane], z: 2.05, ry: Math.PI, anim: "idle" });
+      useRangeStore.getState().enter(lane);
+    },
   },
 };

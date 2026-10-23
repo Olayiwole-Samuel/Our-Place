@@ -1,13 +1,13 @@
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import * as THREE from "three";
 import { getMaterials, mix } from "../materials";
 
 const WAINSCOT_HEIGHT = 0.95;
 const BASEBOARD_HEIGHT = 0.1;
 
-/** One wall: plaster plane, a green wainscot band and a dark baseboard. */
-function Wall({ width, height, position, rotation }) {
-  const m = getMaterials();
+/** One wall: plaster plane, a wainscot band and a dark baseboard (colours per room: `look`). */
+function Wall({ width, height, position, rotation, look }) {
+  const m = { ...getMaterials(), ...look };
   return (
     <group position={position} rotation-y={rotation}>
       <mesh position={[0, height / 2, 0]} material={m.wall}>
@@ -32,7 +32,18 @@ function Wall({ width, height, position, rotation }) {
  * backs and they cost one draw call each.
  */
 export function RoomShell({ room, timeOfDay }) {
-  const m = getMaterials();
+  // Each room can have its own colours (room.shell) and its own window (room.window; null = none).
+  const look = useMemo(() => {
+    const colours = room.shell ?? {};
+    const made = {};
+    if (colours.wall) made.wall = new THREE.MeshStandardMaterial({ color: colours.wall, roughness: 0.95 });
+    if (colours.wainscot) made.wainscot = new THREE.MeshStandardMaterial({ color: colours.wainscot, roughness: 0.9 });
+    if (colours.floor) made.floor = new THREE.MeshStandardMaterial({ color: colours.floor, roughness: 0.85 });
+    return made;
+  }, [room.shell]);
+  useEffect(() => () => Object.values(look).forEach((material) => material.dispose()), [look]);
+  const m = { ...getMaterials(), ...look };
+  const windowAt = room.window === undefined ? { position: [room.bounds.minX + 0.03, 1.75, -2.75], rotationY: Math.PI / 2 } : room.window;
   const { width, depth, height } = room.size;
   const { minX, maxX, minZ, maxZ } = room.bounds;
   const skyMaterial = useMemo(
@@ -49,13 +60,14 @@ export function RoomShell({ room, timeOfDay }) {
         <planeGeometry args={[width, depth]} />
       </mesh>
 
-      <Wall width={width} height={height} position={[0, 0, minZ]} rotation={0} />
-      <Wall width={width} height={height} position={[0, 0, maxZ]} rotation={Math.PI} />
-      <Wall width={depth} height={height} position={[minX, 0, 0]} rotation={Math.PI / 2} />
-      <Wall width={depth} height={height} position={[maxX, 0, 0]} rotation={-Math.PI / 2} />
+      <Wall width={width} height={height} position={[0, 0, minZ]} rotation={0} look={look} />
+      <Wall width={width} height={height} position={[0, 0, maxZ]} rotation={Math.PI} look={look} />
+      <Wall width={depth} height={height} position={[minX, 0, 0]} rotation={Math.PI / 2} look={look} />
+      <Wall width={depth} height={height} position={[maxX, 0, 0]} rotation={-Math.PI / 2} look={look} />
 
-      {/* Window on the left wall — the key light's source. */}
-      <group position={[minX + 0.03, 1.75, -2.75]} rotation-y={Math.PI / 2}>
+      {/* The window — in the living room, on the left wall (the key light's source). */}
+      {windowAt && (
+      <group position={windowAt.position} rotation-y={windowAt.rotationY}>
         <mesh material={skyMaterial}>
           <planeGeometry args={[1.25, 1.35]} />
         </mesh>
@@ -76,6 +88,7 @@ export function RoomShell({ room, timeOfDay }) {
           </mesh>
         ))}
       </group>
+      )}
     </group>
   );
 }

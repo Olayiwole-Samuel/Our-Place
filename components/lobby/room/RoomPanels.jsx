@@ -5,11 +5,14 @@ import { Heart, House, Images, PawPrint, Sofa, StickyNote, Trophy, Tv, Upload } 
 import { useEffect, useId, useRef, useState } from "react";
 import { useUploadStore } from "@/lib/room/uploads";
 import { livingRoom } from "@/lib/world/rooms/livingRoom";
+import { travel } from "@/lib/world/travel";
 import { useDecorStore } from "@/store/decorStore";
+import { useWorldStore } from "@/store/worldStore";
 import { useRoomStore } from "@/store/roomStore";
 import { HudButton } from "../comms/HudButton";
 import { MemoriesPanel } from "./MemoriesPanel";
 import { DogPanel } from "./DogPanel";
+import { FramesPanel } from "./FramesPanel";
 import { NotesPanel } from "./NotesPanel";
 import { ShelfPanel } from "./ShelfPanel";
 import { TvPanel } from "./TvPanel";
@@ -41,6 +44,7 @@ export function RoomPanels({ me, partner, partnerName, runtime }) {
       {panel !== "tv" && <UploadChip key="upload" />}
       {panel === "us" && <UsPanel key="us" myName={myName} partnerName={partnerName} />}
       {panel === "dog" && <DogPanel key="dog" runtime={runtime} />}
+      {panel === "frames" && <FramesPanel key="frames" />}
       {panel === "notes" && <NotesPanel key="notes" me={me.id} partnerName={partnerName} />}
       {panel === "memories" && <MemoriesPanel key="memories" me={me.id} partnerName={partnerName} />}
       {panel === "tv" && <TvPanel key="tv" me={me.id} partnerName={partnerName} />}
@@ -60,7 +64,7 @@ const PLACES = [
 ];
 
 /** Quick access to the room's places, without walking (handy on phones). */
-export function RoomMenu({ disabled = false }) {
+export function RoomMenu({ disabled = false, runtime = null }) {
   const [open, setOpen] = useState(false);
   const unseen = useRoomStore((state) => state.unseenNotes);
   const panel = useRoomStore((state) => state.panel);
@@ -103,7 +107,11 @@ export function RoomMenu({ disabled = false }) {
                       setOpen(false);
                       if (id === "decorate") {
                         useRoomStore.getState().closePanel();
-                        useDecorStore.getState().open(livingRoom);
+                        // Decorating is for the living room: from anywhere else, go home first.
+                        if (runtime && useWorldStore.getState().roomId !== "living_room") {
+                          travel(runtime, "living_room", "door");
+                          setTimeout(() => useDecorStore.getState().open(livingRoom), 450);
+                        } else useDecorStore.getState().open(livingRoom);
                       } else useRoomStore.getState().openPanel(id);
                     }}
                     className="flex min-h-10 w-full items-center gap-2 rounded-[var(--radius-sm)] px-3 text-left text-caption text-white-soft hover:bg-black-700 short:min-h-8"

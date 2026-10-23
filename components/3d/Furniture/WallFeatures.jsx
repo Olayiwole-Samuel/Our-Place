@@ -14,7 +14,7 @@ import { createTextTexture, getMaterials, mix } from "../materials";
  */
 
 /** A flat label in the world. Disposes its texture on unmount. */
-function WorldLabel({ lines, width, height, position, pixelWidth = 512, pixelHeight = 128 }) {
+export function WorldLabel({ lines, width, height, position, pixelWidth = 512, pixelHeight = 128 }) {
   const texture = useMemo(() => createTextTexture(lines, { width: pixelWidth, height: pixelHeight }), [lines, pixelWidth, pixelHeight]);
   const material = useMemo(() => new THREE.MeshBasicMaterial({ map: texture, transparent: true, depthWrite: false }), [texture]);
   useEffect(
@@ -68,7 +68,7 @@ function usePhotoTexture(url, aspect) {
   return texture;
 }
 
-function PhotoInFrame({ url, w, h }) {
+export function PhotoInFrame({ url, w, h }) {
   const texture = usePhotoTexture(url, w / h);
   const material = useMemo(() => (texture ? new THREE.MeshBasicMaterial({ map: texture, toneMapped: false }) : null), [texture]);
   useEffect(() => () => material?.dispose(), [material]);

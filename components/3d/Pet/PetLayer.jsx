@@ -1,7 +1,7 @@
 "use client";
 
 import { useFrame } from "@react-three/fiber";
-import { useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { dogAt, growthOf } from "@/lib/pet/behaviour";
 import { decorColliders } from "@/lib/room/decor";
 import { roomColliders } from "@/lib/world/rooms/livingRoom";
@@ -38,6 +38,11 @@ export function PetLayer({ runtime, reducedMotion }) {
     stateRef.current = state;
     runtime.pet = { x: state.x, z: state.z, name: pet?.name ?? null };
   });
+
+  // Leaving the living room: the dog stays home (nothing to walk up to elsewhere).
+  useEffect(() => () => {
+    runtime.pet = null;
+  }, [runtime]);
 
   // Before the dog's row exists (or the migration), it still lives here, unnamed.
   if (stateRef.current === null) stateRef.current = dogAt(pet, world, Date.now());

@@ -26,6 +26,9 @@ import { openResilientChannel } from "@/lib/realtime/resilientChannel";
  *   hearts         { earned, spent, balance, parts } | null (couple_hearts())
  *   pet            your dog: { name, fedAt, pettedAt, playedAt, action, actionAt (ms, server clock), actionBy, actionData } | null
  *   coupleId       seeds the dog's routine (the same on both screens)
+ *   frames         picture frames: { [frameId]: memoryId } (couple_frames); empty frames show your newest photos
+ *   panelTarget    which thing a panel is about (the wall of frames being chosen for)
+ *   range          the range's scores: { myBest, partnerBest, recent: [{ userId, score, hits, shots, at }] } | null
  *                  (a hint on the lobby topic; it fades by itself if they go quiet)
  *
  * Presence for "last seen" and the streak: note_presence() on arrival, every
@@ -54,6 +57,9 @@ const initialState = {
   hearts: null,
   pet: null,
   coupleId: null,
+  range: null,
+  frames: {},
+  panelTarget: null,
 };
 
 let ctx = null; // { supabase, coupleId, userId, partnerId, channel, timer, cleanups }
@@ -170,7 +176,7 @@ export const useRoomStore = create((set, get) => ({
   },
 
   async refreshAll() {
-    await Promise.all(["couple", "streak", "seen", "notes", "memories", "videos", "watch", "decor", "pet", "hearts"].map((area) => get().refresh(area)));
+    await Promise.all(["couple", "streak", "seen", "notes", "memories", "videos", "watch", "decor", "pet", "hearts", "frames"].map((area) => get().refresh(area)));
   },
 
   async refresh(area) {
@@ -220,6 +226,15 @@ export const useRoomStore = create((set, get) => ({
       } else if (area === "pet") {
         const { data, error } = await supabase.from("couple_pets").select("name, fed_at, petted_at, played_at, action, action_at, action_by, action_data, created_at").maybeSingle();
         if (!error && here === ctx) set({ pet: toPet(data) });
+      } else if (area === "frames") {
+        const { data, error } = await supabase.from("couple_frames").select("frame_id, memory_id");
+        if (!error && here === ctx) set({ frames: Object.fromEntries((data ?? []).filter((f) => f.memory_id).map((f) => [f.frame_id, f.memory_id])) });
+      } else if (area === "range") {
+        const { data, error } = await supabase.from("couple_range_scores").select("user_id, score, hits, shots, best_streak, created_at").order("created_at", { ascending: false }).limit(60);
+        if (error || here !== ctx) return;
+        const rows = data ?? [];
+        const bestOf = (id) => rows.filter((r) => r.user_id === id).reduce((best, r) => Math.max(best, r.score), 0);
+        set({ range: { myBest: bestOf(userId), partnerBest: bestOf(partnerId), recent: rows.slice(0, 8).map((r) => ({ userId: r.user_id, score: r.score, hits: r.hits, shots: r.shots, at: r.created_at })) } });
       } else if (area === "trophies") {
         const { data } = await supabase.rpc("couple_trophies");
         if (here === ctx) set({ trophies: data ?? null, ...(data && { togetherSince: data.together_since ?? data.paired_at }) });
@@ -238,8 +253,8 @@ export const useRoomStore = create((set, get) => ({
   },
 
   // ── Panels ────────────────────────────────────────────────────────────────
-  openPanel(panel) {
-    set({ panel });
+  openPanel(panel, target = null) {
+    set({ panel, panelTarget: target });
     if (panel === "notes" && get().unseenNotes) ctx?.supabase.rpc("mark_notes_seen").then(() => get().refresh("notes"));
     if (panel === "shelf") get().refresh("trophies");
   },
@@ -298,6 +313,31 @@ export const useRoomStore = create((set, get) => ({
     const { error } = await ctx.supabase.rpc("remove_decor", { decor_id: id });
     if (error) await get().refresh("decor");
     return error ? codeOf(error) : null;
+  },
+
+  // ── Picture frames ────────────────────────────────────────────────────────
+  /** Hang a photo in a frame (null = back to "newest photos"). */
+  async setFrame(frameId, memoryId) {
+    if (!ctx) return "unavailable";
+    const frames = { ...get().frames };
+    if (memoryId) frames[frameId] = memoryId;
+    else delete frames[frameId];
+    set({ frames });
+    const { error } = await ctx.supabase.rpc("set_frame", { frame_id: frameId, memory_id: memoryId });
+    if (error) {
+      await get().refresh("frames");
+      return codeOf(error);
+    }
+    return null;
+  },
+
+  // ── The range ─────────────────────────────────────────────────────────────
+  async saveRangeScore({ score, hits, shots, bestStreak }) {
+    if (!ctx) return "unavailable";
+    const { error } = await ctx.supabase.rpc("record_range_score", { score, hits, shots, best_streak: bestStreak });
+    if (error) return codeOf(error);
+    await get().refresh("range");
+    return null;
   },
 
   // ── The dog ───────────────────────────────────────────────────────────────
