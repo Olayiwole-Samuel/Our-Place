@@ -273,7 +273,8 @@ function LastMove({ last, me, partnerName }) {
       return `${who} played ${name}: General market — ${who === "You" ? `${partnerName} picked 1` : "you picked 1"}.`;
     case "pick_two":
     case "pick_three":
-      return `${who} ${last.blocked ? "blocked with" : "played"} ${name}: pick ${last.pending}!`;
+      if (last.blocked) return `${who} blocked with ${name} — no one picks. Play on!`;
+      return `${who} played ${name}: pick ${last.pending}!`;
     case "whot":
       return `${who} played Whot and asked for ${SHAPE_LABEL[last.shape]}.`;
     default:
@@ -299,8 +300,8 @@ function Settings({ view, busy, act, partnerName, me }) {
         <p className="text-subheading font-semibold text-white-soft">House rules</p>
         <p className="text-caption text-text-secondary">Either of you can change these before the deal. {view.first === me ? "You start." : `${partnerName} starts.`}</p>
       </div>
-      {row("pickTwo", "Pick Two (2)", "Next player picks 2 — only a 2 blocks it, and blocks stack.")}
-      {row("pickThree", "Pick Three (5)", "Next player picks 3 — only a 5 blocks it, and blocks stack.")}
+      {row("pickTwo", "Pick Two (2)", "Next player picks 2 — only a 2 blocks it, and a block cancels it.")}
+      {row("pickThree", "Pick Three (5)", "Next player picks 3 — only a 5 blocks it, and a block cancels it.")}
       {row("suspension", "Suspension (8)", "Next player misses a turn.")}
       <fieldset className="rounded-[var(--radius-sm)] bg-black-800/70 px-3 py-2.5">
         <legend className="sr-only">Tender</legend>

@@ -154,15 +154,18 @@ describe("special cards", () => {
     expect(session.state.pending).toBeNull();
   });
 
-  it("a 2 blocks a 2 and the pick grows (2 + 2 = pick 4); a 5 can't block a 2", () => {
+  it("a 2 blocks a 2 and cancels it — nobody picks, play carries on; a 5 can't block a 2", () => {
     let session = ok(play(table({ a: ["circle-2", "circle-5", "square-4"], b: ["star-2", "triangle-5", "cross-3"], top: "circle-10" }), A, "circle-2"));
     expect(code(play(session, B, "triangle-5"))).toBe("illegal_action");
     session = ok(play(session, B, "star-2"));
-    expect(session.state.pending).toEqual({ number: 2, count: 4 });
+    expect(session.state.pending).toBeNull();
+    expect(session.state.last).toMatchObject({ blocked: true });
     expect(session.state.current).toBe(A);
-    expect(code(play(session, A, "circle-5"))).toBe("illegal_action");
+    expect(session.state.hands[A]).toHaveLength(2); // nothing picked
+    expect(session.state.hands[B]).toHaveLength(2);
+    expect(view(session, A).playable).toEqual([]); // a normal turn on the star 2: no star, no 2
     session = ok(market(session, A));
-    expect(session.state.hands[A]).toHaveLength(2 + 4);
+    expect(session.state.hands[A]).toHaveLength(3); // just one from market
     expect(session.state.current).toBe(B);
   });
 
@@ -170,7 +173,9 @@ describe("special cards", () => {
     let session = ok(play(table({ a: ["circle-5", "circle-4"], b: ["triangle-5", "circle-2"], top: "circle-10" }), A, "circle-5"));
     expect(code(play(session, B, "circle-2"))).toBe("illegal_action");
     session = ok(play(session, B, "triangle-5"));
-    expect(session.state.pending).toEqual({ number: 5, count: 6 });
+    expect(session.state.pending).toBeNull(); // blocked: cancelled, nobody picks
+    expect(session.state.hands[A]).toHaveLength(1);
+    expect(session.state.current).toBe(A);
     const off = ok(play(table({ a: ["circle-5", "circle-4"], b: ["triangle-5"], top: "circle-10", settings: { pickThree: false } }), A, "circle-5"));
     expect(off.state.pending).toBeNull();
     expect(off.state.current).toBe(B);

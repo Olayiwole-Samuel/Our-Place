@@ -15,7 +15,8 @@ import { DECK, SHAPES, WHOT, cardPoints, parseCard } from "./cards";
  * and your turn ends.
  *   1  Hold On         you play again
  *   2  Pick Two        (setting) your partner picks 2 — or blocks with a 2,
- *                      and the pick grows (2 + 2 = pick 4). Only a 2 blocks a 2.
+ *                      which cancels it: nobody picks, and play carries on
+ *                      (it's your turn again). Only a 2 blocks a 2.
  *   5  Pick Three      (setting) the same with 3s; only a 5 blocks a 5.
  *   8  Suspension      (setting) your partner misses a turn: you play again
  *   14 General Market  your partner picks 1 from market; you play again
@@ -190,9 +191,10 @@ const rules = {
       }
       case "pick_two":
       case "pick_three": {
-        const add = effect === "pick_two" ? 2 : 3;
-        const pending = { number: card.number, count: (state.pending?.count ?? 0) + add };
-        return { ...next, pending, current: opponent, last: { ...last, pending: pending.count, blocked: Boolean(state.pending) } };
+        // A block cancels the pick: nobody picks, and play carries on.
+        if (state.pending) return { ...next, pending: null, current: opponent, last: { ...last, blocked: true } };
+        const pending = { number: card.number, count: effect === "pick_two" ? 2 : 3 };
+        return { ...next, pending, current: opponent, last: { ...last, pending: pending.count } };
       }
       case "whot":
         return { ...next, pending: null, requestedShape: payload.shape, current: opponent, last: { ...last, shape: payload.shape } };
