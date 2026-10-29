@@ -12,7 +12,7 @@ import { useEffect, useRef } from "react";
  * Privacy: until both have answered, the partner's choice is never in the view
  * (the server withholds it) — only that they've answered.
  */
-export default function WouldYouRather({ view, partner, names = {}, status, busy, act }) {
+export default function WouldYouRather({ view, partner, names = {}, status, busy, act, spicy = false }) {
   const partnerName = names[partner] ?? "Your partner";
   const { phase, question, myAnswer, partnerAnswered, partnerAnswer, myNext, partnerNext, round, rounds, roundsPlayed = 0, matches = 0 } = view;
   const revealing = phase === "revealing" || (phase === "finished" && myAnswer && partnerAnswer);
@@ -68,7 +68,7 @@ export default function WouldYouRather({ view, partner, names = {}, status, busy
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-baseline justify-between gap-3">
-        <p className="micro-caps text-pink-400">Would you rather…</p>
+        <p className={`micro-caps ${spicy ? "text-red-500" : "text-pink-400"}`}>{spicy ? "Would you rather… 🌶️ after dark" : "Would you rather…"}</p>
         <p className="text-micro tracking-normal text-text-muted">
           {roundsPlayed > 0 && (
             <span className="mr-2 text-pink-400" aria-label={`You've matched ${matches} of ${roundsPlayed}`}>

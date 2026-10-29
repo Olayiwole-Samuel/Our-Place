@@ -53,7 +53,7 @@ describe("game metadata for the menu", () => {
 
   it("gates availability honestly: coming soon, 18+ locked, unknown", () => {
     expect(gameAvailability(gameRegistry.get("tic_tac_toe")).launchable).toBe(true);
-    expect(gameAvailability(gameRegistry.get("checkers"))).toMatchObject({ launchable: false, status: "coming_soon" });
+    expect(gameAvailability(gameRegistry.get("uno"))).toMatchObject({ launchable: false, status: "coming_soon" });
     expect(gameAvailability(gameRegistry.get("truth_or_dare"))).toMatchObject({ launchable: false, status: "locked" });
     expect(gameAvailability(null).launchable).toBe(false);
   });
@@ -89,8 +89,8 @@ describe("in-world game menu", () => {
 
   it("unavailable games don't launch — they say so", async () => {
     render(<GameMenu />);
-    await openCategory("Board & Strategy");
-    fireEvent.click(await screen.findByRole("button", { name: /^Checkers/ }));
+    await openCategory("Card Games");
+    fireEvent.click(await screen.findByRole("button", { name: /^Uno/ }));
     expect(fetchMock).not.toHaveBeenCalled();
     expect(screen.getByText("This game isn't ready yet.")).toBeTruthy();
   });

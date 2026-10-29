@@ -244,6 +244,14 @@ function Scenario() {
           panel: (params.get("panel") ?? "").replace("tv-playing", "tv") || null,
         });
       }
+      // ?mature=off|mine|partner|both — the 18+ switch at the top of Flirty / Spicy.
+      if (params.get("mature")) {
+        const m = params.get("mature");
+        const mature = { mine: m === "mine" || m === "both", partner: m === "partner" || m === "both" };
+        useRoomStore.setState({ mature });
+        setTimeout(() => useRoomStore.setState({ mature }), 4000); // after the room's own (offline) refresh
+        useRoomStore.setState({ setMatureOptIn: async (on) => void useRoomStore.setState({ mature: { ...useRoomStore.getState().mature, mine: on } }) });
+      }
       if (params.get("drawer")) useGameStore.getState().openCategory(params.get("drawer"));
     }, 2500);
     return () => {

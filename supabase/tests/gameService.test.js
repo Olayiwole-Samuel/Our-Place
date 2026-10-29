@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createGameSessionService } from "@/lib/game/sessions.server";
 import { createAdminAdapter } from "./adminAdapter";
-import { createTestDatabase, rpc, signUp } from "./db";
+import { as, createTestDatabase, rpc, signUp } from "./db";
 
 // The game authority end to end: the real service + real Tic Tac Toe rules +
 // the real migrations. This is exactly what the API routes run.
@@ -42,11 +42,27 @@ afterAll(() => db?.close());
 describe("game authority (server)", () => {
   it("only launchable registry games can be created", async () => {
     const { a } = await pair();
-    expect(await errorOf(service.create(a, "checkers"))).toBe("game_unavailable"); // coming soon
+    expect(await errorOf(service.create(a, "uno"))).toBe("game_unavailable"); // coming soon
     expect(await errorOf(service.create(a, "truth_or_dare"))).toBe("game_unavailable"); // 18+ locked
     expect(await errorOf(service.create(a, "not_a_game"))).toBe("game_unavailable");
     expect(await errorOf(service.create(a, { id: "tic_tac_toe" }))).toBe("invalid_request");
     expect(await errorOf(service.create(await newUser(), "tic_tac_toe"))).toBe("not_paired");
+  });
+
+  it("18+ games start only once BOTH partners have switched them on", async () => {
+    const { a, b } = await pair();
+    const optIn = (userId, enabled) => as(db, userId, (tx) => tx.query("select public.set_mature_opt_in($1)", [enabled]));
+    await optIn(a, true);
+    expect(await errorOf(service.create(a, "truth_or_dare"))).toBe("game_unavailable"); // only one of you
+    await optIn(b, true);
+    const session = await service.create(b, "truth_or_dare");
+    expect(session).toMatchObject({ gameId: "truth_or_dare" });
+    await service.leave(b, session.id);
+    await optIn(a, false); // either of you can switch it off again
+    expect(await errorOf(service.create(b, "question_roulette"))).toBe("game_unavailable");
+    const loner = await newUser();
+    const refused = await as(db, loner, (tx) => tx.query("select public.set_mature_opt_in(true)")).then(() => null, (error) => error.message);
+    expect(refused).toMatch(/not_paired/);
   });
 
   it("both ready → the server sets the game up and both players get a view", async () => {

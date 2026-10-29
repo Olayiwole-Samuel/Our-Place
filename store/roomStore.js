@@ -30,6 +30,8 @@ import { openResilientChannel } from "@/lib/realtime/resilientChannel";
  *   panelTarget    which thing a panel is about (the wall of frames being chosen for)
  *   range          the range's scores: { myBest, partnerBest, recent: [{ userId, score, hits, shots, at }] } | null
  *                  (a hint on the lobby topic; it fades by itself if they go quiet)
+ *   mature         18+ games: { mine, partner } switched on (both → Flirty / Spicy opens),
+ *                  or null before the 20261029000000_mature_opt_in.sql migration
  *
  * Presence for "last seen" and the streak: note_presence() on arrival, every
  * 2 minutes while the room is open and visible, and when leaving.
@@ -60,6 +62,7 @@ const initialState = {
   range: null,
   frames: {},
   panelTarget: null,
+  mature: null,
 };
 
 let ctx = null; // { supabase, coupleId, userId, partnerId, channel, timer, cleanups }
@@ -176,7 +179,7 @@ export const useRoomStore = create((set, get) => ({
   },
 
   async refreshAll() {
-    await Promise.all(["couple", "streak", "seen", "notes", "memories", "videos", "watch", "decor", "pet", "hearts", "frames"].map((area) => get().refresh(area)));
+    await Promise.all(["couple", "streak", "seen", "notes", "memories", "videos", "watch", "decor", "pet", "hearts", "frames", "mature"].map((area) => get().refresh(area)));
   },
 
   async refresh(area) {
@@ -229,6 +232,11 @@ export const useRoomStore = create((set, get) => ({
       } else if (area === "frames") {
         const { data, error } = await supabase.from("couple_frames").select("frame_id, memory_id");
         if (!error && here === ctx) set({ frames: Object.fromEntries((data ?? []).filter((f) => f.memory_id).map((f) => [f.frame_id, f.memory_id])) });
+      } else if (area === "mature") {
+        const { data, error } = await supabase.from("couple_members").select("user_id, mature_opt_in");
+        if (here !== ctx) return;
+        const rows = error ? null : (data ?? []);
+        set({ mature: rows ? { mine: rows.some((r) => r.user_id === userId && r.mature_opt_in), partner: rows.some((r) => r.user_id === partnerId && r.mature_opt_in) } : null });
       } else if (area === "range") {
         const { data, error } = await supabase.from("couple_range_scores").select("user_id, score, hits, shots, best_streak, created_at").order("created_at", { ascending: false }).limit(60);
         if (error || here !== ctx) return;
@@ -326,6 +334,20 @@ export const useRoomStore = create((set, get) => ({
     const { error } = await ctx.supabase.rpc("set_frame", { frame_id: frameId, memory_id: memoryId });
     if (error) {
       await get().refresh("frames");
+      return codeOf(error);
+    }
+    return null;
+  },
+
+  // ── 18+ games ─────────────────────────────────────────────────────────────
+  /** Switch 18+ games on or off for yourself (they open when you've both switched them on). */
+  async setMatureOptIn(enabled) {
+    if (!ctx) return "unavailable";
+    const before = get().mature;
+    set({ mature: { mine: enabled, partner: before?.partner ?? false } });
+    const { error } = await ctx.supabase.rpc("set_mature_opt_in", { enabled });
+    if (error) {
+      set({ mature: before });
       return codeOf(error);
     }
     return null;

@@ -7,7 +7,9 @@ Our Place hosts fundamentally different experiences — Ludo, Scrabble, a realti
 - **Would You Rather** (Phase 6A): the reference conversation game — no winner.
 - **Naija Ludo** (Phase 6B): the reference state-heavy, turn-based competitive game — two dice, kills (the killer goes home), double-six rolls, a winner and win streaks.
 
-Every other game is honestly `coming_soon` (shown as such in the menu; the server refuses to start it). Flirty / Spicy games are 18+, opt-in, off by default and therefore `locked`.
+On 2026-10-30 six more arrived: **Connect 4**, **Checkers**, **Memory**, and three 18+ games — **Truth or Dare**, **Would You Rather — Spicy** and **Question Roulette** (sections below).
+
+Every other game is honestly `coming_soon` (shown as such in the menu; the server refuses to start it). Flirty / Spicy games are 18+, off by default and `locked` until BOTH partners switch them on (`couple_members.mature_opt_in`, `set_mature_opt_in()`, migration `20261029000000_mature_opt_in.sql`; the switch is at the top of Flirty / Spicy, and the game server checks both rows before it starts one).
 
 ## Concepts
 
@@ -424,3 +426,16 @@ All four use the platform unchanged: catalog entry + `games/<id>/rules.js` (serv
 **Scrabble** (`games/scrabble/`): standard 15×15 premium layout, 100 tiles (2 blanks), 7-tile racks, bingo +50, exchange (bag ≥ 7), pass, game end by going out (rack values transfer) or six scoreless turns (each loses their rack value), resign. Placement + scoring are pure (`scoring.js`, shared with the client for a points preview); the server re-runs them with the **ENABLE word list** (public domain, ~170k words, `words.js`, server-only — never sent to browsers, no outside service). Racks and the bag order are private.
 
 **Jigsaw Puzzle** (`games/jigsaw_puzzle/`, cooperative): built-in illustrations (`public/puzzles/*.svg`, drawn for Our Place) or the couple's "together" photos — the server stores only the picture id; each browser loads a photo with its own signed URL. 12 / 24 / 48 pieces with real jigsaw tabs drawn by the server. Actions: `configure`, `start`, `grab` (20 s hold so two hands never move one group), `drop { piece, x, y }`, `release`, `restart`. The server decides every snap (into the frame within 0.3 of a piece, or joining a matching neighbour) and completion (`completed`, no winner, never streaks). Drags are shown live to the partner through `hints` (≤ 10/s); only drops are persisted.
+
+**Connect 4** (`games/connect_4/`): 7×6, gravity drop, four in a row (any direction) wins, a full board draws. Red is drawn by the server. Action: `drop { column }`.
+
+**Checkers** (`games/checkers/`): English draughts, 8×8. Men move diagonally forward, kings both ways; jumping is compulsory and a multi-jump continues with the same piece in the same turn (`state.chain`); crowning ends the move. Win when the other side has no piece or no move; 40 moves each with no capture or crowning is a draw; resign. Dark (moves first) is drawn by the server. Actions: `move { from, to }` (one step or one jump), `resign`. The view lists the mover's legal moves.
+
+**Memory** (`games/memory_concentration/`): 12 pairs shuffled by the server; flip two — a pair is yours and you go again, a miss passes the turn. A view only carries the faces of cards that are face up. Most pairs wins. Action: `flip { index }`.
+
+**18+ conversation games** (no winner, never streaks; content in `lib/game/questions/spicy.js`, served by the question provider and tracked in `question_usage` like Would You Rather):
+- **Truth or Dare** (`games/truth_or_dare/`): alternate turns; `choose { kind }` shows a prompt to both, then `done` or `chicken`; the partner may `react { emoji }`. 12 turns.
+- **Would You Rather — Spicy** (`games/would_you_rather_spicy/`): Would You Rather's rules (`createWouldYouRatherRules`) with the spicy bank.
+- **Question Roulette** (`games/question_roulette/`): where the wheel lands (Flirty / Spicy / Hot / Wild card) is drawn in `prepare` and revealed only by `spin`; then `answered` or `pass`, partner reactions. 10 spins.
+
+Try any of them on their real rules, both seats on one screen: `/dev/games?game=checkers` (development only).

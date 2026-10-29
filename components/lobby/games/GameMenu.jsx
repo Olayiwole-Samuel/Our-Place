@@ -2,13 +2,18 @@
 
 import { AnimatePresence, m } from "motion/react";
 import { ChevronLeft, ChevronRight, CircleHelp, Clock, Gamepad2, Lock, X } from "lucide-react";
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useContext, useEffect, useId, useMemo, useRef, useState } from "react";
+import { useStore } from "zustand";
+import { createStore } from "zustand/vanilla";
 import { GAME_CATEGORIES } from "@/lib/game/categories";
 import { gameRegistry } from "@/lib/game/catalog";
 import { gameAvailability, gameLabels } from "@/lib/game/gating";
 import { guideFor } from "@/lib/game/guides";
 import { preloadGameClient } from "@/lib/game/loader";
+import { shortName } from "@/lib/couple/names";
 import { useChatStore } from "@/store/chatStore";
+import { CoupleStoreContext } from "@/store/coupleStore";
+import { useRoomStore } from "@/store/roomStore";
 import { MENU, useGameStore } from "@/store/gameStore";
 import { HudButton } from "../comms/HudButton";
 import { ACCENT_CLASSES, CATEGORY_ICONS } from "./categoryIcons";
@@ -113,10 +118,15 @@ function CategoryList() {
   );
 }
 
+/** Both of you have switched 18+ games on (couple_members.mature_opt_in, via the room store). */
+const useMatureEnabled = () => useRoomStore((state) => Boolean(state.mature?.mine && state.mature?.partner));
+
 function CategoryRow({ category }) {
   const Icon = CATEGORY_ICONS[category.icon];
   const accent = ACCENT_CLASSES[category.accent];
-  const playable = useMemo(() => gameRegistry.listByCategory(category.id).filter((d) => gameAvailability(d).launchable).length, [category.id]);
+  const matureEnabled = useMatureEnabled();
+  const playable = useMemo(() => gameRegistry.listByCategory(category.id).filter((d) => gameAvailability(d, { matureEnabled }).launchable).length, [category.id, matureEnabled]);
+  const locked = category.mature && !matureEnabled;
   return (
     <button
       type="button"
@@ -129,7 +139,7 @@ function CategoryRow({ category }) {
       </span>
       <span className="min-w-0 flex-1">
         <span className="block truncate text-caption font-semibold text-white-soft">{category.name}</span>
-        <span className="block truncate text-micro tracking-normal text-text-muted">{playable ? `${playable} to play` : "Coming soon"}</span>
+        <span className="block truncate text-micro tracking-normal text-text-muted">{locked ? "18+ · switch on together" : playable ? `${playable} to play` : "Coming soon"}</span>
       </span>
       <ChevronRight aria-hidden="true" size={16} className="shrink-0 text-text-muted" />
     </button>
@@ -137,11 +147,12 @@ function CategoryRow({ category }) {
 }
 
 function CategoryGames({ category }) {
+  const matureEnabled = useMatureEnabled();
   // Playable games first, then the rest in catalog order.
   const games = useMemo(() => {
     const list = gameRegistry.listByCategory(category.id);
-    return [...list.filter((g) => gameAvailability(g).launchable), ...list.filter((g) => !gameAvailability(g).launchable)];
-  }, [category.id]);
+    return [...list.filter((g) => gameAvailability(g, { matureEnabled }).launchable), ...list.filter((g) => !gameAvailability(g, { matureEnabled }).launchable)];
+  }, [category.id, matureEnabled]);
   const accent = ACCENT_CLASSES[category.accent];
   const pending = useGameStore((state) => state.pending);
   const [notice, setNotice] = useState(null);
@@ -166,9 +177,10 @@ function CategoryGames({ category }) {
           <p className="text-micro tracking-normal text-text-muted">{category.description}</p>
         </div>
       </header>
+      {category.mature && <MatureSwitch />}
       <ul className="flex-1 overflow-y-auto overscroll-contain p-1.5">
         {games.map((definition) => {
-          const availability = gameAvailability(definition);
+          const availability = gameAvailability(definition, { matureEnabled });
           return (
             <li key={definition.id} className="flex items-center gap-1">
               <GameCard
@@ -243,5 +255,50 @@ function GameCard({ definition, availability, busy, notice, onSelect }) {
         </span>
       )}
     </button>
+  );
+}
+
+/**
+ * The 18+ switch at the top of Flirty / Spicy: each of you switches it on for
+ * yourself, and the games open only when you both have. Either of you can
+ * switch it off again (then they're locked for both).
+ */
+const NO_COUPLE = createStore(() => ({ partner: null }));
+
+function MatureSwitch() {
+  const mature = useRoomStore((state) => state.mature);
+  // The menu can render without the couple (tests, previews): then "your partner".
+  const partner = useStore(useContext(CoupleStoreContext) ?? NO_COUPLE, (state) => state.partner);
+  const partnerName = shortName(partner, "your partner");
+  const [error, setError] = useState(null);
+  if (!mature) {
+    return <p className="border-b border-[var(--border-subtle)] px-4 py-2 text-micro tracking-normal text-text-muted">18+ games need a quick update on the server first.</p>;
+  }
+  const both = mature.mine && mature.partner;
+  const toggle = async () => {
+    setError(null);
+    const failed = await useRoomStore.getState().setMatureOptIn(!mature.mine);
+    if (failed) setError("Couldn't change that — try again.");
+  };
+  const status = both ? "On for both of you 🔥" : mature.mine ? `You're in — waiting for ${partnerName} to switch it on too` : mature.partner ? `${shortName(partner, "Your partner")} is in 😏 — switch it on to play` : "Off. You both need to switch it on (18+ only).";
+  return (
+    <div className="flex items-center gap-3 border-b border-[var(--border-subtle)] px-4 py-2.5">
+      <div className="min-w-0 flex-1">
+        <p className="text-caption font-semibold text-white-soft">18+ games</p>
+        <p role="status" className="text-micro tracking-normal text-text-muted">
+          {error ?? status}
+        </p>
+      </div>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={mature.mine}
+        aria-label="Switch 18+ games on for me"
+        onClick={toggle}
+        className={`relative h-7 w-12 shrink-0 rounded-full transition-colors ${mature.mine ? "bg-red-500" : "bg-black-700"}`}
+      >
+        <span aria-hidden="true" className={`absolute top-1 left-1 size-5 rounded-full bg-white shadow transition-transform ${mature.mine ? "translate-x-5" : ""}`} />
+      </button>
+    </div>
   );
 }
