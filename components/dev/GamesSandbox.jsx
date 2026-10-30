@@ -6,6 +6,7 @@ import { gameRegistry } from "@/lib/game/catalog";
 import { applyPlayerAction, createSession, getPlayerView } from "@/lib/game/engine";
 import { createRandom } from "@/lib/game/random";
 import { DARE_PROMPTS, ROULETTE_PROMPTS, SPICY_WYR_QUESTIONS, TRUTH_PROMPTS } from "@/lib/game/questions/spicy";
+import { NEVER_HAVE_I_EVER } from "@/lib/game/questions/neverHaveIEver";
 import { WOULD_YOU_RATHER_QUESTIONS } from "@/lib/game/questions/wouldYouRather";
 
 /**
@@ -18,6 +19,7 @@ const A = "11111111-1111-4111-8111-111111111111";
 const B = "22222222-2222-4222-8222-222222222222";
 const BANKS = {
   would_you_rather: WOULD_YOU_RATHER_QUESTIONS,
+  never_have_i_ever: NEVER_HAVE_I_EVER,
   would_you_rather_spicy: SPICY_WYR_QUESTIONS,
   truth_or_dare_truth: TRUTH_PROMPTS,
   truth_or_dare_dare: DARE_PROMPTS,

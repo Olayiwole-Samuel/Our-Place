@@ -7,7 +7,7 @@ Our Place hosts fundamentally different experiences — Ludo, Scrabble, a realti
 - **Would You Rather** (Phase 6A): the reference conversation game — no winner.
 - **Naija Ludo** (Phase 6B): the reference state-heavy, turn-based competitive game — two dice, kills (the killer goes home), double-six rolls, a winner and win streaks.
 
-On 2026-10-30 six more arrived: **Connect 4**, **Checkers**, **Memory**, and three 18+ games — **Truth or Dare**, **Would You Rather — Spicy** and **Question Roulette** (sections below).
+On 2026-10-30 six more arrived: **Connect 4**, **Checkers**, **Memory**, and three 18+ games — **Truth or Dare**, **Would You Rather — Spicy** and **Question Roulette** — then four more: **Reversi**, **Battleship**, **Hangman** and **Never Have I Ever** (sections below).
 
 Every other game is honestly `coming_soon` (shown as such in the menu; the server refuses to start it). Flirty / Spicy games are 18+, off by default and `locked` until BOTH partners switch them on (`couple_members.mature_opt_in`, `set_mature_opt_in()`, migration `20261029000000_mature_opt_in.sql`; the switch is at the top of Flirty / Spicy, and the game server checks both rows before it starts one).
 
@@ -437,5 +437,13 @@ All four use the platform unchanged: catalog entry + `games/<id>/rules.js` (serv
 - **Truth or Dare** (`games/truth_or_dare/`): alternate turns; `choose { kind }` shows a prompt to both, then `done` or `chicken`; the partner may `react { emoji }`. 12 turns.
 - **Would You Rather — Spicy** (`games/would_you_rather_spicy/`): Would You Rather's rules (`createWouldYouRatherRules`) with the spicy bank.
 - **Question Roulette** (`games/question_roulette/`): where the wheel lands (Flirty / Spicy / Hot / Wild card) is drawn in `prepare` and revealed only by `spin`; then `answered` or `pass`, partner reactions. 10 spins.
+
+**Reversi** (`games/reversi/`): 8×8, standard opening; a move must flip at least one line; no move → the turn passes; game over when neither can move, more discs wins. Actions: `place { square }`, `resign`.
+
+**Battleship** (`games/battleship/`): 10×10, fleet 5-4-3-3-2 laid out by the server (ships never touch; `shuffle` re-lays yours), `ready` from both starts the battle, then alternate `fire { cell }`; `resign`. A view has your fleet and your own shots only — an enemy ship's squares appear once it's sunk.
+
+**Hangman** (`games/hangman/`): you set words for each other. Rounds alternate setter/guesser (4 by default): `set { word, hint? }` (letters and spaces, 3–20), `guess { letter }`, `solve { word }`, `next`, `finish`. Six misses hangs. Solved → guesser scores 7 − misses; hanged → setter scores 3. The guesser's view has only the found letters.
+
+**Never Have I Ever** (`games/never_have_i_ever/`, conversation): statements from `lib/game/questions/neverHaveIEver.js`; both answer `have` / `never` in secret, revealed together; ten fingers each, "have" puts one down; 15 rounds or until someone's out of fingers.
 
 Try any of them on their real rules, both seats on one screen: `/dev/games?game=checkers` (development only).

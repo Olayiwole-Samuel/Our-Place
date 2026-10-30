@@ -80,7 +80,7 @@ describe("in-world game menu", () => {
     render(<GameMenu />);
     const drawer = await openCategory("Board & Strategy");
     for (const name of ["Chess", "Ludo", "Tic Tac Toe", "Battleship"]) expect(drawer.textContent).toContain(name);
-    expect(drawer.textContent).toContain("Coming soon");
+    expect(drawer.textContent).not.toContain("Coming soon"); // every board game is playable now
     fireEvent.click(screen.getByRole("button", { name: "Back to categories" }));
     await screen.findByRole("complementary", { name: "Game categories" });
     act(() => document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" })));
