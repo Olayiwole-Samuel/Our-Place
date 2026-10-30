@@ -7,7 +7,7 @@ Our Place hosts fundamentally different experiences — Ludo, Scrabble, a realti
 - **Would You Rather** (Phase 6A): the reference conversation game — no winner.
 - **Naija Ludo** (Phase 6B): the reference state-heavy, turn-based competitive game — two dice, kills (the killer goes home), double-six rolls, a winner and win streaks.
 
-On 2026-10-30 six more arrived: **Connect 4**, **Checkers**, **Memory**, and three 18+ games — **Truth or Dare**, **Would You Rather — Spicy** and **Question Roulette** — then four more: **Reversi**, **Battleship**, **Hangman** and **Never Have I Ever** (sections below).
+On 2026-10-30 six more arrived: **Connect 4**, **Checkers**, **Memory**, and three 18+ games — **Truth or Dare**, **Would You Rather — Spicy** and **Question Roulette** — then four more: **Reversi**, **Battleship**, **Hangman** and **Never Have I Ever**, and the rest of Talk & Party: **Two Truths and a Lie**, **Daily Question**, **This or That** and **Story Builder** (sections below). Every Talk & Party and Board & Strategy game is playable.
 
 Every other game is honestly `coming_soon` (shown as such in the menu; the server refuses to start it). Flirty / Spicy games are 18+, off by default and `locked` until BOTH partners switch them on (`couple_members.mature_opt_in`, `set_mature_opt_in()`, migration `20261029000000_mature_opt_in.sql`; the switch is at the top of Flirty / Spicy, and the game server checks both rows before it starts one).
 
@@ -445,5 +445,11 @@ All four use the platform unchanged: catalog entry + `games/<id>/rules.js` (serv
 **Hangman** (`games/hangman/`): you set words for each other. Rounds alternate setter/guesser (4 by default): `set { word, hint? }` (letters and spaces, 3–20), `guess { letter }`, `solve { word }`, `next`, `finish`. Six misses hangs. Solved → guesser scores 7 − misses; hanged → setter scores 3. The guesser's view has only the found letters.
 
 **Never Have I Ever** (`games/never_have_i_ever/`, conversation): statements from `lib/game/questions/neverHaveIEver.js`; both answer `have` / `never` in secret, revealed together; ten fingers each, "have" puts one down; 15 rounds or until someone's out of fingers.
+
+**The rest of Talk & Party** (conversation games, no winner; content in `lib/game/questions/talk.js`; typed text is cleaned by `lib/game/text.js` and always rendered as plain text):
+- **Two Truths and a Lie** (`games/two_truths_and_a_lie/`): rounds alternate teller/guesser (4); `write { statements[3], lie }` — the server shuffles them and keeps the lie out of the guesser's view — then `guess { index }`, `next`.
+- **Daily Question** (`games/daily_question/`): one question a day per couple, picked from the couple id and the Lagos date (the same all day); `answer { text }` (≤ 280, both revealed together), up to two bonus questions with `more`.
+- **This or That** (`games/this_or_that/`): `pick { choice }`; when both have picked, the next pair appears at once and the view's `last` reveals the pair you just did. 12 pairs.
+- **Story Builder** (`games/story_builder/`): a server-picked opening line, then `add { text }` (≤ 160) in turns; `end` after 6 lines, or it ends at 16.
 
 Try any of them on their real rules, both seats on one screen: `/dev/games?game=checkers` (development only).
