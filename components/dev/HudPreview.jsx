@@ -12,6 +12,7 @@ import { useGameStore } from "@/store/gameStore";
 import { livingRoom } from "@/lib/world/rooms/livingRoom";
 import { useDecorStore } from "@/store/decorStore";
 import { useRoomStore } from "@/store/roomStore";
+import { useVoiceStore } from "@/store/voiceStore";
 import { useWorldStore } from "@/store/worldStore";
 
 /**
@@ -251,6 +252,13 @@ function Scenario() {
         useRoomStore.setState({ mature });
         setTimeout(() => useRoomStore.setState({ mature }), 4000); // after the room's own (offline) refresh
         useRoomStore.setState({ setMatureOptIn: async (on) => void useRoomStore.setState({ mature: { ...useRoomStore.getState().mature, mine: on } }) });
+      }
+      // ?voice=1 — voice connected with your partner on (shows the partner-volume control).
+      if (params.get("voice")) {
+        const connected = { status: "connected", error: null, partner: { connected: true, muted: false, speaking: false } };
+        // Keep it so while the (offline) voice session keeps trying.
+        const hold = setInterval(() => useVoiceStore.getState().status !== "connected" && useVoiceStore.setState(connected), 500);
+        setTimeout(() => clearInterval(hold), 60_000);
       }
       if (params.get("drawer")) useGameStore.getState().openCategory(params.get("drawer"));
     }, 2500);

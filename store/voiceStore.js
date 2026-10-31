@@ -58,6 +58,7 @@ export function createAutoSession(options, { agora = createAgoraVoiceSession, pe
   let inner = null;
   let destroyed = false;
   let pendingMic = null;
+  let pendingVolume = null;
   return {
     async connect() {
       let first = null;
@@ -83,6 +84,7 @@ export function createAutoSession(options, { agora = createAgoraVoiceSession, pe
       }
       await inner.connect();
       if (pendingMic !== null) inner.setMic(pendingMic);
+      if (pendingVolume !== null) inner.setPartnerVolume?.(pendingVolume);
     },
     setMic(enabled) {
       if (inner) return inner.setMic(enabled);
@@ -90,6 +92,10 @@ export function createAutoSession(options, { agora = createAgoraVoiceSession, pe
       return undefined;
     },
     unlockAudio: () => inner?.unlockAudio(),
+    setPartnerVolume(volume) {
+      pendingVolume = volume;
+      inner?.setPartnerVolume?.(volume);
+    },
     retryNow: () => inner?.retryNow(),
     async destroy() {
       destroyed = true;
@@ -108,6 +114,17 @@ const initialState = {
   error: null,
   partner: { connected: false, muted: true, speaking: false },
 };
+
+/** Your partner's volume on this device (percent, 100–400), remembered per device. */
+const VOLUME_KEY = "our-place:partner-volume";
+function savedVolume() {
+  try {
+    const value = Number(window.localStorage.getItem(VOLUME_KEY));
+    return value >= 100 && value <= 400 ? value : 100;
+  } catch {
+    return 100;
+  }
+}
 
 let session = null;
 let sessionKey = null;
@@ -148,6 +165,7 @@ async function fetchAccess(path) {
 
 export const useVoiceStore = create((set, get) => ({
   ...initialState,
+  partnerVolume: typeof window === "undefined" ? 100 : savedVolume(),
 
   /** Join (or keep) the couple's voice session. Returns a release function. */
   acquire({ coupleId, userId, partnerId }) {
@@ -170,6 +188,7 @@ export const useVoiceStore = create((set, get) => ({
           set(patch);
         },
       });
+      session.setPartnerVolume?.(get().partnerVolume);
       session.connect();
     }
     let released = false;
@@ -189,6 +208,18 @@ export const useVoiceStore = create((set, get) => ({
 
   unlockAudio: () => session?.unlockAudio(),
   retry: () => session?.retryNow(),
+
+  /** How loud your partner sounds on this device (100 % = as they speak, up to 400 %). */
+  setPartnerVolume(volume) {
+    const partnerVolume = Math.round(Math.min(400, Math.max(100, Number(volume) || 100)));
+    set({ partnerVolume });
+    try {
+      window.localStorage.setItem(VOLUME_KEY, String(partnerVolume));
+    } catch {
+      // private mode: just for this visit
+    }
+    session?.setPartnerVolume?.(partnerVolume);
+  },
 
   /** Leave now: stops tracks, listeners and timers (sign-out, page hide, idle). */
   shutdown() {
