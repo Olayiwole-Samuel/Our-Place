@@ -4,6 +4,7 @@ import { AnimatePresence, animate, m, useReducedMotion } from "motion/react";
 import { X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { anniversaryLabel, countdown, durationText, ordinal, togetherSince } from "@/lib/room/together";
+import { useMusicStore } from "@/store/musicStore";
 import { useRoomStore } from "@/store/roomStore";
 
 /**
@@ -344,6 +345,9 @@ export function UsPanel({ myName, partnerName }) {
                 </span>
               )}
             </m.p>
+            <m.div variants={rise}>
+              <OurSong special={Boolean(special)} />
+            </m.div>
           </m.section>
         </div>
       )}
@@ -360,6 +364,36 @@ export function UsPanel({ myName, partnerName }) {
         )}
       </AnimatePresence>
     </m.div>
+  );
+}
+
+/** "Our song" ❤️ — chosen in Music (the heart on a song). On your days it asks to be played. */
+function OurSong({ special }) {
+  const trackId = useMusicStore((state) => state.music?.ourSong ?? null);
+  const track = useMusicStore((state) => (trackId ? state.tracks.get(trackId) : null));
+  const playing = useMusicStore((state) => Boolean(state.music?.playing && state.music.queue[state.music.position] === trackId));
+  if (!track) {
+    return (
+      <button type="button" onClick={() => useRoomStore.getState().openPanel("music")} className="us-next us-our-song">
+        <span aria-hidden="true">🎵</span>
+        <span>Pick “our song” in Music — tap the ♡ on it</span>
+      </button>
+    );
+  }
+  return (
+    <button
+      type="button"
+      onClick={() => (playing ? useMusicStore.getState().toggle() : useMusicStore.getState().playNow(track.id))}
+      className={`us-next us-our-song ${special && !playing ? "us-our-song-special" : ""}`}
+      aria-label={playing ? `Pause our song, ${track.title}` : `Play our song, ${track.title}`}
+    >
+      <span aria-hidden="true">{playing ? "⏸" : "▶"}</span>
+      <span>
+        Our song · <b>{track.title}</b>
+        {track.artist ? ` — ${track.artist}` : ""}
+        {special && !playing ? " · play it today 💞" : ""}
+      </span>
+    </button>
   );
 }
 

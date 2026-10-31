@@ -28,6 +28,7 @@ export const INTERACTION_HANDLERS = {
   // A wall of picture frames: choose which of your photos hangs in each.
   artFrames: { kind: "action", run: ({ object }) => useRoomStore.getState().openPanel("frames", object?.id ?? null) },
   dog: { kind: "action", run: () => useRoomStore.getState().openPanel("dog") },
+  recordPlayer: { kind: "action", run: () => useRoomStore.getState().openPanel("music") },
   plant: {
     kind: "card",
     title: "Your plant",

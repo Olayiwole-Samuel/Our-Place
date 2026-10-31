@@ -4,6 +4,7 @@ import { create } from "zustand";
 import { logConnection } from "@/lib/diagnostics/connectionLog";
 import { COUPLE_CHANNEL, coupleChannelName } from "@/lib/realtime/channels";
 import { openResilientChannel } from "@/lib/realtime/resilientChannel";
+import { MUSIC_AREAS, useMusicStore } from "./musicStore";
 
 /**
  * The living room's shared things — everything the two of you leave in the
@@ -145,7 +146,8 @@ export const useRoomStore = create((set, get) => ({
             if (here !== ctx || !payload?.area) return;
             // The lobby topic is also client-writable, so an announcement is only a
             // hint: what changed is always re-read from the database.
-            get().refresh(payload.area);
+            if (MUSIC_AREAS.has(payload.area)) useMusicStore.getState().refresh(payload.area);
+            else get().refresh(payload.area);
           })
           .on("broadcast", { event: "tv-wait" }, ({ payload }) => {
             // The partner's TV is loading: only shown as a reason; the pause itself is shared TV state.
@@ -158,11 +160,15 @@ export const useRoomStore = create((set, get) => ({
           }),
       onStatus: (status) => {
         // Back after a drop: catch up on anything missed.
-        if (status === "SUBSCRIBED" && here === ctx && get().ready) get().refreshAll();
+        if (status === "SUBSCRIBED" && here === ctx && get().ready) {
+          get().refreshAll();
+          for (const area of MUSIC_AREAS) useMusicStore.getState().refresh(area);
+        }
       },
     });
 
     get().refreshAll().then(() => here === ctx && set({ ready: true }));
+    useMusicStore.getState().open({ supabase, userId });
     return () => get().close();
   },
 
@@ -175,6 +181,7 @@ export const useRoomStore = create((set, get) => ({
     closing.cleanups.forEach((cleanup) => cleanup());
     closing.supabase.rpc("note_presence", { tz: zone() }).then(() => {}, () => {}); // "last here" = now
     closing.channel?.close();
+    useMusicStore.getState().close();
     set({ ...initialState, skewMs: get().skewMs });
   },
 

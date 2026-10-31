@@ -11,6 +11,7 @@ import { startChatSample } from "./chatSample";
 import { useGameStore } from "@/store/gameStore";
 import { livingRoom } from "@/lib/world/rooms/livingRoom";
 import { useDecorStore } from "@/store/decorStore";
+import { useMusicStore } from "@/store/musicStore";
 import { useRoomStore } from "@/store/roomStore";
 import { useVoiceStore } from "@/store/voiceStore";
 import { useWorldStore } from "@/store/worldStore";
@@ -253,6 +254,19 @@ function Scenario() {
         setTimeout(() => useRoomStore.setState({ mature }), 4000); // after the room's own (offline) refresh
         useRoomStore.setState({ setMatureOptIn: async (on) => void useRoomStore.setState({ mature: { ...useRoomStore.getState().mature, mine: on } }) });
       }
+      // ?songs=1|paused — sample songs, a playlist and the shared player (YouTube plays for real).
+      if (params.get("songs")) {
+        const songs = [
+          { id: "t1", spotifyId: "s1", youtubeId: "dQw4w9WgXcQ", title: "Never Gonna Give You Up", artist: "Rick Astley", imageUrl: "https://i.ytimg.com/vi/dQw4w9WgXcQ/mqdefault.jpg", durationS: 213, addedBy: ME.id },
+          { id: "t2", spotifyId: "s2", youtubeId: null, title: "Essence", artist: "Wizkid, Tems", imageUrl: null, durationS: 248, addedBy: PARTNER.id },
+          { id: "t3", spotifyId: null, youtubeId: "kJQP7kiw5Fk", title: "Despacito", artist: "", imageUrl: "https://i.ytimg.com/vi/kJQP7kiw5Fk/mqdefault.jpg", durationS: 282, addedBy: ME.id },
+        ];
+        const music = { queue: ["t1", "t2", "t3"], position: 0, playing: params.get("songs") !== "paused", atSeconds: 20, updatedAt: new Date().toISOString(), updatedBy: ME.id, version: 3, shuffle: false, repeat: "all", playlistId: "p1", ourSong: "t1" };
+        const state = { available: true, tracks: new Map(songs.map((t) => [t.id, t])), order: songs.map((t) => t.id), playlists: [{ id: "p1", name: "Our songs 💞", trackIds: ["t1", "t3"] }], music, spotify: { connected: true, userId: ME.id, displayName: "Arnold" } };
+        useMusicStore.setState(state);
+        // Writes stay on this screen in the preview.
+        useMusicStore.setState({ setMusic: async (change) => void useMusicStore.setState({ music: { ...useMusicStore.getState().music, ...change, updatedAt: new Date().toISOString(), version: useMusicStore.getState().music.version + 1 } }) });
+      }
       // ?voice=1 — voice connected with your partner on (shows the partner-volume control).
       if (params.get("voice")) {
         const connected = { status: "connected", error: null, partner: { connected: true, muted: false, speaking: false } };
@@ -285,7 +299,7 @@ function lookCharacter(id, userId) {
 
 export function HudPreview() {
   const params = new URLSearchParams(window.location.search);
-  if (params.get("panel") || params.get("room")) useRoomStore.setState({ preview: true });
+  if (params.get("panel") || params.get("room") || params.get("songs")) useRoomStore.setState({ preview: true });
   if (params.get("decorate") && !useDecorStore.getState().active) useDecorStore.getState().open(livingRoom);
   const screen = params.get("screen");
   const viewer = { ...VIEWER, characters: { mine: lookCharacter(params.get("me"), ME.id), partner: lookCharacter(params.get("partner"), PARTNER.id) } };

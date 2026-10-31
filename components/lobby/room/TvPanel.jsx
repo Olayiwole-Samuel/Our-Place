@@ -3,6 +3,7 @@
 import { ChevronRight, Clapperboard, Film, ListVideo, Maximize, MonitorPlay, Pause, Pencil, Play, RotateCcw, SkipBack, SkipForward, Square, Trash2, Tv, Upload, Volume2, VolumeX, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { episodeLabel, episodeOf, groupVideos, parseEpisode, siblingEpisode } from "@/lib/room/series";
+import { loadYouTube } from "@/lib/media/youtube";
 import { useUploadStore } from "@/lib/room/uploads";
 import { VIDEO_TYPES, expectedPosition, formatTime, needsSeek, parseYouTube, videoTypeOf } from "@/lib/room/watch";
 import { useRoomStore } from "@/store/roomStore";
@@ -443,23 +444,6 @@ function Library({ kind, videos, uploads, onPlay, playingId, partnerName }) {
 }
 
 // ── The player ────────────────────────────────────────────────────────────
-
-/** Loads the YouTube IFrame API once. */
-let youtubeApi = null;
-function loadYouTube() {
-  youtubeApi ??= new Promise((resolve) => {
-    if (window.YT?.Player) return resolve(window.YT);
-    const previous = window.onYouTubeIframeAPIReady;
-    window.onYouTubeIframeAPIReady = () => {
-      previous?.();
-      resolve(window.YT);
-    };
-    const script = document.createElement("script");
-    script.src = "https://www.youtube.com/iframe_api";
-    document.head.appendChild(script);
-  });
-  return youtubeApi;
-}
 
 /**
  * A uniform player around <video> and YouTube: { time(), duration(), play(),

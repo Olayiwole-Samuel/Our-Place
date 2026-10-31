@@ -49,11 +49,22 @@ Browser state: `store/roomStore.js`. Panels: `components/lobby/room/`.
 
 ## The house: hallway, game room, range
 
-- The living room's door leads to a **hallway** (`lib/world/rooms/hallway.js`) with a door to the **game room**, the **range**, and two "coming soon" doors (bedroom, balcony). Rooms are data like the living room (`lib/world/rooms/*`, listed in `rooms/index.js`); `Room.jsx` draws each object `type` (new pieces: `components/3d/Rooms/RoomPieces.jsx`, `components/3d/Range/*`).
+- The living room's door leads to a **hallway** (`lib/world/rooms/hallway.js`) with a door to the **game room**, the **range**, the **music room**, and two "coming soon" doors (bedroom, balcony). Rooms are data like the living room (`lib/world/rooms/*`, listed in `rooms/index.js`); `Room.jsx` draws each object `type` (new pieces: `components/3d/Rooms/RoomPieces.jsx`, `components/3d/Range/*`).
 - **Moving**: walk up to a door and press Go — a short fade (`lib/world/travel.js`), and you're just inside the door you came through. Each of you can be in a different room: presence carries `room` with your pose (`lib/realtime/couplePresence.js`), your partner's character shows only when you share a room, and their status says where they are, with **Go** to join them. Your dog and the things you placed stay in the living room (the dog bar offers "Go to …" from elsewhere; Decorate takes you home first). Chat and voice work everywhere.
 - **Game room**: the big screen opens the games menu, the arcade cabinets and the table open their kinds of games, a scoreboard shows your head-to-head record (`couple_trophies`), neon along the walls.
 - **Range**: walk up to a lane and press Shoot — first-person at your lane, rules and Start, 3-2-1, then 45 seconds of targets popping up (plates, sliding movers, small gold ones worth double). Tap / click to shoot; bullseye 10 · middle 7 · edge 4, ×2 after 3 hits in a row, ×3 after 6 (`lib/range/targets.js`). Rounds are saved (`record_range_score`, migration `20261024000000_range_scores.sql`) and the board by the door shows both of your bests and the latest rounds; your partner sees your live score while you both shoot.
 - **Picture frames** in the hallway show your memory photos: walk up and press Choose to pick which photo hangs in each frame; frames you haven't chosen show your newest photos (`lib/room/frames.js`, migration `20261024100000_wall_frames.sql`).
+
+## Music
+
+- **Where**: a record player in the living room's corner and the **Music room** off the hallway (record player, speakers, a dance floor and fairy lights that pulse while a song plays), plus **Room → Music**. The **music bar** (top centre) shows what's on in every room: previous / play-pause / next, mute on this phone, 💃 dance.
+- **Picking songs — Spotify**: one of you connects their Spotify (Music → Add songs → Connect Spotify; tokens are kept by the server only, `couple_spotify`). Search, bring in a playlist or your Liked Songs. Spotify only plays on a Premium account's own device, so **nothing plays through Spotify**: each song is found on **YouTube** the first time it's about to play (`/api/music/match`, YouTube Data API, ~99 new songs a day on the free quota; saved on the song) and plays for **both** of you. You can also add a YouTube link directly.
+- **The shared player** (`couple_music`, `set_music()`): a queue of your songs, which one is on, playing/paused and the position stamped by the database clock — both screens follow it like the TV and re-sync when they drift by more than 2 s. When a song ends, the screen that changed the music last moves on (the other only if that didn't happen). Shuffle (keeps the current song), repeat all / one / off, "play next", jump, remove from the queue. Phones block sound until you touch the page: "Tap to listen".
+- **Playlists** (`couple_playlists`): shared — either of you creates, renames, deletes, adds and removes songs.
+- **Our song ❤️**: the heart on a song (`set_our_song()`); it shows on the Us page with a play button, and asks to be played on your monthsaries and anniversaries.
+- **Dance**: while you're dancing and a song plays, your character dances (the same emote your partner sees).
+- The YouTube player stays visible (small, in the music bar), as YouTube requires. The lights pulse on a steady beat — YouTube's audio can't be analysed.
+- Needs `20261031000000_music.sql` and the server keys `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET`, `YOUTUBE_API_KEY` (`.env.example`). Preview: `/dev/hud?songs=1&panel=music`.
 
 ## Phone notifications
 

@@ -5,6 +5,7 @@ import { LoveHeart, MessageBoard, PhotoWall, VideoScreen } from "../Furniture/Wa
 import { RoomShell } from "../Environment/RoomShell";
 import { RangeBoard, RangeCounter, RangeDownrange, RangeLane } from "../Range/RangePieces";
 import { Arcade, ArtFrames, DecorPiece, GameScreen, GameTable, Neon, Pendants, Runner, Scoreboard, SignedDoor, SoonDoor } from "../Rooms/RoomPieces";
+import { DanceFloor, MusicLights, RecordPlayer, Speaker } from "../Rooms/MusicPieces";
 import { CameraOccluder } from "./CameraOccluder";
 
 /**
@@ -39,6 +40,10 @@ const OBJECT_COMPONENTS = {
   messageBoard: MessageBoard,
   gameCorner: GameCorner,
   loveHeart: LoveHeart,
+  recordPlayer: RecordPlayer,
+  speaker: Speaker,
+  danceFloor: DanceFloor,
+  musicLights: MusicLights,
 };
 
 export function Room({ room, timeOfDay, reducedMotion, runtime }) {

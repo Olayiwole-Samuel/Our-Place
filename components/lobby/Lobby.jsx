@@ -25,6 +25,7 @@ import { OfflineBanner } from "./OfflineBanner";
 import { OnboardingHint } from "./OnboardingHint";
 import { ConnectionStatus, PartnerStatus } from "./PresenceStatus";
 import { CommsDock } from "./comms/CommsDock";
+import { MusicBar } from "./music/MusicBar";
 import { GameMenu } from "./games/GameMenu";
 import { GameStage } from "./games/GameStage";
 import { useCoupleGames } from "./games/useCoupleGames";
@@ -198,6 +199,9 @@ function LivingRoom({ me, partner, couple }) {
           </div>
 
           {/* Right edge: the floating game menu (reserved for it since Phase 3). */}
+          <div className="music-bar-anchor">
+            <MusicBar me={me.id} onEmote={triggerEmote} />
+          </div>
           <GameMenu disabled={inGame} />
           <RoomMenu disabled={inGame} runtime={runtime} />
           <RoomPanels me={me} partner={partner} partnerName={partnerName} runtime={runtime} />
