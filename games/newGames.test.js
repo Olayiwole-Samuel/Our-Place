@@ -245,6 +245,30 @@ describe("18+ conversation games", () => {
     expect(session.state.tally[first].dare).toBe(1);
   });
 
+  it("Truth or Dare: you can only chicken out twice a game", async () => {
+    const options = { rounds: 8, ...(await truthOrDare.prepare({ coupleId: "c", options: { rounds: 8 }, random: createRandom(1), services })) };
+    const { start, act, ok } = harness("truth_or_dare", truthOrDare, options);
+    let session = start();
+    let player = session.state.current;
+    const turn = (type) => {
+      session = ok(act(session, player, "choose", { kind: "truth" }));
+      const result = act(session, player, type);
+      if (result.error) return result.error.code;
+      session = result.session;
+      player = session.state.current;
+      return null;
+    };
+    const chickener = player;
+    expect(turn("chicken")).toBeNull(); // 1st
+    expect(turn("done")).toBeNull(); // partner
+    expect(turn("chicken")).toBeNull(); // 2nd
+    expect(turn("done")).toBeNull();
+    expect(player).toBe(chickener);
+    expect(turn("chicken")).toBe("illegal_action"); // a 3rd is refused…
+    session = ok(act(session, player, "done")); // …so you have to do it
+    expect(session.state.tally[chickener].chicken).toBe(2);
+  });
+
   it("Question Roulette: the server decides where it lands; the question shows only after the spin", async () => {
     const options = { rounds: 3, ...(await roulette.prepare({ coupleId: "c", options: { rounds: 3 }, random: createRandom(5), services })) };
     expect(options.spins).toHaveLength(3);

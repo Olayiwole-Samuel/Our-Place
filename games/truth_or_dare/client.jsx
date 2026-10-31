@@ -3,7 +3,7 @@
 import { m } from "motion/react";
 import { useEffect, useRef } from "react";
 import { playSound } from "@/lib/ui/sounds";
-import { REACTIONS } from "./rules";
+import { MAX_CHICKENS, REACTIONS } from "./rules";
 
 /**
  * Truth or Dare (18+) — the in-room panel. Renders the server's view and sends
@@ -16,6 +16,7 @@ export default function TruthOrDare({ view, me, partner, names = {}, status, bus
   const myTurn = status === "active" && view.current === me;
   const live = status === "active" && phase !== "finished";
   const who = myTurn ? "You" : partnerName;
+  const chickensLeft = Math.max(0, MAX_CHICKENS - (tally[me]?.chicken ?? 0));
 
   const promptKey = prompt ? `${round}-${prompt.id}` : null;
   const lastPrompt = useRef(promptKey);
@@ -103,9 +104,13 @@ export default function TruthOrDare({ view, me, partner, names = {}, status, bus
           <button type="button" disabled={busy} onClick={() => act("done", {})} className="min-h-11 min-w-32 rounded-[var(--radius-md)] bg-green-600 px-5 text-body font-semibold text-white transition-transform active:scale-[0.98]">
             Done ✓
           </button>
-          <button type="button" disabled={busy} onClick={() => act("chicken", {})} className="min-h-11 rounded-[var(--radius-md)] border border-[var(--border-subtle)] px-4 text-caption text-text-secondary hover:bg-black-700">
-            Chicken out 🐔
-          </button>
+          {chickensLeft > 0 ? (
+            <button type="button" disabled={busy} onClick={() => act("chicken", {})} className="min-h-11 rounded-[var(--radius-md)] border border-[var(--border-subtle)] px-4 text-caption text-text-secondary hover:bg-black-700">
+              Chicken out 🐔 <span className="text-micro tracking-normal text-text-muted">({chickensLeft} left)</span>
+            </button>
+          ) : (
+            <span className="text-micro tracking-normal text-pink-400">No chickening out left — do it! 😈</span>
+          )}
         </div>
       )}
       {phase === "doing" && live && !myTurn && (

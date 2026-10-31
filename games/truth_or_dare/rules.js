@@ -7,7 +7,8 @@ import { GAME_ERROR, gameError } from "@/lib/game/errors";
  *
  * Turns alternate. On your turn pick Truth or Dare; the prompt shows for both
  * of you. Answer or do it — out loud on voice, in chat, or with a photo — then
- * tap Done. Or chicken out (it's counted 🐔). Your partner can react while you
+ * tap Done. Or chicken out 🐔 — but only twice a game each (MAX_CHICKENS); after
+ * that you have to do it. Your partner can react while you
  * do it. Then it's their turn. `rounds` turns in all (6 each by default).
  *
  * State: { rounds, round, order, current, phase: "choosing"|"doing"|"finished",
@@ -17,6 +18,7 @@ import { GAME_ERROR, gameError } from "@/lib/game/errors";
  * Actions: choose { kind: "truth"|"dare" }  done {}  chicken {}  react { emoji }  finish {}
  */
 export const DEFAULT_ROUNDS = 12;
+export const MAX_CHICKENS = 2; // per player, per game
 export const REACTIONS = Object.freeze(["❤️", "🔥", "😳", "😂", "🥵", "😈"]);
 const KINDS = new Set(["truth", "dare"]);
 
@@ -66,6 +68,7 @@ const rules = {
     }
     if (type === "done" || type === "chicken") {
       if (state.phase !== "doing") return gameError(GAME_ERROR.ILLEGAL_ACTION, "Pick truth or dare first.");
+      if (type === "chicken" && state.tally[playerId].chicken >= MAX_CHICKENS) return gameError(GAME_ERROR.ILLEGAL_ACTION, "No more chickening out — you've used both. You have to do it! 😈");
       return null;
     }
     return gameError(GAME_ERROR.MALFORMED_ACTION, "That action wasn't understood.");
