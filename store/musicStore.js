@@ -268,6 +268,15 @@ export const useMusicStore = create((set, get) => ({
     return { youtubeId: data.youtubeId };
   },
 
+  /** The song's video refused to play: find another (skipping the ones that failed). → { youtubeId } | { error } */
+  async rematch(trackId, failed) {
+    const { data, error } = await api("/api/music/match", { method: "POST", body: { trackId, failed } });
+    if (error) return { error };
+    const latest = get().tracks.get(trackId);
+    if (latest) set({ tracks: new Map(get().tracks).set(trackId, { ...latest, youtubeId: data.youtubeId }) });
+    return { youtubeId: data.youtubeId };
+  },
+
   // ── Playlists ────────────────────────────────────────────────────────────
   async savePlaylist(playlistId, name) {
     if (!ctx) return { error: "unavailable" };

@@ -26,6 +26,7 @@ const SYNC_EVERY_MS = 1000;
 const DRIFT_S = 2;
 const SECOND_WRITER_MS = 2500;
 const DANCE_EVERY_MS = 4200;
+const MAX_TRIES = 3; // different YouTube versions tried for one song before skipping it
 
 const SPOTIFY_RETURN = {
   connected: "Spotify is connected ✓ — search songs or bring in a playlist.",
@@ -54,9 +55,14 @@ export function MusicBar({ me, onEmote }) {
   const [ready, setReady] = useState(false);
   const [blocked, setBlocked] = useState(false);
   const [problem, setProblem] = useState(null);
+  const [gaveUp, setGaveUp] = useState(false); // tried enough versions of this song: skip it
+  const [refused, setRefused] = useState(null); // { trackId, youtubeId } that just refused to play
+  const failedRef = useRef(new Map()); // song id → videos that refused to play here
   const [, setTick] = useState(0);
   const youtubeId = track?.youtubeId ?? null;
   const trackId = track?.id ?? null;
+  const trackIdRef = useRef(trackId);
+  trackIdRef.current = trackId;
 
   // A song without its YouTube match yet: find it (the screen that chose it first).
   useEffect(() => {
@@ -99,7 +105,8 @@ export function MusicBar({ me, onEmote }) {
             playerRef.current = yt;
             setReady(true);
           },
-          onError: () => !cancelled && setProblem("This song can't play here — skipping it."),
+          // Blocked outside YouTube, in this country, or gone: try another version of the song.
+          onError: () => !cancelled && setRefused({ trackId: trackIdRef.current, youtubeId }),
         },
       });
     });
@@ -167,12 +174,43 @@ export function MusicBar({ me, onEmote }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [version, ready, track?.durationS, me]);
 
-  // A song YouTube won't play: skip it (the screen that chose it).
+  // That version refused: ask for another of the same song (a few times), then give up on it.
   useEffect(() => {
-    if (!problem || !music?.playing || music.updatedBy !== me || !youtubeId) return undefined;
+    if (!refused?.trackId) return undefined;
+    let cancelled = false;
+    const failed = [...(failedRef.current.get(refused.trackId) ?? []), refused.youtubeId];
+    failedRef.current.set(refused.trackId, failed);
+    const giveUp = () => {
+      setProblem("This song won't play here — skipping it.");
+      setGaveUp(true);
+    };
+    if (failed.length >= MAX_TRIES) giveUp();
+    else {
+      setProblem("That version is blocked — finding another…");
+      useMusicStore
+        .getState()
+        .rematch(refused.trackId, failed)
+        .then((result) => {
+          if (cancelled) return;
+          if (result.error) giveUp();
+          else setProblem(null);
+        });
+    }
+    return () => {
+      cancelled = true;
+    };
+  }, [refused]);
+  useEffect(() => {
+    setRefused(null);
+    setGaveUp(false);
+  }, [trackId]);
+
+  // A song that won't play at all: skip it (the screen that chose it).
+  useEffect(() => {
+    if (!(gaveUp || (problem && !youtubeId)) || !music?.playing || music.updatedBy !== me) return undefined;
     const timer = setTimeout(() => useMusicStore.getState().next({ manual: true }), 2500);
     return () => clearTimeout(timer);
-  }, [problem, music?.playing, music?.updatedBy, me, youtubeId]);
+  }, [gaveUp, problem, music?.playing, music?.updatedBy, me, youtubeId]);
   useEffect(() => setProblem(null), [trackId]);
 
   // Dancing while a song plays.

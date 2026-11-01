@@ -493,9 +493,9 @@ function AddSongs({ me, partnerName }) {
       </section>
 
       <section className="flex flex-col gap-2">
-        <h3 className="text-caption font-semibold text-white-soft">Or a YouTube link</h3>
+        <h3 className="text-caption font-semibold text-white-soft">Or a YouTube / YouTube Music link</h3>
         <form className="flex gap-2" onSubmit={addLink}>
-          <input value={link} onChange={(e) => setLink(e.target.value)} placeholder="https://youtu.be/…" aria-label="YouTube link" className="min-h-10 min-w-0 flex-1 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-black-800 px-3 text-caption text-white-soft" />
+          <input value={link} onChange={(e) => setLink(e.target.value)} placeholder="youtu.be/… or music.youtube.com/watch?v=…" aria-label="YouTube link" className="min-h-10 min-w-0 flex-1 rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-black-800 px-3 text-caption text-white-soft" />
           <button type="submit" disabled={!link.trim()} className="min-h-10 rounded-[var(--radius-md)] bg-white-soft px-4 text-caption font-semibold text-black-950 disabled:opacity-60">
             Add
           </button>
