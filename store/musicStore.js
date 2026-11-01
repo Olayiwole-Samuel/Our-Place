@@ -19,6 +19,9 @@ import { useRoomStore } from "./roomStore";
  *   dancing     you're dancing (local; your character dances while a song plays — your partner sees it)
  *   muted       this device only
  *   volume      music volume on this device, 0–100 (remembered; never shared)
+ *   autoplay    when the queue runs out, carry on with songs like the last one (this device's
+ *               choice, remembered; the screen that moves the music on applies it)
+ *   radioBusy   finding similar songs right now
  *   duration    the playing song's length in seconds (from the player, else Spotify's), 0 = unknown
  *
  * The room store opens and closes it (it shares the couple's lobby topic:
@@ -26,8 +29,17 @@ import { useRoomStore } from "./roomStore";
  */
 export const MUSIC_AREAS = new Set(["music", "tracks", "playlists", "spotify"]);
 
-const initial = { available: true, tracks: new Map(), order: [], playlists: [], music: null, spotify: null, dancing: false, muted: false, panelTab: "now", flash: null, duration: 0, volume: savedVolume() };
+const initial = { available: true, tracks: new Map(), order: [], playlists: [], music: null, spotify: null, dancing: false, muted: false, panelTab: "now", flash: null, duration: 0, volume: savedVolume(), autoplay: savedFlag("our-place:music-autoplay", true), radioBusy: false };
 let ctx = null; // { supabase, userId }
+
+function savedFlag(key, fallback) {
+  try {
+    const value = globalThis.localStorage?.getItem(key);
+    return value === null || value === undefined ? fallback : value === "1";
+  } catch {
+    return fallback;
+  }
+}
 
 const VOLUME_KEY = "our-place:music-volume";
 function savedVolume() {
@@ -84,7 +96,7 @@ export const useMusicStore = create((set, get) => ({
 
   close() {
     ctx = null;
-    set({ ...initial, muted: get().muted, volume: get().volume });
+    set({ ...initial, muted: get().muted, volume: get().volume, autoplay: get().autoplay });
   },
 
   async refresh(area) {
@@ -130,7 +142,7 @@ export const useMusicStore = create((set, get) => ({
   /** Writes the player (merging into the current state). Returns an error code or null. */
   async setMusic(change) {
     if (!ctx) return "unavailable";
-    const base = get().music ?? { queue: [], position: 0, playing: false, atSeconds: 0, shuffle: false, repeat: "all", playlistId: null };
+    const base = get().music ?? { queue: [], position: 0, playing: false, atSeconds: 0, shuffle: false, repeat: "off", playlistId: null };
     const next = { ...base, ...change };
     const sentAt = Date.now();
     const { data, error } = await ctx.supabase.rpc("set_music", {
@@ -174,11 +186,60 @@ export const useMusicStore = create((set, get) => ({
     return get().setMusic({ playing: !music.playing, atSeconds: get().now() });
   },
 
-  next({ manual = true } = {}) {
+  async next({ manual = true } = {}) {
     const music = get().music;
-    const position = nextPosition(music, { manual });
+    // The end of the queue (not looping one song): Autoplay carries on with songs like this one.
+    const atEnd = music?.queue.length && music.position === music.queue.length - 1 && music.repeat !== "one";
+    if (atEnd && get().autoplay && (music.repeat === "off" || manual || music.queue.length === 1)) {
+      const added = await get().extendWithRadio(music.queue[music.position]);
+      if (added) return get().setMusic({ position: music.position + 1, atSeconds: 0, playing: true });
+    }
+    const position = nextPosition(get().music, { manual });
     if (position === null) return get().setMusic({ playing: false, atSeconds: 0 });
     return get().setMusic({ position, atSeconds: 0, playing: true });
+  },
+
+  /** Songs like `trackId`, added to your library. → their ids ([] if none / Spotify isn't connected) */
+  async similarTo(trackId) {
+    const queued = new Set(get().music?.queue ?? []);
+    const exclude = [...queued].map((id) => get().tracks.get(id)?.spotifyId).filter(Boolean);
+    set({ radioBusy: true });
+    try {
+      const { data, error } = await api(`/api/music/spotify?radio=${trackId}&exclude=${exclude.slice(-200).join(",")}`);
+      if (error || !data.tracks?.length) return [];
+      const ids = [];
+      for (const song of data.tracks) {
+        const { track } = await get().addSpotify(song);
+        if (track && !queued.has(track.id)) ids.push(track.id);
+      }
+      return ids;
+    } finally {
+      set({ radioBusy: false });
+    }
+  },
+
+  /** Adds similar songs after the end of the queue. → how many were added */
+  async extendWithRadio(trackId) {
+    const ids = await get().similarTo(trackId);
+    if (!ids.length) return 0;
+    const music = get().music;
+    await get().setMusic({ queue: [...music.queue, ...ids], atSeconds: get().now() });
+    return ids.length;
+  },
+
+  /** Song radio: play this song now, then songs like it. */
+  async startRadio(trackId) {
+    const ids = await get().similarTo(trackId);
+    return get().setMusic({ queue: [trackId, ...ids], position: 0, atSeconds: 0, playing: true, playlistId: null });
+  },
+
+  setAutoplay(autoplay) {
+    set({ autoplay });
+    try {
+      globalThis.localStorage?.setItem("our-place:music-autoplay", autoplay ? "1" : "0");
+    } catch {
+      // private mode: just for this visit
+    }
   },
 
   previous() {

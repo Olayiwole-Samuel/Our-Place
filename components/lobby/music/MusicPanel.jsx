@@ -1,6 +1,6 @@
 "use client";
 
-import { Heart, ListMusic, Library, Music, Pause, Play, Plus, Repeat, Repeat1, RotateCcw, RotateCw, Search, Shuffle, SkipBack, SkipForward, Trash2, X } from "lucide-react";
+import { Heart, ListMusic, Library, Music, Pause, Play, Plus, Radio, Repeat, Repeat1, RotateCcw, RotateCw, Search, Shuffle, SkipBack, SkipForward, Trash2, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { formatTime } from "@/lib/room/watch";
 import { currentTrack, useMusicStore } from "@/store/musicStore";
@@ -223,8 +223,10 @@ function NowPlaying() {
         </div>
         <div className="flex items-center gap-2">
           <OurSongButton trackId={track.id} />
+          <RadioButton trackId={track.id} />
           <DanceButton />
         </div>
+        <AutoplaySwitch />
       </div>
       <div className="min-w-0 flex-1">
         <p className="micro-caps mb-1 text-text-muted">Up next</p>
@@ -245,6 +247,42 @@ function NowPlaying() {
         </ol>
       </div>
     </div>
+  );
+}
+
+/** Song radio: this song, then songs like it (its artists and the ones featured on it). */
+function RadioButton({ trackId, compact = false }) {
+  const busy = useMusicStore((state) => state.radioBusy);
+  const connected = useMusicStore((state) => Boolean(state.spotify?.connected));
+  if (!connected) return null;
+  if (compact) {
+    return (
+      <IconButton label="Song radio — this song, then songs like it" onClick={() => useMusicStore.getState().startRadio(trackId)}>
+        <Radio aria-hidden="true" size={14} />
+      </IconButton>
+    );
+  }
+  return (
+    <button type="button" disabled={busy} onClick={() => useMusicStore.getState().startRadio(trackId)} className="flex min-h-8 items-center gap-1 rounded-full border border-[var(--border-subtle)] px-3 text-micro font-semibold tracking-normal text-text-secondary hover:bg-black-700 disabled:opacity-60">
+      <Radio aria-hidden="true" size={13} /> {busy ? "Finding…" : "Song radio"}
+    </button>
+  );
+}
+
+/** Autoplay: when the queue runs out, keep going with songs like the last one (like Spotify). */
+function AutoplaySwitch() {
+  const autoplay = useMusicStore((state) => state.autoplay);
+  const connected = useMusicStore((state) => Boolean(state.spotify?.connected));
+  const busy = useMusicStore((state) => state.radioBusy);
+  if (!connected) return null;
+  return (
+    <label className="flex w-full cursor-pointer items-center justify-between gap-2 rounded-[var(--radius-md)] bg-black-800 px-3 py-2">
+      <span className="min-w-0">
+        <span className="block text-micro font-semibold tracking-normal text-white-soft">Autoplay {busy ? "· finding songs…" : ""}</span>
+        <span className="block text-[0.65rem] leading-snug text-text-muted">When the queue ends, keep playing songs like the last one</span>
+      </span>
+      <input type="checkbox" role="switch" checked={autoplay} onChange={(e) => useMusicStore.getState().setAutoplay(e.target.checked)} className="size-4 shrink-0 accent-green-500" />
+    </label>
   );
 }
 
@@ -374,6 +412,7 @@ function Songs() {
             <IconButton label="Play next" onClick={() => store.queueNext(song.id)}>
               <ListMusic aria-hidden="true" size={14} />
             </IconButton>
+            <RadioButton trackId={song.id} compact />
             <AddToPlaylist trackId={song.id} />
             <OurSongButton trackId={song.id} />
             <IconButton
