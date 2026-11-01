@@ -1,6 +1,6 @@
 "use client";
 
-import { Heart, ListMusic, Library, Music, Pause, Play, Plus, Repeat, Repeat1, Search, Shuffle, SkipBack, SkipForward, Trash2, X } from "lucide-react";
+import { Heart, ListMusic, Library, Music, Pause, Play, Plus, Repeat, Repeat1, RotateCcw, RotateCw, Search, Shuffle, SkipBack, SkipForward, Trash2, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { formatTime } from "@/lib/room/watch";
 import { currentTrack, useMusicStore } from "@/store/musicStore";
@@ -143,6 +143,7 @@ function NowPlaying() {
   const tracks = useMusicStore((state) => state.tracks);
   const store = useMusicStore.getState();
   const [, setTick] = useState(0);
+  const [scrub, setScrub] = useState(null); // where you're dragging to (seconds)
   useEffect(() => {
     const timer = setInterval(() => setTick((n) => n + 1), 1000);
     return () => clearInterval(timer);
@@ -160,8 +161,13 @@ function NowPlaying() {
       </div>
     );
   }
-  const at = store.now();
-  const duration = track.durationS ?? 0;
+  const duration = useMusicStore.getState().duration || track.durationS || 0;
+  const at = scrub ?? Math.min(store.now(), duration || Infinity);
+  const commitScrub = () => {
+    if (scrub === null) return;
+    store.seek(scrub);
+    setScrub(null);
+  };
   const RepeatIcon = music.repeat === "one" ? Repeat1 : Repeat;
   const nextRepeat = { off: "all", all: "one", one: "off" }[music.repeat];
   return (
@@ -173,13 +179,31 @@ function NowPlaying() {
         </div>
         <p className="w-full truncate text-center text-body font-semibold text-white-soft">{track.title}</p>
         <p className="-mt-2 w-full truncate text-center text-micro tracking-normal text-text-muted">{track.artist}</p>
-        {duration > 0 && (
-          <div className="flex w-full items-center gap-2 text-[0.65rem] text-text-muted">
-            <span>{formatTime(at)}</span>
-            <input type="range" min={0} max={duration} value={Math.min(at, duration)} onChange={(e) => store.seek(Number(e.target.value))} aria-label="Position" className="flex-1 accent-green-500" />
-            <span>{formatTime(duration)}</span>
-          </div>
-        )}
+        <div className="flex w-full items-center gap-1.5 text-[0.65rem] tabular-nums text-text-muted">
+          <IconButton label="Back 10 seconds" onClick={() => store.skipBy(-10)}>
+            <RotateCcw aria-hidden="true" size={14} />
+          </IconButton>
+          <span>{formatTime(at)}</span>
+          <input
+            type="range"
+            min={0}
+            max={Math.max(1, Math.floor(duration))}
+            step={1}
+            value={Math.floor(at)}
+            disabled={!duration}
+            onChange={(e) => setScrub(Number(e.target.value))}
+            onPointerUp={commitScrub}
+            onKeyUp={commitScrub}
+            onBlur={commitScrub}
+            aria-label="Song position"
+            aria-valuetext={`${formatTime(at)} of ${formatTime(duration)}`}
+            className="min-w-0 flex-1 accent-green-500"
+          />
+          <span>{duration ? formatTime(duration) : "–:––"}</span>
+          <IconButton label="Forward 10 seconds" onClick={() => store.skipBy(10)}>
+            <RotateCw aria-hidden="true" size={14} />
+          </IconButton>
+        </div>
         <div className="flex items-center gap-1">
           <IconButton label={music.shuffle ? "Shuffle on" : "Shuffle off"} active={music.shuffle} onClick={() => store.setShuffle(!music.shuffle)}>
             <Shuffle aria-hidden="true" size={15} />

@@ -1,9 +1,10 @@
 "use client";
 
-import { Pause, Play, SkipBack, SkipForward, Volume2, VolumeX } from "lucide-react";
+import { Pause, Play, RotateCcw, RotateCw, SkipBack, SkipForward, Volume2, VolumeX } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { loadYouTube } from "@/lib/media/youtube";
 import { musicPosition, nextPosition } from "@/lib/music/queue";
+import { formatTime } from "@/lib/room/watch";
 import { currentTrack, useMusicStore } from "@/store/musicStore";
 import { useRoomStore } from "@/store/roomStore";
 
@@ -49,6 +50,15 @@ export function MusicBar({ me, onEmote }) {
   const music = useMusicStore((state) => state.music);
   const track = useMusicStore(currentTrack);
   const muted = useMusicStore((state) => state.muted);
+  const volume = useMusicStore((state) => state.volume);
+  const [volumeOpen, setVolumeOpen] = useState(false);
+  const volumeRef = useRef(null);
+  useEffect(() => {
+    if (!volumeOpen) return undefined;
+    const away = (event) => !volumeRef.current?.contains(event.target) && setVolumeOpen(false);
+    document.addEventListener("pointerdown", away);
+    return () => document.removeEventListener("pointerdown", away);
+  }, [volumeOpen]);
   const dancing = useMusicStore((state) => state.dancing);
   const hostRef = useRef(null);
   const playerRef = useRef(null);
@@ -61,6 +71,13 @@ export function MusicBar({ me, onEmote }) {
   const [, setTick] = useState(0);
   const youtubeId = track?.youtubeId ?? null;
   const trackId = track?.id ?? null;
+  const duration = useMusicStore((state) => state.duration);
+  const [scrub, setScrub] = useState(null); // where you're dragging the timeline to (seconds)
+
+  // The song's length: Spotify's until the player knows better.
+  useEffect(() => {
+    useMusicStore.setState({ duration: track?.durationS ?? 0 });
+  }, [trackId, track?.durationS]);
   const trackIdRef = useRef(trackId);
   trackIdRef.current = trackId;
 
@@ -104,6 +121,8 @@ export function MusicBar({ me, onEmote }) {
             if (cancelled) return;
             playerRef.current = yt;
             setReady(true);
+            const length = yt.getDuration?.();
+            if (length > 0) useMusicStore.setState({ duration: length });
           },
           // Blocked outside YouTube, in this country, or gone: try another version of the song.
           onError: () => !cancelled && setRefused({ trackId: trackIdRef.current, youtubeId }),
@@ -121,6 +140,15 @@ export function MusicBar({ me, onEmote }) {
     };
   }, [youtubeId]);
 
+  // Volume and mute are for THIS phone only (never shared): applied at once.
+  useEffect(() => {
+    const yt = playerRef.current;
+    if (!ready || !yt?.mute) return;
+    yt.setVolume?.(volume);
+    if (muted || volume === 0) yt.mute();
+    else yt.unMute();
+  }, [muted, volume, ready]);
+
   // Follow the shared state: play/pause, and seek when we drift.
   useEffect(() => {
     if (!ready || !music) return undefined;
@@ -130,7 +158,9 @@ export function MusicBar({ me, onEmote }) {
       const skewMs = useRoomStore.getState().skewMs ?? 0;
       const expected = musicPosition(music, { skewMs });
       const duration = yt.getDuration?.() || track?.durationS || 0;
-      if (useMusicStore.getState().muted) yt.mute();
+      const { muted: silent, volume: level } = useMusicStore.getState();
+      if (yt.getVolume?.() !== level) yt.setVolume?.(level);
+      if (silent || level === 0) yt.mute();
       else yt.unMute();
       if (!music.playing) {
         if (yt.getPlayerState() === 1) yt.pauseVideo();
@@ -228,8 +258,16 @@ export function MusicBar({ me, onEmote }) {
     setBlocked(false);
   };
 
+  const at = scrub ?? Math.min(store.now(), duration || Infinity);
+  const commitScrub = () => {
+    if (scrub === null) return;
+    store.seek(scrub);
+    setScrub(null);
+  };
+
   return (
-    <div className="music-bar panel pointer-events-auto flex max-w-[min(26rem,92vw)] items-center gap-2 rounded-full py-1 pr-1.5 pl-1 shadow-[0_6px_24px_rgba(0,0,0,0.35)]">
+    <div className="music-bar panel pointer-events-auto flex w-[min(26rem,92vw)] flex-col rounded-[1.4rem] py-1 pr-1.5 pl-1 shadow-[0_6px_24px_rgba(0,0,0,0.35)]">
+      <div className="flex items-center gap-2">
       <div className="relative h-9 w-16 shrink-0 overflow-hidden rounded-full bg-black-900">
         <div ref={hostRef} className="absolute inset-0 [&>iframe]:h-full [&>iframe]:w-full" />
         {/* eslint-disable-next-line @next/next/no-img-element -- album art from Spotify */}
@@ -257,14 +295,57 @@ export function MusicBar({ me, onEmote }) {
           <button type="button" aria-label="Next" onClick={() => store.next()} className="grid size-8 place-items-center rounded-full text-text-secondary hover:bg-black-700">
             <SkipForward aria-hidden="true" size={15} />
           </button>
-          <button type="button" aria-label={muted ? "Unmute on this phone" : "Mute on this phone"} onClick={() => store.setMuted(!muted)} className="grid size-8 place-items-center rounded-full text-text-secondary hover:bg-black-700">
-            {muted ? <VolumeX aria-hidden="true" size={15} /> : <Volume2 aria-hidden="true" size={15} />}
-          </button>
+          <span ref={volumeRef} className="relative">
+            <button type="button" aria-label={`Music volume on this phone: ${muted ? "muted" : `${volume}%`}`} aria-expanded={volumeOpen} onClick={() => setVolumeOpen((open) => !open)} className={`grid size-8 place-items-center rounded-full hover:bg-black-700 ${muted || volume === 0 ? "text-pink-400" : "text-text-secondary"}`}>
+              {muted || volume === 0 ? <VolumeX aria-hidden="true" size={15} /> : <Volume2 aria-hidden="true" size={15} />}
+            </button>
+            {volumeOpen && (
+              <span className="panel absolute top-full right-0 z-30 mt-2 flex w-52 flex-col gap-2 rounded-[var(--radius-md)] p-3 shadow-lg">
+                <label htmlFor="music-volume" className="flex items-baseline justify-between text-caption font-semibold text-white-soft">
+                  Music volume <span className="text-micro font-normal tracking-normal text-text-secondary">{muted ? "muted" : `${volume}%`}</span>
+                </label>
+                <input id="music-volume" type="range" min={0} max={100} step={5} value={muted ? 0 : volume} onChange={(event) => store.setVolume(Number(event.target.value))} className="accent-green-500" />
+                <span className="flex items-center justify-between gap-2">
+                  <span className="text-[0.65rem] leading-snug text-text-muted">Only on this phone — not your partner&apos;s, not your voice call.</span>
+                  <button type="button" onClick={() => store.setMuted(!muted)} className="shrink-0 rounded-full border border-[var(--border-subtle)] px-2.5 py-1 text-micro tracking-normal text-text-secondary hover:bg-black-700">
+                    {muted ? "Unmute" : "Mute"}
+                  </button>
+                </span>
+              </span>
+            )}
+          </span>
           <button type="button" aria-pressed={dancing} aria-label={dancing ? "Stop dancing" : "Dance"} onClick={() => store.setDancing(!dancing)} className={`grid size-8 place-items-center rounded-full text-[0.95rem] ${dancing ? "bg-pink-500/30" : "hover:bg-black-700"}`}>
             💃
           </button>
         </div>
       )}
+      </div>
+      {/* The timeline: drag to any moment, or jump 10 s back / forward — for both of you. */}
+      <div className="flex items-center gap-1.5 pt-0.5 pr-1 pl-2 text-[0.62rem] tabular-nums text-text-muted">
+        <button type="button" aria-label="Back 10 seconds" title="Back 10 s" onClick={() => store.skipBy(-10)} className="grid size-6 place-items-center rounded-full hover:bg-black-700 hover:text-white-soft">
+          <RotateCcw aria-hidden="true" size={12} />
+        </button>
+        <span className="w-8 text-right">{formatTime(at)}</span>
+        <input
+          type="range"
+          min={0}
+          max={Math.max(1, Math.floor(duration || 0))}
+          step={1}
+          value={Math.floor(at)}
+          disabled={!duration}
+          aria-label="Song position"
+          aria-valuetext={`${formatTime(at)} of ${formatTime(duration)}`}
+          onChange={(event) => setScrub(Number(event.target.value))}
+          onPointerUp={commitScrub}
+          onKeyUp={commitScrub}
+          onBlur={commitScrub}
+          className="music-timeline h-1 min-w-0 flex-1 accent-green-500"
+        />
+        <span className="w-8">{duration ? formatTime(duration) : "–:––"}</span>
+        <button type="button" aria-label="Forward 10 seconds" title="Forward 10 s" onClick={() => store.skipBy(10)} className="grid size-6 place-items-center rounded-full hover:bg-black-700 hover:text-white-soft">
+          <RotateCw aria-hidden="true" size={12} />
+        </button>
+      </div>
     </div>
   );
 }

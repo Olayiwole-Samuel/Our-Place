@@ -18,14 +18,26 @@ import { useRoomStore } from "./roomStore";
  *   spotify     { connected, userId, displayName } — whoever connected their Spotify for picking songs
  *   dancing     you're dancing (local; your character dances while a song plays — your partner sees it)
  *   muted       this device only
+ *   volume      music volume on this device, 0–100 (remembered; never shared)
+ *   duration    the playing song's length in seconds (from the player, else Spotify's), 0 = unknown
  *
  * The room store opens and closes it (it shares the couple's lobby topic:
  * areas "music", "tracks", "playlists", "spotify" re-read from the database).
  */
 export const MUSIC_AREAS = new Set(["music", "tracks", "playlists", "spotify"]);
 
-const initial = { available: true, tracks: new Map(), order: [], playlists: [], music: null, spotify: null, dancing: false, muted: false, panelTab: "now", flash: null };
+const initial = { available: true, tracks: new Map(), order: [], playlists: [], music: null, spotify: null, dancing: false, muted: false, panelTab: "now", flash: null, duration: 0, volume: savedVolume() };
 let ctx = null; // { supabase, userId }
+
+const VOLUME_KEY = "our-place:music-volume";
+function savedVolume() {
+  try {
+    const value = Number(globalThis.localStorage?.getItem(VOLUME_KEY));
+    return Number.isFinite(value) && value >= 0 && value <= 100 && globalThis.localStorage.getItem(VOLUME_KEY) !== null ? value : 80;
+  } catch {
+    return 80;
+  }
+}
 
 const codeOf = (error) => error?.message?.match(/room:([a-z_]+)/)?.[1] ?? "unknown";
 
@@ -72,7 +84,7 @@ export const useMusicStore = create((set, get) => ({
 
   close() {
     ctx = null;
-    set({ ...initial, muted: get().muted });
+    set({ ...initial, muted: get().muted, volume: get().volume });
   },
 
   async refresh(area) {
@@ -177,7 +189,14 @@ export const useMusicStore = create((set, get) => ({
   },
 
   seek(seconds) {
-    return get().setMusic({ atSeconds: Math.max(0, seconds) });
+    const duration = get().duration;
+    const end = duration > 1 ? duration - 1 : Infinity;
+    return get().setMusic({ atSeconds: Math.min(end, Math.max(0, seconds)) });
+  },
+
+  /** A few seconds back (negative) or forward, for both of you. */
+  skipBy(seconds) {
+    return get().seek(get().now() + seconds);
   },
 
   jump(position) {
@@ -314,6 +333,16 @@ export const useMusicStore = create((set, get) => ({
   // ── This device ──────────────────────────────────────────────────────────
   setDancing: (dancing) => set({ dancing }),
   setMuted: (muted) => set({ muted }),
+  /** Music volume on this phone only (0–100). */
+  setVolume(volume) {
+    const value = Math.round(Math.min(100, Math.max(0, Number(volume) || 0)));
+    set({ volume: value, muted: value === 0 ? get().muted : false });
+    try {
+      globalThis.localStorage?.setItem(VOLUME_KEY, String(value));
+    } catch {
+      // private mode: just for this visit
+    }
+  },
   setPanelTab: (panelTab) => set({ panelTab }),
   setFlash: (flash) => set({ flash }),
 }));
