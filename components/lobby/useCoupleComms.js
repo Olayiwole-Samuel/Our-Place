@@ -47,13 +47,14 @@ export function useCoupleComms({ runtime, coupleId, userId, partnerId }) {
           handlers: {
             onConnection: (status) => useChatStore.getState().setConnection(status),
             onReconnected: () => useChatStore.getState().catchUp(),
+            onSeen: (seen) => useChatStore.getState().receiveSeen(seen),
             onMessage: (message) => {
               const fromPartner = useChatStore.getState().receive(message);
               if (fromPartner.length && !useChatStore.getState().open) playSound("message");
             },
           },
         });
-        useChatStore.getState().attach(chat, { userId, coupleId });
+        useChatStore.getState().attach(chat, { userId, coupleId, partnerId });
 
         emotes = openCoupleEmotes({
           supabase,

@@ -40,6 +40,7 @@ export function ChatPanel({ meId, partnerName, onClose, onComposerFocus, panelId
   const replies = useChatStore((state) => state.replies);
   const replyingTo = useChatStore((state) => state.replyingTo);
   const quoted = useChatStore((state) => state.quoted);
+  const partnerSeen = useChatStore((state) => state.partnerSeen);
   const partnerTyping = useChatStore((state) => state.partnerTyping);
   const reduceMotion = useReducedMotion();
   const listRef = useRef(null);
@@ -229,6 +230,7 @@ export function ChatPanel({ meId, partnerName, onClose, onComposerFocus, panelId
             highlightId={highlightId}
             onReply={startReply}
             onQuote={jumpTo}
+            partnerSeen={partnerSeen}
           />
           {partnerTyping && <TypingBubble name={partnerName} />}
         </div>
@@ -291,8 +293,10 @@ export function ChatPanel({ meId, partnerName, onClose, onComposerFocus, panelId
   );
 }
 
-function MessageList({ messages, meId, partnerName, replies, quoted, highlightId, onReply, onQuote }) {
+function MessageList({ messages, meId, partnerName, replies, quoted, highlightId, onReply, onQuote, partnerSeen = null }) {
   const byId = useMemo(() => new Map(messages.map((message) => [message.id, message])), [messages]);
+  // Your newest saved message carries the words ("Seen" / "Sent"); every one of yours gets ticks.
+  const lastMine = [...messages].reverse().find((message) => message.senderId === meId && message.status === "sent" && message.type !== "system")?.id ?? null;
   const rows = [];
   let previous = null;
   for (const message of messages) {
@@ -329,6 +333,8 @@ function MessageList({ messages, meId, partnerName, replies, quoted, highlightId
           onReply={onReply}
           onQuote={onQuote}
           highlighted={highlightId === message.id}
+          receipt={mine && message.status === "sent" && partnerSeen !== null ? (message.micros <= partnerSeen ? "seen" : "sent") : mine && message.status === "sent" ? "sent" : null}
+          receiptLabel={message.id === lastMine}
         />,
       );
     }

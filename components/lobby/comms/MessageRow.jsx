@@ -17,7 +17,7 @@ const timeFormat = new Intl.DateTimeFormat(undefined, { hour: "numeric", minute:
  *   desktop  a reply button beside the bubble on hover (or keyboard focus).
  * A reply shows its quoted original above the text; tapping the quote jumps there.
  */
-export function MessageRow({ message, mine, startsGroup, senderName, quote, quoteName, quoteMine, canReply, onReply, onQuote, highlighted }) {
+export function MessageRow({ message, mine, startsGroup, senderName, quote, quoteName, quoteMine, canReply, onReply, onQuote, highlighted, receipt = null, receiptLabel = false }) {
   const failed = message.status === "failed";
   const reduce = useReducedMotion();
   const { pull, handlers } = useSwipeToReply({ enabled: canReply, onReply: () => onReply(message), reduce });
@@ -73,6 +73,18 @@ export function MessageRow({ message, mine, startsGroup, senderName, quote, quot
         )}
       </div>
       {message.status === "sending" && <span className="px-1 text-micro text-text-muted">Sending…</span>}
+      {receipt && (
+        <span
+          aria-label={receipt === "seen" ? "Seen" : "Sent"}
+          title={receipt === "seen" ? "Seen" : "Sent"}
+          className={`flex items-center gap-1 px-1 text-[0.65rem] leading-tight ${receipt === "seen" ? "text-green-400" : "text-text-muted"}`}
+        >
+          {receiptLabel && <span>{receipt === "seen" ? "Seen" : "Sent"}</span>}
+          <span aria-hidden="true" className={receipt === "seen" ? "chat-seen tracking-[-0.35em]" : ""}>
+            {receipt === "seen" ? "✓✓" : "✓"}
+          </span>
+        </span>
+      )}
       {failed && (
         <span role="alert" className="flex items-center gap-2 px-1 pt-0.5 text-micro text-pink-400">
           {CHAT_ERROR_COPY[message.error] ?? "Message failed to send."}

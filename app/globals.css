@@ -388,6 +388,16 @@
   right: calc(var(--safe-right) + var(--edge-gap));
   top: calc(var(--safe-top) + var(--edge-gap) + 2 * var(--control-size) + 20px);
 }
+/* Chat: the second tick of "Seen" pops in. */
+.chat-seen {
+  display: inline-block;
+  animation: wyr-reveal 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .chat-seen {
+    animation: none;
+  }
+}
 /* The music bar: top centre, under the header, in every room. */
 .music-bar-anchor {
   position: absolute;

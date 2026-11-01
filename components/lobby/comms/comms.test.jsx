@@ -177,6 +177,28 @@ describe("replies", () => {
   });
 });
 
+describe("seen", () => {
+  it("your messages show Sent ✓, then Seen ✓✓ once your partner has seen them; opening the chat tells them", async () => {
+    const chat = { ...service(), markSeen: vi.fn(async () => true), loadSeen: vi.fn(async () => null) };
+    await act(() => useChatStore.getState().attach(chat, { userId: ME, coupleId: COUPLE, partnerId: PARTNER }));
+    dock();
+    fireEvent.click(screen.getByRole("button", { name: "Open chat" }));
+    const mine = toMessage(row({ sender_id: ME, content: "Miss you" }));
+    act(() => {
+      useChatStore.getState().receive(mine);
+    });
+    expect(screen.getByLabelText("Sent")).toBeTruthy();
+    act(() => useChatStore.getState().receiveSeen({ userId: PARTNER, micros: mine.micros }));
+    expect(screen.getByLabelText("Seen").textContent).toContain("Seen");
+    // Their message arrives while the chat is open and visible: we tell the database we've seen it.
+    const theirs = toMessage(row({ content: "Miss you more" }));
+    act(() => {
+      useChatStore.getState().receive(theirs);
+    });
+    expect(chat.markSeen).toHaveBeenCalledWith(theirs.cursor);
+  });
+});
+
 describe("typing indicator", () => {
   it("shows the partner typing on the closed button, then in the open chat", () => {
     dock();

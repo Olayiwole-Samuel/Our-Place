@@ -20,6 +20,7 @@ import { TYPING, createTypingGate } from "@/lib/chat/typing";
  *   quoted        originals of replies that aren't in the loaded window, fetched by
  *                 id: id → message, or null when it no longer exists
  *   partnerTyping the partner is typing right now (live, from the presence topic)
+ *   partnerSeen   how far your partner has seen (micros) — your messages up to it are "Seen"; null = unknown
  *
  * Module-level (like worldStore): written only from browser effects/handlers.
  */
@@ -36,10 +37,13 @@ const initialState = {
   replyingTo: null,
   quoted: {},
   partnerTyping: false,
+  partnerSeen: null,
 };
 
 let service = null;
 let me = null;
+let partner = null;
+let reportedSeen = 0; // micros we've already told the database we've seen
 let seenKey = null;
 let attachedCouple = null;
 let recentSends = [];
@@ -83,9 +87,11 @@ export const useChatStore = create((set, get) => ({
   ...initialState,
 
   /** Called by useCoupleChat once the service is open. */
-  async attach(nextService, { userId, coupleId }) {
+  async attach(nextService, { userId, coupleId, partnerId = null }) {
     service = nextService;
     me = userId;
+    partner = partnerId;
+    reportedSeen = 0;
     attachedCouple = coupleId;
     seenKey = `our-place:chat-seen:${coupleId}`;
     quoting = new Set();
@@ -104,13 +110,17 @@ export const useChatStore = create((set, get) => ({
       });
       if (get().open) get().markSeen();
       get().resolveQuotes();
+      if (partner && service.loadSeen) {
+        const seen = await service.loadSeen(partner).catch(() => null);
+        if (service === nextService && seen) get().receiveSeen({ userId: partner, micros: seen });
+      }
     } catch (error) {
       if (service === nextService) set({ status: "error", error: error.code ?? "unknown" });
     }
   },
 
   retryLoad() {
-    if (service) get().attach(service, { userId: me, coupleId: attachedCouple });
+    if (service) get().attach(service, { userId: me, coupleId: attachedCouple, partnerId: partner });
   },
 
   detach() {
@@ -143,6 +153,11 @@ export const useChatStore = create((set, get) => ({
     try {
       const rows = await service.catchUp(newestConfirmed(get().messages.filter((message) => !message.local)));
       if (rows.length) get().receive(rows);
+      // Anything they saw while we were away.
+      if (partner && service?.loadSeen) {
+        const seen = await service.loadSeen(partner).catch(() => null);
+        if (seen) get().receiveSeen({ userId: partner, micros: seen });
+      }
     } catch {
       // Next reconnect tries again; nothing is lost (the database has it).
     }
@@ -319,6 +334,18 @@ export const useChatStore = create((set, get) => ({
     const newest = newestConfirmed(get().messages.filter((message) => !message.local));
     if (newest && seenKey) writeSeen(newest.micros);
     if (get().unread) set({ unread: 0 });
+    // Tell your partner (✓✓ Seen) — only when there's something new of theirs to have seen.
+    const newestTheirs = newestConfirmed(get().messages.filter((message) => !message.local && isFromPartner(message)));
+    if (newestTheirs && newestTheirs.micros > reportedSeen && service?.markSeen) {
+      reportedSeen = newestTheirs.micros;
+      service.markSeen(newestTheirs.cursor).catch(() => {});
+    }
+  },
+
+  /** Your partner has seen up to `micros` (from the database). */
+  receiveSeen({ userId, micros }) {
+    if (userId !== partner || !Number.isFinite(micros)) return;
+    if (get().partnerSeen === null || micros > get().partnerSeen) set({ partnerSeen: micros });
   },
 
   reset: () => {
