@@ -1,7 +1,7 @@
 "use client";
 
 import { AnimatePresence, m } from "motion/react";
-import { Heart, House, Images, Music, PawPrint, Sofa, StickyNote, Trophy, Tv, Upload } from "lucide-react";
+import { Heart, House, Images, Moon, Music, PawPrint, Sofa, StickyNote, Trophy, Tv, Upload } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 import { useUploadStore } from "@/lib/room/uploads";
 import { livingRoom } from "@/lib/world/rooms/livingRoom";
@@ -10,6 +10,7 @@ import { useDecorStore } from "@/store/decorStore";
 import { useWorldStore } from "@/store/worldStore";
 import { useRoomStore } from "@/store/roomStore";
 import { HudButton } from "../comms/HudButton";
+import { BedroomPanel } from "../bedroom/BedroomPanel";
 import { MusicPanel } from "../music/MusicPanel";
 import { MemoriesPanel } from "./MemoriesPanel";
 import { DogPanel } from "./DogPanel";
@@ -50,6 +51,7 @@ export function RoomPanels({ me, partner, partnerName, runtime }) {
       {panel === "memories" && <MemoriesPanel key="memories" me={me.id} partnerName={partnerName} />}
       {panel === "tv" && <TvPanel key="tv" me={me.id} partnerName={partnerName} />}
       {panel === "music" && <MusicPanel key="music" me={me.id} partnerName={partnerName} />}
+      {panel === "bedroom" && <BedroomPanel key="bedroom" me={me.id} partner={partner.id} partnerName={partnerName} />}
       {panel === "shelf" && <ShelfPanel key="shelf" me={me.id} partner={partner.id} partnerName={partnerName} />}
     </AnimatePresence>
   );
@@ -61,6 +63,7 @@ const PLACES = [
   { id: "decorate", label: "Decorate", Icon: Sofa },
   { id: "tv", label: "TV", Icon: Tv },
   { id: "music", label: "Music", Icon: Music },
+  { id: "bedroom", label: "Bedroom", Icon: Moon },
   { id: "memories", label: "Memories", Icon: Images },
   { id: "notes", label: "Notes", Icon: StickyNote },
   { id: "shelf", label: "Trophies", Icon: Trophy },

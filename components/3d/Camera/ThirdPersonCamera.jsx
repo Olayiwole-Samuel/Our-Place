@@ -34,7 +34,7 @@ export function ThirdPersonCamera({ runtime }) {
   const place = (target, out) => {
     const { yaw } = runtime.camera;
     const { bounds, size } = runtime.room;
-    const distance = runtime.localPose.anim === "sit" ? SEATED_DISTANCE : DISTANCE;
+    const distance = runtime.localPose.anim === "sit" || runtime.localPose.anim === "lie" ? SEATED_DISTANCE : DISTANCE;
     out.set(
       THREE.MathUtils.clamp(target.x + Math.sin(yaw) * distance, bounds.minX + WALL_MARGIN, bounds.maxX - WALL_MARGIN),
       Math.min(HEIGHT, size.height - CEILING_MARGIN),
@@ -78,6 +78,20 @@ export function ThirdPersonCamera({ runtime }) {
       const follow = 1 - Math.exp(-4 * dt);
       camera.position.lerp(desired.current, follow);
       lookAt.current.lerp(focus.current.set(-Math.sin(yaw) * 0.9, 0, -Math.cos(yaw) * 0.9), follow);
+      camera.lookAt(lookAt.current);
+      return;
+    }
+    if (runtime.localPose.anim === "lie") {
+      // In bed: from the foot of the bed, a little above, looking up the bed at
+      // the pillows (where your heads are). Dragging swings it gently side to side.
+      const { x, z, ry } = runtime.localPose;
+      const swing = Math.sin(runtime.camera.yaw) * 0.9;
+      const back = 1.5;
+      const follow = 1 - Math.exp(-4 * dt);
+      const headX = x * 0.5 - Math.sin(ry) * 1.3;
+      const headZ = z - Math.cos(ry) * 1.3;
+      camera.position.lerp(desired.current.set(x * 0.5 + Math.sin(ry) * back + swing, 2.6, z + Math.cos(ry) * back), follow);
+      lookAt.current.lerp(focus.current.set(headX, 0.62, headZ), follow);
       camera.lookAt(lookAt.current);
       return;
     }

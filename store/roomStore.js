@@ -4,6 +4,7 @@ import { create } from "zustand";
 import { logConnection } from "@/lib/diagnostics/connectionLog";
 import { COUPLE_CHANNEL, coupleChannelName } from "@/lib/realtime/channels";
 import { openResilientChannel } from "@/lib/realtime/resilientChannel";
+import { BEDROOM_AREAS, useBedroomStore } from "./bedroomStore";
 import { MUSIC_AREAS, useMusicStore } from "./musicStore";
 
 /**
@@ -147,6 +148,7 @@ export const useRoomStore = create((set, get) => ({
             // The lobby topic is also client-writable, so an announcement is only a
             // hint: what changed is always re-read from the database.
             if (MUSIC_AREAS.has(payload.area)) useMusicStore.getState().refresh(payload.area);
+            else if (BEDROOM_AREAS.has(payload.area)) useBedroomStore.getState().refresh(payload.area);
             else get().refresh(payload.area);
           })
           .on("broadcast", { event: "tv-wait" }, ({ payload }) => {
@@ -163,12 +165,14 @@ export const useRoomStore = create((set, get) => ({
         if (status === "SUBSCRIBED" && here === ctx && get().ready) {
           get().refreshAll();
           for (const area of MUSIC_AREAS) useMusicStore.getState().refresh(area);
+          for (const area of BEDROOM_AREAS) useBedroomStore.getState().refresh(area);
         }
       },
     });
 
     get().refreshAll().then(() => here === ctx && set({ ready: true }));
     useMusicStore.getState().open({ supabase, userId });
+    useBedroomStore.getState().open({ supabase, userId });
     return () => get().close();
   },
 
@@ -182,6 +186,7 @@ export const useRoomStore = create((set, get) => ({
     closing.supabase.rpc("note_presence", { tz: zone() }).then(() => {}, () => {}); // "last here" = now
     closing.channel?.close();
     useMusicStore.getState().close();
+    useBedroomStore.getState().close();
     set({ ...initialState, skewMs: get().skewMs });
   },
 

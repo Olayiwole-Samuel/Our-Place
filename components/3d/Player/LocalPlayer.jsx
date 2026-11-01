@@ -1,11 +1,12 @@
 import { useFrame } from "@react-three/fiber";
 import { useMemo, useRef } from "react";
-import { standUp } from "@/lib/world/actions";
+import { getUp, standUp } from "@/lib/world/actions";
 import { moveWithCollisions } from "@/lib/world/collision";
 import { findNearestInteractable } from "@/lib/world/interactions";
 import { lerpAngle } from "@/lib/world/interpolation";
 import { decorColliders } from "@/lib/room/decor";
 import { PLAYER_RADIUS, roomColliders, roomInteractables } from "@/lib/world/rooms/livingRoom";
+import { useBedroomStore } from "@/store/bedroomStore";
 import { useDecorStore } from "@/store/decorStore";
 import { useRangeStore } from "@/store/rangeStore";
 import { useRoomStore } from "@/store/roomStore";
@@ -50,6 +51,11 @@ export function LocalPlayer({ runtime, character, reducedMotion }) {
         standUp(runtime);
         store.setSeated(false);
       }
+      if (pose.anim === "lie") {
+        getUp(runtime);
+        store.setSeated(false);
+        useBedroomStore.getState().setLying(false);
+      }
       const yaw = runtime.camera.yaw;
       // Camera-relative: "forward" is away from the camera.
       const forwardX = -Math.sin(yaw);
@@ -85,7 +91,7 @@ export function LocalPlayer({ runtime, character, reducedMotion }) {
       sinceInteractionCheck.current = 0;
       // The dog moves around, so it joins the things you can walk up to wherever it is.
       const dog = runtime.pet && { id: "dog", type: "dog", label: runtime.pet.name ?? "Your dog", verb: "Play", x: runtime.pet.x, z: runtime.pet.z, radius: DOG_REACH };
-      store.setInteractionTarget(pose.anim === "sit" || busy ? null : findNearestInteractable(pose, dog ? [dog, ...interactables] : interactables));
+      store.setInteractionTarget(pose.anim === "sit" || pose.anim === "lie" || busy ? null : findNearestInteractable(pose, dog ? [dog, ...interactables] : interactables));
     }
   });
 

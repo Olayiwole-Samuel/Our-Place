@@ -25,6 +25,7 @@ import { OfflineBanner } from "./OfflineBanner";
 import { OnboardingHint } from "./OnboardingHint";
 import { ConnectionStatus, PartnerStatus } from "./PresenceStatus";
 import { CommsDock } from "./comms/CommsDock";
+import { BedActions, BedroomHud } from "./bedroom/BedroomHud";
 import { MusicBar } from "./music/MusicBar";
 import { GameMenu } from "./games/GameMenu";
 import { GameStage } from "./games/GameStage";
@@ -182,6 +183,7 @@ function LivingRoom({ me, partner, couple }) {
               <PushPrompt partnerName={partnerName} />
               <ChooseCharacterCard runtime={runtime} />
               <ObjectCard />
+              <BedActions />
               <SeatedHint touch={touch} />
               <OnboardingHint touch={touch} partnerName={partnerName} ready={ready} />
             </div>
@@ -199,8 +201,9 @@ function LivingRoom({ me, partner, couple }) {
           </div>
 
           {/* Right edge: the floating game menu (reserved for it since Phase 3). */}
-          <div className="music-bar-anchor">
+          <div className="music-bar-anchor flex flex-col items-center gap-1.5">
             <MusicBar me={me.id} onEmote={triggerEmote} />
+            <BedroomHud me={me.id} partner={partner.id} partnerName={partnerName} />
           </div>
           <GameMenu disabled={inGame} />
           <RoomMenu disabled={inGame} runtime={runtime} />

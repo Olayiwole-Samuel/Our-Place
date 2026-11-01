@@ -1,7 +1,8 @@
-import { sitDown } from "@/lib/world/actions";
+import { lieDown, sitDown } from "@/lib/world/actions";
 import { travel } from "@/lib/world/travel";
 import { LANES } from "@/lib/range/targets";
 import { useRangeStore } from "@/store/rangeStore";
+import { useBedroomStore } from "@/store/bedroomStore";
 import { useGameStore } from "@/store/gameStore";
 import { useRoomStore } from "@/store/roomStore";
 
@@ -29,6 +30,29 @@ export const INTERACTION_HANDLERS = {
   artFrames: { kind: "action", run: ({ object }) => useRoomStore.getState().openPanel("frames", object?.id ?? null) },
   dog: { kind: "action", run: () => useRoomStore.getState().openPanel("dog") },
   recordPlayer: { kind: "action", run: () => useRoomStore.getState().openPanel("music") },
+  // The bedroom: lie down on your side of the bed; the nightstands and the window open the bedroom panel.
+  bed: {
+    kind: "action",
+    run: ({ runtime, world }) => {
+      if (!lieDown(runtime)) return;
+      world.setSeated(true);
+      useBedroomStore.getState().setLying(true);
+    },
+  },
+  nightstand: {
+    kind: "action",
+    run: ({ object }) => {
+      useBedroomStore.getState().setTab(object?.variant === 1 ? "goodnight" : "sounds");
+      useRoomStore.getState().openPanel("bedroom");
+    },
+  },
+  skyWindow: {
+    kind: "action",
+    run: () => {
+      useBedroomStore.getState().setTab("sky");
+      useRoomStore.getState().openPanel("bedroom");
+    },
+  },
   plant: {
     kind: "card",
     title: "Your plant",

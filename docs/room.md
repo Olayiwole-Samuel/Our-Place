@@ -49,7 +49,7 @@ Browser state: `store/roomStore.js`. Panels: `components/lobby/room/`.
 
 ## The house: hallway, game room, range
 
-- The living room's door leads to a **hallway** (`lib/world/rooms/hallway.js`) with a door to the **game room**, the **range**, the **music room**, and two "coming soon" doors (bedroom, balcony). Rooms are data like the living room (`lib/world/rooms/*`, listed in `rooms/index.js`); `Room.jsx` draws each object `type` (new pieces: `components/3d/Rooms/RoomPieces.jsx`, `components/3d/Range/*`).
+- The living room's door leads to a **hallway** (`lib/world/rooms/hallway.js`) with a door to the **game room**, the **range**, the **music room**, the **bedroom**, and a "coming soon" door (balcony). Rooms are data like the living room (`lib/world/rooms/*`, listed in `rooms/index.js`); `Room.jsx` draws each object `type` (new pieces: `components/3d/Rooms/RoomPieces.jsx`, `components/3d/Range/*`).
 - **Moving**: walk up to a door and press Go — a short fade (`lib/world/travel.js`), and you're just inside the door you came through. Each of you can be in a different room: presence carries `room` with your pose (`lib/realtime/couplePresence.js`), your partner's character shows only when you share a room, and their status says where they are, with **Go** to join them. Your dog and the things you placed stay in the living room (the dog bar offers "Go to …" from elsewhere; Decorate takes you home first). Chat and voice work everywhere.
 - **Game room**: the big screen opens the games menu, the arcade cabinets and the table open their kinds of games, a scoreboard shows your head-to-head record (`couple_trophies`), neon along the walls.
 - **Range**: walk up to a lane and press Shoot — first-person at your lane, rules and Start, 3-2-1, then 45 seconds of targets popping up (plates, sliding movers, small gold ones worth double). Tap / click to shoot; bullseye 10 · middle 7 · edge 4, ×2 after 3 hits in a row, ×3 after 6 (`lib/range/targets.js`). Rounds are saved (`record_range_score`, migration `20261024000000_range_scores.sql`) and the board by the door shows both of your bests and the latest rounds; your partner sees your live score while you both shoot.
@@ -65,6 +65,15 @@ Browser state: `store/roomStore.js`. Panels: `components/lobby/room/`.
 - **Dance**: while you're dancing and a song plays, your character dances (the same emote your partner sees).
 - The YouTube player stays visible (small, in the music bar), as YouTube requires. The lights pulse on a steady beat — YouTube's audio can't be analysed.
 - Needs `20261031000000_music.sql` and the server keys `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET`, `YOUTUBE_API_KEY` (`.env.example`). Preview: `/dev/hud?songs=1&panel=music`.
+
+## The bedroom
+
+- Through the hallway's **Bedroom 🌙** door (`lib/world/rooms/bedroom.js`, pieces in `components/3d/Rooms/BedroomPieces.jsx`): a big bed, nightstands with lamps, a window onto the night sky over Lagos, glow-in-the-dark stars on the ceiling, the dog's bed, a wardrobe. Room → **Bedroom** opens the panel from anywhere.
+- **Lie down together**: walk up to the bed → *Lie down*. You lie on your side of the bed (your slot: `spots`), under the duvet, head on the pillow; your partner sees it (presence carries `anim: "lie"`). The camera looks up the bed from its foot. Move to get up (you stand beside the bed). There's no lying clip for the characters, so the body tips back onto the mattress (`Avatar.jsx`) and the duvet covers it.
+- **Goodnight** (right nightstand, or the buttons while you lie in bed): say goodnight with an optional note (`say_goodnight()`, one per person per night; a night runs noon → noon Lagos time). Your lamps go down to a night-light and the ceiling stars glow; your partner gets "💤 … said goodnight"; the panel says who said it first tonight and keeps score over the last week.
+- **Sleep sounds** (left nightstand): rain, ocean, fireplace, summer night, soft music — made live with Web Audio (`lib/bedroom/sounds.js`, no files), shared through `couple_bedroom` (`set_sleep_sound()`) so you both hear the same sound, with a sleep timer (15 min – 2 h, or none). Volume is per phone. A chip under the music bar shows it in every room ("Tap to hear" when the phone hasn't allowed sound yet).
+- **The sky** (the window): shooting stars on the shared clock — the same star at the same moment on both screens (`lib/bedroom/night.js`, most 24-second windows have one). When one passes you have a few seconds to make a wish (`make_wish()`). The **wish jar** keeps them: your words are secret unless you share them (`wish_jar()` hides your partner's unshared words — they only see that a wish was made).
+- Needs `20261102000000_bedroom.sql`.
 
 ## Phone notifications
 
