@@ -8,6 +8,7 @@ import { createRandom } from "@/lib/game/random";
 import { DARE_PROMPTS, ROULETTE_PROMPTS, SPICY_WYR_QUESTIONS, TRUTH_PROMPTS } from "@/lib/game/questions/spicy";
 import { NEVER_HAVE_I_EVER } from "@/lib/game/questions/neverHaveIEver";
 import { STORY_STARTERS, THIS_OR_THAT_QUESTIONS } from "@/lib/game/questions/talk";
+import { ABOUT_ME_PROMPTS, BLITZ_CATEGORIES, GENERAL_TRIVIA, GUESS_QUESTIONS, OUR_STORY_PROMPTS, SENTENCE_PROMPTS } from "@/lib/game/questions/trivia";
 import { WOULD_YOU_RATHER_QUESTIONS } from "@/lib/game/questions/wouldYouRather";
 
 /**
@@ -23,6 +24,12 @@ const BANKS = {
   never_have_i_ever: NEVER_HAVE_I_EVER,
   this_or_that: THIS_OR_THAT_QUESTIONS,
   story_builder: STORY_STARTERS,
+  general_trivia: GENERAL_TRIVIA,
+  how_well_do_you_know_me: ABOUT_ME_PROMPTS,
+  couple_trivia: OUR_STORY_PROMPTS,
+  guess_my_answer: GUESS_QUESTIONS,
+  finish_the_sentence: SENTENCE_PROMPTS,
+  category_blitz: BLITZ_CATEGORIES,
   would_you_rather_spicy: SPICY_WYR_QUESTIONS,
   truth_or_dare_truth: TRUTH_PROMPTS,
   truth_or_dare_dare: DARE_PROMPTS,
@@ -55,7 +62,7 @@ export function GamesSandbox() {
       if (rules.prepare) options = { ...options, ...(await rules.prepare({ coupleId: "c", playerIds: [A, B], options, random: createRandom(seed), services })) };
       if (!live) return;
       setLoaded({ rules, Client: clientModule.default });
-      setSession(createSession({ id: "s", definition, rules, coupleId: "c", playerIds: [A, B], options, random: createRandom(seed), now: 0 }));
+      setSession(createSession({ id: "s", definition, rules, coupleId: "c", playerIds: [A, B], options, random: createRandom(seed), now: Date.now() }));
     });
     return () => {
       live = false;
