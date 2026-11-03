@@ -242,6 +242,10 @@ export function MusicBar({ me, onEmote }) {
     return () => clearTimeout(timer);
   }, [gaveUp, problem, music?.playing, music?.updatedBy, me, youtubeId]);
   useEffect(() => setProblem(null), [trackId]);
+  // A new version of this song (found, or chosen in the panel): start fresh.
+  useEffect(() => {
+    if (youtubeId) setGaveUp(false);
+  }, [youtubeId]);
 
   // Dancing while a song plays.
   useEffect(() => {

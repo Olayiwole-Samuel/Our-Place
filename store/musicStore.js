@@ -31,6 +31,7 @@ export const MUSIC_AREAS = new Set(["music", "tracks", "playlists", "spotify"]);
 
 const initial = { available: true, tracks: new Map(), order: [], playlists: [], music: null, spotify: null, dancing: false, muted: false, panelTab: "now", flash: null, duration: 0, volume: savedVolume(), autoplay: savedFlag("our-place:music-autoplay", true), radioBusy: false };
 let ctx = null; // { supabase, userId }
+const triedVersions = new Map(); // song id → videos you've moved on from with "Try another version"
 
 function savedFlag(key, fallback) {
   try {
@@ -351,6 +352,28 @@ export const useMusicStore = create((set, get) => ({
   /** The song's video refused to play: find another (skipping the ones that failed). → { youtubeId } | { error } */
   async rematch(trackId, failed) {
     const { data, error } = await api("/api/music/match", { method: "POST", body: { trackId, failed } });
+    if (error) return { error };
+    const latest = get().tracks.get(trackId);
+    if (latest) set({ tracks: new Map(get().tracks).set(trackId, { ...latest, youtubeId: data.youtubeId }) });
+    return { youtubeId: data.youtubeId };
+  },
+
+  /** "Try another version": a different video of this song, never one already tried. → { youtubeId } | { error } */
+  async tryAnotherVersion(trackId) {
+    const current = get().tracks.get(trackId)?.youtubeId;
+    const tried = triedVersions.get(trackId) ?? [];
+    if (current && !tried.includes(current)) tried.push(current);
+    triedVersions.set(trackId, tried.slice(-5));
+    return get().rematch(trackId, triedVersions.get(trackId));
+  },
+
+  /** "Play this one": you pasted the exact YouTube link for this song. → { youtubeId } | { error } */
+  async chooseVersion(trackId, link) {
+    const youtubeId = parseYouTube(link);
+    if (!youtubeId) return { error: { message: "That isn't a YouTube link." } };
+    const { data: info } = await api(`/api/room/youtube?id=${youtubeId}`);
+    if (info && info.embeddable === false) return { error: { message: "That video doesn't allow playing outside YouTube — try another." } };
+    const { data, error } = await api("/api/music/match", { method: "POST", body: { trackId, youtubeId } });
     if (error) return { error };
     const latest = get().tracks.get(trackId);
     if (latest) set({ tracks: new Map(get().tracks).set(trackId, { ...latest, youtubeId: data.youtubeId }) });

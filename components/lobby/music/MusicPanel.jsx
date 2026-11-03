@@ -1,6 +1,6 @@
 "use client";
 
-import { Heart, ListMusic, Library, Music, Pause, Play, Plus, Radio, Repeat, Repeat1, RotateCcw, RotateCw, Search, Shuffle, SkipBack, SkipForward, Trash2, X } from "lucide-react";
+import { Heart, LifeBuoy, ListMusic, Library, Music, Pause, Play, Plus, Radio, Repeat, Repeat1, RotateCcw, RotateCw, Search, Shuffle, SkipBack, SkipForward, Trash2, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { formatTime } from "@/lib/room/watch";
 import { currentTrack, useMusicStore } from "@/store/musicStore";
@@ -127,6 +127,54 @@ function AddToPlaylist({ trackId }) {
   );
 }
 
+/** A song that won't play, or the wrong version: find another, or paste the exact link. */
+function FixSong({ trackId, title }) {
+  const [open, setOpen] = useState(false);
+  const [link, setLink] = useState("");
+  const [note, setNote] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const run = async (work, done) => {
+    setBusy(true);
+    setNote(null);
+    const result = await work();
+    setBusy(false);
+    setNote(result.error ? (result.error.message ?? "That didn't work. Try again.") : done);
+    if (!result.error) setLink("");
+  };
+  return (
+    <span className="relative">
+      <IconButton label={`Fix this song: ${title}`} onClick={() => setOpen((v) => !v)}>
+        <LifeBuoy aria-hidden="true" size={14} />
+      </IconButton>
+      {open && (
+        <span className="panel fixed top-1/2 left-1/2 z-50 flex w-64 max-w-[90vw] -translate-x-1/2 -translate-y-1/2 flex-col gap-2 rounded-[var(--radius-md)] p-2.5 text-left shadow-lg">
+          <span className="flex items-start justify-between gap-2 text-micro font-semibold tracking-normal text-white-soft">
+            Not playing, or the wrong version?
+            <button type="button" aria-label="Close" onClick={() => setOpen(false)} className="shrink-0 text-text-muted hover:text-white-soft">
+              <X aria-hidden="true" size={14} />
+            </button>
+          </span>
+          <button type="button" disabled={busy} onClick={() => run(() => useMusicStore.getState().tryAnotherVersion(trackId), "Found another version ✓ Play it to check.")} className="min-h-9 rounded-[var(--radius-md)] bg-green-600 px-3 text-micro font-semibold tracking-normal text-white disabled:opacity-60">
+            {busy ? "Looking…" : "Try another version"}
+          </button>
+          <span className="text-[0.65rem] leading-snug text-text-muted">Or paste the exact song from YouTube or YouTube Music:</span>
+          <span className="flex gap-1.5">
+            <input value={link} onChange={(e) => setLink(e.target.value)} placeholder="youtu.be/…" aria-label="YouTube link for this song" className="min-h-9 min-w-0 flex-1 rounded-[var(--radius-sm)] border border-[var(--border-subtle)] bg-black-800 px-2 text-micro tracking-normal text-white-soft" />
+            <button type="button" disabled={busy || !link.trim()} onClick={() => run(() => useMusicStore.getState().chooseVersion(trackId, link), "Saved ✓ It plays this one now.")} className="min-h-9 shrink-0 rounded-[var(--radius-sm)] bg-white-soft px-2.5 text-micro font-semibold tracking-normal text-black-950 disabled:opacity-50">
+              Use it
+            </button>
+          </span>
+          {note && (
+            <span role="status" className="text-[0.65rem] leading-snug text-text-secondary">
+              {note}
+            </span>
+          )}
+        </span>
+      )}
+    </span>
+  );
+}
+
 function OurSongButton({ trackId }) {
   const ours = useMusicStore((state) => state.music?.ourSong === trackId);
   return (
@@ -173,9 +221,9 @@ function NowPlaying() {
   return (
     <div className="flex flex-col gap-3 sm:flex-row">
       <div className="flex shrink-0 flex-col items-center gap-2 sm:w-56">
-        <div className={`music-disc relative grid size-36 place-items-center rounded-full bg-[radial-gradient(circle,#2a2a2a_0_22%,#111_23%_100%)] shadow-[0_8px_30px_rgba(0,0,0,0.5)] ${music.playing ? "music-spin" : ""}`}>
+        <div className={`music-disc relative grid size-36 short:size-20 place-items-center rounded-full bg-[radial-gradient(circle,#2a2a2a_0_22%,#111_23%_100%)] shadow-[0_8px_30px_rgba(0,0,0,0.5)] ${music.playing ? "music-spin" : ""}`}>
           {/* eslint-disable-next-line @next/next/no-img-element -- album art from Spotify / YouTube */}
-          {track.imageUrl ? <img src={track.imageUrl} alt="" className="size-16 rounded-full object-cover" /> : <span className="text-[1.6rem]">♪</span>}
+          {track.imageUrl ? <img src={track.imageUrl} alt="" className="size-16 short:size-9 rounded-full object-cover" /> : <span className="text-[1.6rem]">♪</span>}
         </div>
         <p className="w-full truncate text-center text-body font-semibold text-white-soft">{track.title}</p>
         <p className="-mt-2 w-full truncate text-center text-micro tracking-normal text-text-muted">{track.artist}</p>
@@ -224,6 +272,7 @@ function NowPlaying() {
         <div className="flex items-center gap-2">
           <OurSongButton trackId={track.id} />
           <RadioButton trackId={track.id} />
+          <FixSong trackId={track.id} title={track.title} />
           <DanceButton />
         </div>
         <AutoplaySwitch />
@@ -415,6 +464,7 @@ function Songs() {
             <RadioButton trackId={song.id} compact />
             <AddToPlaylist trackId={song.id} />
             <OurSongButton trackId={song.id} />
+            <FixSong trackId={song.id} title={song.title} />
             <IconButton
               label="Remove from your songs"
               onClick={() => {
