@@ -16,7 +16,9 @@ import { DECK, SHAPES, WHOT, cardPoints, parseCard } from "./cards";
  *   1  Hold On         you play again
  *   2  Pick Two        (setting) your partner picks 2 — or blocks with a 2,
  *                      which cancels it: nobody picks, and play carries on
- *                      (it's your turn again). Only a 2 blocks a 2.
+ *                      (it's your turn again). Only a 2 blocks a 2. With the
+ *                      "Blocks add up" setting on, a block adds to the pick
+ *                      instead (2 + 2 = pick 4) and passes it back.
  *   5  Pick Three      (setting) the same with 3s; only a 5 blocks a 5.
  *   8  Suspension      (setting) your partner misses a turn: you play again
  *   14 General Market  your partner picks 1 from market; you play again
@@ -38,8 +40,8 @@ import { DECK, SHAPES, WHOT, cardPoints, parseCard } from "./cards";
  * view() shows a player their own hand and only the COUNT of their partner's.
  */
 export const DEAL = 5;
-export const DEFAULT_SETTINGS = Object.freeze({ pickTwo: true, pickThree: true, suspension: true, tender: "count" });
-const TOGGLES = ["pickTwo", "pickThree", "suspension"];
+export const DEFAULT_SETTINGS = Object.freeze({ pickTwo: true, pickThree: true, suspension: true, stackBlocks: false, tender: "count" });
+const TOGGLES = ["pickTwo", "pickThree", "suspension", "stackBlocks"];
 const TENDERS = ["count", "reshuffle"];
 
 const other = (state, playerId) => state.players.find((id) => id !== playerId);
@@ -191,10 +193,14 @@ const rules = {
       }
       case "pick_two":
       case "pick_three": {
-        // A block cancels the pick: nobody picks, and play carries on.
-        if (state.pending) return { ...next, pending: null, current: opponent, last: { ...last, blocked: true } };
-        const pending = { number: card.number, count: effect === "pick_two" ? 2 : 3 };
-        return { ...next, pending, current: opponent, last: { ...last, pending: pending.count } };
+        const add = effect === "pick_two" ? 2 : 3;
+        if (state.pending && !state.settings.stackBlocks) {
+          // A block cancels the pick: nobody picks, and play carries on.
+          return { ...next, pending: null, current: opponent, last: { ...last, blocked: true } };
+        }
+        // A first pick, or (with "Blocks add up") a block that adds to it and passes it back.
+        const pending = { number: card.number, count: (state.pending?.count ?? 0) + add };
+        return { ...next, pending, current: opponent, last: { ...last, pending: pending.count, blocked: Boolean(state.pending) } };
       }
       case "whot":
         return { ...next, pending: null, requestedShape: payload.shape, current: opponent, last: { ...last, shape: payload.shape } };

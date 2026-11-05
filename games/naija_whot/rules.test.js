@@ -169,6 +169,22 @@ describe("special cards", () => {
     expect(session.state.current).toBe(B);
   });
 
+  it("with Blocks add up on, a block adds to the pick and passes it back", () => {
+    let session = ok(play(table({ a: ["circle-2", "star-2", "square-4"], b: ["cross-2", "triangle-5", "cross-3"], top: "circle-10", settings: { stackBlocks: true } }), A, "circle-2"));
+    session = ok(play(session, B, "cross-2"));
+    expect(session.state.pending).toEqual({ number: 2, count: 4 });
+    expect(session.state.current).toBe(A);
+    expect(session.state.last).toMatchObject({ blocked: true, pending: 4 });
+    session = ok(play(session, A, "star-2"));
+    expect(session.state.pending).toEqual({ number: 2, count: 6 });
+    session = ok(market(session, B));
+    expect(session.state.hands[B]).toHaveLength(2 + 6);
+    expect(session.state.pending).toBeNull();
+    expect(session.state.current).toBe(A);
+    const threes = ok(play(ok(play(table({ a: ["circle-5", "square-4"], b: ["triangle-5", "cross-3"], top: "circle-10", settings: { stackBlocks: true } }), A, "circle-5")), B, "triangle-5"));
+    expect(threes.state.pending).toEqual({ number: 5, count: 6 });
+  });
+
   it("Pick Three is blocked only by a 5; switched off, a 5 is a normal card", () => {
     let session = ok(play(table({ a: ["circle-5", "circle-4"], b: ["triangle-5", "circle-2"], top: "circle-10" }), A, "circle-5"));
     expect(code(play(session, B, "circle-2"))).toBe("illegal_action");

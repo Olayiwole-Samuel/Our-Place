@@ -253,6 +253,7 @@ const settingsLine = (s) =>
     s.pickTwo ? "Pick 2 on" : "Pick 2 off",
     s.pickThree ? "Pick 3 on" : "Pick 3 off",
     s.suspension ? "Suspension on" : "Suspension off",
+    s.stackBlocks ? "Blocks add up" : "Blocks cancel",
     s.tender === "count" ? "Tender: count" : "Tender: reshuffle",
   ].join(" · ");
 
@@ -273,6 +274,7 @@ function LastMove({ last, me, partnerName }) {
       return `${who} played ${name}: General market — ${who === "You" ? `${partnerName} picked 1` : "you picked 1"}.`;
     case "pick_two":
     case "pick_three":
+      if (last.blocked && last.pending) return `${who} blocked with ${name}: now it's pick ${last.pending}!`;
       if (last.blocked) return `${who} blocked with ${name} — no one picks. Play on!`;
       return `${who} played ${name}: pick ${last.pending}!`;
     case "whot":
@@ -300,8 +302,9 @@ function Settings({ view, busy, act, partnerName, me }) {
         <p className="text-subheading font-semibold text-white-soft">House rules</p>
         <p className="text-caption text-text-secondary">Either of you can change these before the deal. {view.first === me ? "You start." : `${partnerName} starts.`}</p>
       </div>
-      {row("pickTwo", "Pick Two (2)", "Next player picks 2 — only a 2 blocks it, and a block cancels it.")}
-      {row("pickThree", "Pick Three (5)", "Next player picks 3 — only a 5 blocks it, and a block cancels it.")}
+      {row("pickTwo", "Pick Two (2)", "Next player picks 2 — only a 2 blocks it.")}
+      {row("pickThree", "Pick Three (5)", "Next player picks 3 — only a 5 blocks it.")}
+      {row("stackBlocks", "Blocks add up", view.settings.stackBlocks ? "A block adds to the pick: 2 + 2 = pick 4." : "Off: a block cancels the pick, and nobody picks.")}
       {row("suspension", "Suspension (8)", "Next player misses a turn.")}
       <fieldset className="rounded-[var(--radius-sm)] bg-black-800/70 px-3 py-2.5">
         <legend className="sr-only">Tender</legend>
