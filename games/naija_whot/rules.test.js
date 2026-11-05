@@ -60,7 +60,7 @@ describe("the deck", () => {
 });
 
 describe("settings and the deal", () => {
-  it("either player can change settings before the deal; the server shuffles and deals 6 each", () => {
+  it("either player can change settings before the deal; the server shuffles and deals 5 each", () => {
     let session = fresh();
     expect(session.state.phase).toBe("settings");
     session = ok(act(session, B, "settings", { key: "pickThree", value: false }));
@@ -88,7 +88,7 @@ describe("privacy", () => {
     const session = ok(act(fresh(), A, "deal"));
     const mine = view(session, A);
     expect(mine.hand).toEqual(session.state.hands[A]);
-    expect(mine.partnerCount).toBe(6);
+    expect(mine.partnerCount).toBe(DEAL);
     expect(mine.partnerHand).toBeNull();
     expect(JSON.stringify(mine)).not.toContain(session.state.hands[B][0]);
     expect(mine).not.toHaveProperty("market");

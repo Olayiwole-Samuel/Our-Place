@@ -57,9 +57,9 @@ describe("new games through the game authority", () => {
     await service.action(b, id, { type: "deal", payload: {} });
     const { view: va } = await service.view(a, id);
     const { view: vb } = await service.view(b, id);
-    expect(va.hand).toHaveLength(6);
-    expect(vb.hand).toHaveLength(6);
-    expect(va.partnerCount).toBe(6);
+    expect(va.hand).toHaveLength(5);
+    expect(vb.hand).toHaveLength(5);
+    expect(va.partnerCount).toBe(5);
     for (const card of vb.hand) expect(JSON.stringify(va)).not.toContain(`"${card}"`);
     expect(va).not.toHaveProperty("market");
     expect(va.settings.tender).toBe("reshuffle");

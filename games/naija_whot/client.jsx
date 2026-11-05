@@ -257,7 +257,7 @@ const settingsLine = (s) =>
   ].join(" · ");
 
 function LastMove({ last, me, partnerName }) {
-  if (!last || last.type === "deal") return "Cards dealt — 6 each.";
+  if (!last || last.type === "deal") return "Cards dealt — 5 each.";
   const who = last.by === me ? "You" : partnerName;
   if (last.type === "market") return `${who} went to market.`;
   if (last.type === "pick") return `${who} picked ${last.count}.`;
@@ -327,7 +327,7 @@ function Settings({ view, busy, act, partnerName, me }) {
       </fieldset>
       <p className="text-center text-micro tracking-normal text-text-muted">Hold on (1), General market (14) and Whot (20) are always on. Playing your last card is check up.</p>
       <button type="button" disabled={busy} onClick={() => act("deal", {})} className="min-h-11 rounded-[var(--radius-md)] bg-green-600 text-body font-semibold text-white">
-        Deal 6 each
+        Deal 5 each
       </button>
     </div>
   );

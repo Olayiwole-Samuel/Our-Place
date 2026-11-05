@@ -7,7 +7,7 @@ import { DECK, SHAPES, WHOT, cardPoints, parseCard } from "./cards";
  *
  * Before the deal (phase "settings"), either player can switch Pick Two, Pick
  * Three and Suspension on or off and choose the "tender" (what happens when the
- * market finishes); either player then deals. 6 cards each; the call card is
+ * market finishes); either player then deals. 5 cards each; the call card is
  * turned from the market (a Whot is turned again, and no special counts at the start).
  *
  * Play: match the call card's shape or number, or play a Whot (20) any time and
@@ -37,7 +37,7 @@ import { DECK, SHAPES, WHOT, cardPoints, parseCard } from "./cards";
  * `turn` is the move counter the client has seen; a resend is refused quietly.
  * view() shows a player their own hand and only the COUNT of their partner's.
  */
-export const DEAL = 6;
+export const DEAL = 5;
 export const DEFAULT_SETTINGS = Object.freeze({ pickTwo: true, pickThree: true, suspension: true, tender: "count" });
 const TOGGLES = ["pickTwo", "pickThree", "suspension"];
 const TENDERS = ["count", "reshuffle"];
