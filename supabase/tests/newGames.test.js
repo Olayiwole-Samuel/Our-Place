@@ -53,6 +53,7 @@ describe("new games through the game authority", () => {
 
   it("Naija Whot: each player sees only their own hand — never the partner's cards or the market", async () => {
     const { a, b, id } = await started("naija_whot");
+    for (const key of ["pickTwo", "pickThree", "suspension", "stackBlocks"]) await service.action(a, id, { type: "settings", payload: { key, value: true } });
     await service.action(a, id, { type: "settings", payload: { key: "tender", value: "reshuffle" } });
     await service.action(b, id, { type: "deal", payload: {} });
     const { view: va } = await service.view(a, id);

@@ -100,7 +100,7 @@ RULE_SAMPLES.whot = {
   gameId: "naija_whot",
   load: () => import("@/games/naija_whot/rules"),
   adjust: (state) => ({ ...state, first: ME.id }),
-  script: [[ME.id, "deal", {}]],
+  script: [...Object.entries({ pickTwo: true, pickThree: true, suspension: true, stackBlocks: false, tender: "count" }).map(([key, value]) => [ME.id, "settings", { key, value }]), [ME.id, "deal", {}]],
 };
 RULE_SAMPLES.words = {
   gameId: "scrabble",

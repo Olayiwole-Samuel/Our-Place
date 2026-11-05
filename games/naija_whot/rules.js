@@ -5,10 +5,13 @@ import { DECK, SHAPES, WHOT, cardPoints, parseCard } from "./cards";
  * Naija Whot — two players, server-authoritative, hidden hands. The rules
  * chosen with the couple (docs/game-architecture.md → Naija Whot):
  *
- * Before the deal (phase "settings"), either player can switch Pick Two, Pick
- * Three and Suspension on or off and choose the "tender" (what happens when the
- * market finishes); either player then deals. 5 cards each; the call card is
- * turned from the market (a Whot is turned again, and no special counts at the start).
+ * Before the deal (phase "settings"), the host (the account owner, resolved on
+ * the server in prepare) turns Pick Two, Pick Three, Suspension and Blocks add up
+ * on or off and chooses the "tender" (what happens when the market finishes). No
+ * rule is chosen for them: the cards can't be dealt until every rule is set and
+ * the host deals. If neither player is the owner there's no host, and either can
+ * do this. 5 cards each; the call card is turned from the market (a Whot is
+ * turned again, and no special counts at the start).
  *
  * Play: match the call card's shape or number, or play a Whot (20) any time and
  * name the shape. If you can't (or don't want to) play, go to market: draw one
@@ -40,9 +43,14 @@ import { DECK, SHAPES, WHOT, cardPoints, parseCard } from "./cards";
  * view() shows a player their own hand and only the COUNT of their partner's.
  */
 export const DEAL = 5;
+/** The usual house rules. A new game starts with none of them chosen. */
 export const DEFAULT_SETTINGS = Object.freeze({ pickTwo: true, pickThree: true, suspension: true, stackBlocks: false, tender: "count" });
 const TOGGLES = ["pickTwo", "pickThree", "suspension", "stackBlocks"];
 const TENDERS = ["count", "reshuffle"];
+const UNSET_SETTINGS = Object.freeze({ pickTwo: null, pickThree: null, suspension: null, stackBlocks: null, tender: null });
+
+/** How many house rules still have to be chosen. */
+export const rulesLeft = (settings) => Object.values(settings).filter((value) => value === null).length;
 
 const other = (state, playerId) => state.players.find((id) => id !== playerId);
 
@@ -99,12 +107,17 @@ function drawCards(state, playerId, count, random) {
 }
 
 const rules = {
-  setup({ playerIds, random }) {
+  async prepare({ playerIds, services }) {
+    return { host: (await services?.findHost?.(playerIds)) ?? null };
+  },
+
+  setup({ playerIds, random, options }) {
     return {
       phase: "settings",
       players: [...playerIds],
+      host: playerIds.includes(options?.host) ? options.host : null,
       first: playerIds[random.int(0, 1)],
-      settings: { ...DEFAULT_SETTINGS },
+      settings: { ...UNSET_SETTINGS },
       hands: Object.fromEntries(playerIds.map((id) => [id, []])),
       market: [],
       pile: [],
@@ -125,11 +138,16 @@ const rules = {
     if (state.ended) return gameError("game_over", "This game is over.");
     if (type === "settings") {
       if (state.phase !== "settings") return gameError("already_dealt", "The cards are already dealt.");
+      if (state.host && state.host !== playerId) return gameError("host_only", "Your partner sets the house rules for this game.");
       if (TOGGLES.includes(payload.key)) return typeof payload.value === "boolean" ? null : gameError(GAME_ERROR.MALFORMED_ACTION, "Turn it on or off.");
       if (payload.key === "tender") return TENDERS.includes(payload.value) ? null : gameError(GAME_ERROR.MALFORMED_ACTION, "Choose count or reshuffle.");
       return gameError(GAME_ERROR.MALFORMED_ACTION, "That setting doesn't exist.");
     }
-    if (type === "deal") return state.phase === "settings" ? null : gameError("already_dealt", "The cards are already dealt.");
+    if (type === "deal") {
+      if (state.phase !== "settings") return gameError("already_dealt", "The cards are already dealt.");
+      if (state.host && state.host !== playerId) return gameError("host_only", "Your partner starts this game.");
+      return rulesLeft(state.settings) ? gameError("rules_not_set", "Set all the house rules first.") : null;
+    }
     if (type !== "play" && type !== "market") return gameError(GAME_ERROR.MALFORMED_ACTION, "That action wasn't understood.");
     if (state.phase !== "playing") return gameError("not_dealt", "Deal the cards first.");
     if (Number.isInteger(payload.turn) && payload.turn !== state.turn) return gameError("already_played", "That move was already made.");
@@ -239,6 +257,7 @@ const rules = {
     return {
       phase: state.ended ? "finished" : state.phase,
       settings: state.settings,
+      host: state.host ?? null,
       first: state.first,
       current: state.current,
       turn: state.turn,

@@ -4,7 +4,7 @@ import { applyPlayerAction, createSession, getPlayerView } from "@/lib/game/engi
 import { createRandom } from "@/lib/game/random";
 import { countsTowardWinStreak } from "@/lib/game/result";
 import { DECK, cardPoints, parseCard } from "./cards";
-import rules, { DEAL, canPlay } from "./rules";
+import rules, { DEAL, DEFAULT_SETTINGS, canPlay } from "./rules";
 
 const A = "11111111-1111-4111-8111-111111111111";
 const B = "22222222-2222-4222-8222-222222222222";
@@ -18,8 +18,12 @@ const ok = (result) => {
 const code = (result) => result.error?.code;
 const view = (session, playerId) => getPlayerView(session, playerId, { rules, random: createRandom(3), now: 2 });
 
-function fresh(seed = 1) {
-  return createSession({ id: "s", definition, rules, coupleId: "c", playerIds: [A, B], random: createRandom(seed), now: 0 });
+function fresh(seed = 1, options) {
+  return createSession({ id: "s", definition, rules, coupleId: "c", playerIds: [A, B], options, random: createRandom(seed), now: 0 });
+}
+/** Every house rule chosen, so the cards can be dealt. */
+function ruled(session = fresh(), by = A) {
+  return Object.entries(DEFAULT_SETTINGS).reduce((next, [key, value]) => ok(act(next, by, "settings", { key, value })), session);
 }
 /** A dealt game with exactly these hands, call card and market (A to play). */
 function table({ a, b, top, market = ["circle-3", "square-7", "triangle-4", "cross-11", "star-2", "circle-12"], settings = {}, ...extra }) {
@@ -29,7 +33,7 @@ function table({ a, b, top, market = ["circle-3", "square-7", "triangle-4", "cro
     state: {
       ...session.state,
       phase: "playing",
-      settings: { ...session.state.settings, ...settings },
+      settings: { ...DEFAULT_SETTINGS, ...settings },
       hands: { [A]: a, [B]: b },
       pile: [top],
       market,
@@ -60,8 +64,8 @@ describe("the deck", () => {
 });
 
 describe("settings and the deal", () => {
-  it("either player can change settings before the deal; the server shuffles and deals 5 each", () => {
-    let session = fresh();
+  it("with no host, either player can set the rules and deal; the server shuffles and deals 5 each", () => {
+    let session = ruled(fresh(), B);
     expect(session.state.phase).toBe("settings");
     session = ok(act(session, B, "settings", { key: "pickThree", value: false }));
     session = ok(act(session, A, "settings", { key: "tender", value: "reshuffle" }));
@@ -77,15 +81,41 @@ describe("settings and the deal", () => {
     expect(code(act(session, A, "settings", { key: "pickTwo", value: false }))).toBe("already_dealt");
   });
 
+  it("the cards can't be dealt until every rule is chosen", () => {
+    let session = fresh();
+    expect(Object.values(session.state.settings).every((value) => value === null)).toBe(true);
+    expect(code(act(session, A, "deal"))).toBe("rules_not_set");
+    const [last, ...others] = Object.entries(DEFAULT_SETTINGS);
+    for (const [key, value] of others) session = ok(act(session, A, "settings", { key, value }));
+    expect(code(act(session, A, "deal"))).toBe("rules_not_set");
+    session = ok(act(session, A, "settings", { key: last[0], value: last[1] }));
+    expect(ok(act(session, A, "deal")).state.phase).toBe("playing");
+  });
+
+  it("only the host sets the rules and deals; their partner sees the rules and waits", () => {
+    const session = ruled(fresh(1, { host: A }), A);
+    expect(session.state.host).toBe(A);
+    expect(code(act(session, B, "settings", { key: "pickTwo", value: false }))).toBe("host_only");
+    expect(code(act(session, B, "deal"))).toBe("host_only");
+    expect(view(session, B)).toMatchObject({ host: A, settings: DEFAULT_SETTINGS });
+    expect(ok(act(session, A, "deal")).state.phase).toBe("playing");
+  });
+
+  it("prepare asks the server for the host, and copes without one", async () => {
+    await expect(rules.prepare({ playerIds: [A, B], services: { findHost: async () => B } })).resolves.toEqual({ host: B });
+    await expect(rules.prepare({ playerIds: [A, B], services: { findHost: async () => null } })).resolves.toEqual({ host: null });
+    expect(fresh(1, { host: "someone-else" }).state.host).toBeNull();
+  });
+
   it("different seeds shuffle differently", () => {
-    const deal = (seed) => ok(act(fresh(), A, "deal", {}, seed)).state.hands[A].join();
+    const deal = (seed) => ok(act(ruled(fresh()), A, "deal", {}, seed)).state.hands[A].join();
     expect(deal(1)).not.toBe(deal(2));
   });
 });
 
 describe("privacy", () => {
   it("a player sees their own hand and only the size of their partner's — never the market", () => {
-    const session = ok(act(fresh(), A, "deal"));
+    const session = ok(act(ruled(), A, "deal"));
     const mine = view(session, A);
     expect(mine.hand).toEqual(session.state.hands[A]);
     expect(mine.partnerCount).toBe(DEAL);

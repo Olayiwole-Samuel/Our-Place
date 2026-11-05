@@ -35,7 +35,7 @@ const BANKS = {
   truth_or_dare_dare: DARE_PROMPTS,
   ...Object.fromEntries(Object.entries(ROULETTE_PROMPTS).map(([level, list]) => [`question_roulette_${level}`, list])),
 };
-const services = { questions: { draw: async ({ gameId, count, random }) => random.shuffle(BANKS[gameId]).slice(0, count) } };
+const services = { questions: { draw: async ({ gameId, count, random }) => random.shuffle(BANKS[gameId]).slice(0, count) }, findHost: async () => A };
 
 /** Whose move it is, for the games here (else the chosen seat). */
 function actorOf(state, fallback) {

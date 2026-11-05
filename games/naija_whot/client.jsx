@@ -4,6 +4,7 @@ import { AnimatePresence, m, useReducedMotion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 import { playSound } from "@/lib/ui/sounds";
 import { SHAPES, SHAPE_LABEL, cardPoints, parseCard } from "./cards";
+import { rulesLeft } from "./rules";
 
 /**
  * Naija Whot table. Renders the server's view and sends intents only:
@@ -286,25 +287,44 @@ function LastMove({ last, me, partnerName }) {
 
 function Settings({ view, busy, act, partnerName, me }) {
   const s = view.settings;
-  const toggle = (key) => act("settings", { key, value: !s[key] });
+  const waiting = Boolean(view.host) && view.host !== me;
+  const left = rulesLeft(s);
   const row = (key, title, detail) => (
-    <label className="flex cursor-pointer items-center justify-between gap-3 rounded-[var(--radius-sm)] bg-black-800/70 px-3 py-2.5">
+    <div className="flex items-center justify-between gap-3 rounded-[var(--radius-sm)] bg-black-800/70 px-3 py-2.5">
       <span>
         <span className="block text-caption font-semibold text-white-soft">{title}</span>
         <span className="block text-micro tracking-normal text-text-muted">{detail}</span>
       </span>
-      <input type="checkbox" role="switch" checked={s[key]} disabled={busy} onChange={() => toggle(key)} className="size-5 accent-green-600" />
-    </label>
+      <span role="group" aria-label={title} className="flex shrink-0 gap-1">
+        {[
+          [true, "On"],
+          [false, "Off"],
+        ].map(([value, label]) => (
+          <button
+            key={label}
+            type="button"
+            aria-pressed={s[key] === value}
+            disabled={busy || waiting}
+            onClick={() => act("settings", { key, value })}
+            className={`min-h-9 min-w-11 rounded-[var(--radius-sm)] px-2 text-caption font-semibold text-white-soft ${s[key] === value ? "bg-green-700/80 ring-1 ring-green-500" : "bg-black-950/60"}`}
+          >
+            {label}
+          </button>
+        ))}
+      </span>
+    </div>
   );
   return (
     <div className="mx-auto flex w-full max-w-sm flex-col gap-2.5">
       <div className="text-center">
         <p className="text-subheading font-semibold text-white-soft">House rules</p>
-        <p className="text-caption text-text-secondary">Either of you can change these before the deal. {view.first === me ? "You start." : `${partnerName} starts.`}</p>
+        <p className="text-caption text-text-secondary">
+          {waiting ? `Waiting for ${partnerName} to set the rules and deal.` : "Choose every rule, then deal when you're ready."} {view.first === me ? "You play first." : `${partnerName} plays first.`}
+        </p>
       </div>
       {row("pickTwo", "Pick Two (2)", "Next player picks 2 — only a 2 blocks it.")}
       {row("pickThree", "Pick Three (5)", "Next player picks 3 — only a 5 blocks it.")}
-      {row("stackBlocks", "Blocks add up", view.settings.stackBlocks ? "A block adds to the pick: 2 + 2 = pick 4." : "Off: a block cancels the pick, and nobody picks.")}
+      {row("stackBlocks", "Blocks add up", "On: 2 + 2 = pick 4. Off: a block cancels the pick.")}
       {row("suspension", "Suspension (8)", "Next player misses a turn.")}
       <fieldset className="rounded-[var(--radius-sm)] bg-black-800/70 px-3 py-2.5">
         <legend className="sr-only">Tender</legend>
@@ -318,7 +338,7 @@ function Settings({ view, busy, act, partnerName, me }) {
               key={value}
               type="button"
               aria-pressed={s.tender === value}
-              disabled={busy}
+              disabled={busy || waiting}
               onClick={() => act("settings", { key: "tender", value })}
               className={`rounded-[var(--radius-sm)] px-2 py-2 text-left ${s.tender === value ? "bg-green-700/60 ring-1 ring-green-500" : "bg-black-950/60"}`}
             >
@@ -329,9 +349,15 @@ function Settings({ view, busy, act, partnerName, me }) {
         </div>
       </fieldset>
       <p className="text-center text-micro tracking-normal text-text-muted">Hold on (1), General market (14) and Whot (20) are always on. Playing your last card is check up.</p>
-      <button type="button" disabled={busy} onClick={() => act("deal", {})} className="min-h-11 rounded-[var(--radius-md)] bg-green-600 text-body font-semibold text-white">
-        Deal 5 each
-      </button>
+      {waiting ? (
+        <p role="status" className="min-h-11 content-center rounded-[var(--radius-md)] bg-black-800/70 text-center text-body font-semibold text-text-secondary">
+          The game starts when {partnerName} deals
+        </p>
+      ) : (
+        <button type="button" disabled={busy || left > 0} onClick={() => act("deal", {})} className="min-h-11 rounded-[var(--radius-md)] bg-green-600 text-body font-semibold text-white disabled:bg-black-800 disabled:text-text-muted">
+          {left > 0 ? `Choose ${left} more ${left === 1 ? "rule" : "rules"} to deal` : "Deal 5 each"}
+        </button>
+      )}
     </div>
   );
 }
