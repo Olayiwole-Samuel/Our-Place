@@ -4,7 +4,6 @@ import { Pencil, Trophy } from "lucide-react";
 import { useState } from "react";
 import { gameRegistry } from "@/lib/game/catalog";
 import { anniversaryLabel, durationText, togetherSince } from "@/lib/room/together";
-import { missedDays } from "@/lib/room/streak";
 import { useRoomStore } from "@/store/roomStore";
 import { RoomPanel } from "./RoomPanel";
 
@@ -206,7 +205,7 @@ function RestoreStreak({ streak }) {
   const restore = useRoomStore((state) => state.restoreStreak);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState(null);
-  const missed = missedDays(streak.lastBoth);
+  const missed = streak.missed;
   if (!missed && !message) return null;
   const run = async () => {
     setBusy(true);
@@ -217,7 +216,12 @@ function RestoreStreak({ streak }) {
   return (
     <div role="status" className="flex flex-wrap items-center justify-between gap-2 rounded-[var(--radius-sm)] bg-black-800 px-3 py-2">
       <span className="text-caption text-white-soft">
-        {message ?? (missed > 30 ? `Your streak broke ${missed} days ago, too long ago to restore.` : `Your streak broke: you missed ${missed} ${missed === 1 ? "day" : "days"} together.`)}
+        {message ??
+          (missed > 30
+            ? `You missed ${missed} days together, too long ago to restore.`
+            : streak.current
+              ? `Before this streak you missed ${missed} ${missed === 1 ? "day" : "days"} together. Restore them to join it to your old one.`
+              : `Your streak broke: you missed ${missed} ${missed === 1 ? "day" : "days"} together.`)}
       </span>
       {missed > 0 && missed <= 30 && !message && (
         <button type="button" disabled={busy} onClick={run} className="min-h-9 rounded-[var(--radius-sm)] bg-pink-600 px-3 text-caption font-semibold text-white disabled:opacity-60">

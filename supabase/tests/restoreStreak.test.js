@@ -52,6 +52,35 @@ describe("restore_streak", () => {
     expect(await fails(call(c.a, "select public.restore_streak('Africa/Lagos')"))).toMatch(/streak:not_broken/);
   });
 
+  it("restores the gap before a streak you've already started again, joining the two", async () => {
+    const c = await pair();
+    for (let offset = -21; offset <= -5; offset += 1) await both(c, offset); // a 17-day run
+    await visit(c.a, day(-4)); // only one of them on these days
+    await both(c, 0); // back together today: a new 1-day streak
+    expect(await streakOf(c.a)).toMatchObject({ current_days: 1, best_days: 17 });
+    const [gap] = await call(c.a, "select to_char(from_day, 'YYYY-MM-DD') as from_day, to_char(to_day, 'YYYY-MM-DD') as to_day, missed from public.streak_gap('Africa/Lagos')");
+    expect(gap).toEqual({ from_day: day(-4), to_day: day(-1), missed: 4 });
+
+    const [{ restore_streak: filled }] = await call(c.b, "select public.restore_streak('Africa/Lagos')");
+    expect(filled).toBe(4);
+    expect(await streakOf(c.a)).toMatchObject({ current_days: 22, best_days: 22, today_both: true });
+    // The whole run is joined now: nothing left to restore.
+    expect(await call(c.a, "select * from public.streak_gap('Africa/Lagos')")).toHaveLength(0);
+    expect(await fails(call(c.a, "select public.restore_streak('Africa/Lagos')"))).toMatch(/streak:not_broken/);
+  });
+
+  it("streak_gap shows the broken gap, and nothing for a streak that never broke", async () => {
+    const c = await pair();
+    await both(c, -6);
+    await both(c, -5);
+    const [gap] = await call(c.a, "select missed from public.streak_gap('Africa/Lagos')");
+    expect(gap).toEqual({ missed: 4 });
+    const steady = await pair();
+    await both(steady, -1);
+    await both(steady, 0);
+    expect(await call(steady.a, "select * from public.streak_gap('Africa/Lagos')")).toHaveLength(0);
+  });
+
   it("refuses with no day together yet, or a gap over 30 days", async () => {
     const fresh = await pair();
     expect(await fails(call(fresh.a, "select public.restore_streak('Africa/Lagos')"))).toMatch(/streak:nothing_to_restore/);

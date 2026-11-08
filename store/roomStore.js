@@ -12,8 +12,8 @@ import { MUSIC_AREAS, useMusicStore } from "./musicStore";
  * room, read under RLS and kept fresh by the database's announcements on the
  * couple's `lobby` topic (supabase/migrations/20261013000000_room_features.sql):
  *
- *   streak         { current, best, todayBoth, lastBoth } — days in a row you were BOTH here
- *                  (lastBoth: your latest day together, "YYYY-MM-DD" or null)
+ *   streak         { current, best, todayBoth, missed } — days in a row you were BOTH here
+ *                  (missed: days "Restore streak" would fill in, from streak_gap(); 0 = none)
  *   partnerSeenAt  when your partner was last in Our Place (ISO) or null
  *   notes          message-board notes, newest first; unseenNotes = partner's notes you haven't opened
  *   memories       memory-wall photos { id, url, caption, takenOn, uploaderId, createdAt }
@@ -45,7 +45,7 @@ const SIGNED_URL_SECONDS = 3600;
 
 const initialState = {
   ready: false,
-  streak: { current: 0, best: 0, todayBoth: false, lastBoth: null },
+  streak: { current: 0, best: 0, todayBoth: false, missed: 0 },
   partnerSeenAt: null,
   notes: [],
   unseenNotes: 0,
@@ -201,9 +201,10 @@ export const useRoomStore = create((set, get) => ({
     const { supabase, userId, partnerId } = here;
     try {
       if (area === "streak") {
-        const { data } = await supabase.rpc("couple_streak");
+        const [{ data }, { data: gapData }] = await Promise.all([supabase.rpc("couple_streak"), supabase.rpc("streak_gap", { tz: zone() })]);
         const row = Array.isArray(data) ? data[0] : data;
-        if (row && here === ctx) set({ streak: { current: row.current_days ?? 0, best: row.best_days ?? 0, todayBoth: Boolean(row.today_both), lastBoth: row.last_both ?? null } });
+        const gap = Array.isArray(gapData) ? gapData[0] : gapData;
+        if (row && here === ctx) set({ streak: { current: row.current_days ?? 0, best: row.best_days ?? 0, todayBoth: Boolean(row.today_both), missed: gap?.missed ?? 0 } });
       } else if (area === "seen") {
         const { data } = await supabase.from("couple_visits").select("last_at").eq("user_id", partnerId).order("last_at", { ascending: false }).limit(1);
         if (here === ctx) set({ partnerSeenAt: data?.[0]?.last_at ?? null });

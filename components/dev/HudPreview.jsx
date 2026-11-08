@@ -183,8 +183,8 @@ function Scenario() {
         useRoomStore.setState({
           ready: true,
           // ?streak=broken: missed 3 days, so the shelf offers "Restore streak" (pretends to restore).
-          streak: params.get("streak") === "broken" ? { current: 0, best: 9, todayBoth: false, lastBoth: new Date(Date.now() - 4 * 86_400_000).toLocaleDateString("en-CA") } : { current: 6, best: 9, todayBoth: true, lastBoth: null },
-          ...(params.get("streak") === "broken" && { restoreStreak: async () => (useRoomStore.setState({ streak: { current: 9, best: 9, todayBoth: false, lastBoth: new Date(Date.now() - 86_400_000).toLocaleDateString("en-CA") } }), { filled: 3 }) }),
+          streak: params.get("streak") === "broken" ? { current: 1, best: 17, todayBoth: true, missed: 3 } : { current: 6, best: 9, todayBoth: true, missed: 0 },
+          ...(params.get("streak") === "broken" && { restoreStreak: async () => (useRoomStore.setState({ streak: { current: 21, best: 21, todayBoth: true, missed: 0 } }), { filled: 3 }) }),
           partnerSeenAt: ago(42),
           notes: [
             { id: "n1", authorId: PARTNER.id, body: "Good morning sunshine ☀️ Don't forget to eat breakfast!", color: "yellow", createdAt: ago(30), seenAt: null },
