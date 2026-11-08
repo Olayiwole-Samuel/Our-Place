@@ -411,6 +411,16 @@
     top: calc(var(--safe-top) + var(--edge-gap) + var(--control-size) + 2px);
   }
 }
+/* During a game the game covers the top centre, so the bar moves to the
+   bottom-left corner (free while you play: no joystick) and sits above it. */
+.hud[data-ingame="true"] .music-bar-anchor {
+  top: auto;
+  left: calc(var(--safe-left) + var(--edge-gap));
+  bottom: calc(var(--safe-bottom) + var(--edge-gap));
+  transform: none;
+  align-items: flex-start;
+  z-index: 36;
+}
 /* The record on the music panel turns while a song plays. */
 .music-spin {
   animation: music-spin 3.6s linear infinite;

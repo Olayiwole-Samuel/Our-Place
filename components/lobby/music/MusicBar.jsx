@@ -1,6 +1,6 @@
 "use client";
 
-import { Pause, Play, RotateCcw, RotateCw, SkipBack, SkipForward, Volume2, VolumeX } from "lucide-react";
+import { ChevronDown, ChevronUp, Pause, Play, RotateCcw, RotateCw, SkipBack, SkipForward, Volume2, VolumeX } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { loadYouTube } from "@/lib/media/youtube";
 import { musicPosition, nextPosition } from "@/lib/music/queue";
@@ -35,7 +35,13 @@ const SPOTIFY_RETURN = {
   failed: "Couldn't connect Spotify. Try again (and check the app's Redirect URI in the Spotify dashboard).",
 };
 
-export function MusicBar({ me, onEmote }) {
+/**
+ * `compact` (during a game): the bar moves to the bottom-left corner, above the
+ * game, as a small pill (play/pause and next); tapping ⌃ opens the full bar
+ * there, and tapping anywhere else closes it again. The player itself never
+ * moves in the page, so the song keeps playing.
+ */
+export function MusicBar({ me, onEmote, compact = false }) {
   // Back from Spotify's sign-in (/api/music/spotify/callback → /lobby?music=…): open Music on "Add songs".
   useEffect(() => {
     const url = new URL(window.location.href);
@@ -59,6 +65,18 @@ export function MusicBar({ me, onEmote }) {
     document.addEventListener("pointerdown", away);
     return () => document.removeEventListener("pointerdown", away);
   }, [volumeOpen]);
+  const [expanded, setExpanded] = useState(false);
+  const barRef = useRef(null);
+  useEffect(() => {
+    if (!compact) setExpanded(false);
+  }, [compact]);
+  useEffect(() => {
+    if (!compact || !expanded) return undefined;
+    const away = (event) => !barRef.current?.contains(event.target) && setExpanded(false);
+    document.addEventListener("pointerdown", away);
+    return () => document.removeEventListener("pointerdown", away);
+  }, [compact, expanded]);
+  const mini = compact && !expanded;
   const dancing = useMusicStore((state) => state.dancing);
   const hostRef = useRef(null);
   const playerRef = useRef(null);
@@ -270,13 +288,35 @@ export function MusicBar({ me, onEmote }) {
   };
 
   return (
-    <div className="music-bar panel pointer-events-auto flex w-[min(26rem,92vw)] flex-col rounded-[1.4rem] py-1 pr-1.5 pl-1 shadow-[0_6px_24px_rgba(0,0,0,0.35)]">
+    <div ref={barRef} className={`music-bar panel pointer-events-auto flex flex-col rounded-[1.4rem] py-1 pr-1.5 pl-1 shadow-[0_6px_24px_rgba(0,0,0,0.35)] ${mini ? "w-auto" : "w-[min(26rem,92vw)]"}`}>
       <div className="flex items-center gap-2">
-      <div className="relative h-9 w-16 shrink-0 overflow-hidden rounded-full bg-black-900">
+      <div className={`relative shrink-0 overflow-hidden rounded-full bg-black-900 ${mini ? "size-8" : "h-9 w-16"}`}>
         <div ref={hostRef} className="absolute inset-0 [&>iframe]:h-full [&>iframe]:w-full" />
         {/* eslint-disable-next-line @next/next/no-img-element -- album art from Spotify */}
         {!youtubeId && track.imageUrl && <img src={track.imageUrl} alt="" className="absolute inset-0 size-full object-cover" />}
       </div>
+      {mini ? (
+        <div className="flex shrink-0 items-center">
+          {blocked ? (
+            <button type="button" onClick={unlock} className="music-unlock grid h-9 shrink-0 place-items-center rounded-full bg-green-600 px-3 text-micro font-semibold tracking-normal text-white">
+              Tap to listen
+            </button>
+          ) : (
+            <>
+              <button type="button" aria-label={music.playing ? `Pause ${track.title} for both` : `Play ${track.title} for both`} onClick={() => store.toggle()} className="grid size-9 place-items-center rounded-full bg-white-soft text-black-950">
+                {music.playing ? <Pause aria-hidden="true" size={16} /> : <Play aria-hidden="true" size={16} />}
+              </button>
+              <button type="button" aria-label="Next song" onClick={() => store.next()} className="grid size-8 place-items-center rounded-full text-text-secondary hover:bg-black-700">
+                <SkipForward aria-hidden="true" size={15} />
+              </button>
+            </>
+          )}
+          <button type="button" aria-label="Show all music controls" aria-expanded="false" onClick={() => setExpanded(true)} className="grid size-8 place-items-center rounded-full text-text-secondary hover:bg-black-700">
+            <ChevronUp aria-hidden="true" size={16} />
+          </button>
+        </div>
+      ) : (
+      <>
       <button type="button" onClick={() => useRoomStore.getState().openPanel("music")} className="min-w-0 flex-1 text-left" aria-label={`Music: ${track.title}. Open the music panel`}>
         <span className="block truncate text-caption font-semibold text-white-soft">
           {music.ourSong === track.id && <span aria-label="Our song">❤️ </span>}
@@ -304,7 +344,7 @@ export function MusicBar({ me, onEmote }) {
               {muted || volume === 0 ? <VolumeX aria-hidden="true" size={15} /> : <Volume2 aria-hidden="true" size={15} />}
             </button>
             {volumeOpen && (
-              <span className="panel absolute top-full right-0 z-30 mt-2 flex w-52 flex-col gap-2 rounded-[var(--radius-md)] p-3 shadow-lg">
+              <span className={`panel absolute right-0 z-30 flex w-52 ${compact ? "bottom-full mb-2" : "top-full mt-2"} flex-col gap-2 rounded-[var(--radius-md)] p-3 shadow-lg`}>
                 <label htmlFor="music-volume" className="flex items-baseline justify-between text-caption font-semibold text-white-soft">
                   Music volume <span className="text-micro font-normal tracking-normal text-text-secondary">{muted ? "muted" : `${volume}%`}</span>
                 </label>
@@ -321,10 +361,18 @@ export function MusicBar({ me, onEmote }) {
           <button type="button" aria-pressed={dancing} aria-label={dancing ? "Stop dancing" : "Dance"} onClick={() => store.setDancing(!dancing)} className={`grid size-8 place-items-center rounded-full text-[0.95rem] ${dancing ? "bg-pink-500/30" : "hover:bg-black-700"}`}>
             💃
           </button>
+          {compact && (
+            <button type="button" aria-label="Hide music controls" aria-expanded="true" onClick={() => setExpanded(false)} className="grid size-8 place-items-center rounded-full text-text-secondary hover:bg-black-700">
+              <ChevronDown aria-hidden="true" size={16} />
+            </button>
+          )}
         </div>
+      )}
+      </>
       )}
       </div>
       {/* The timeline: drag to any moment, or jump 10 s back / forward — for both of you. */}
+      {!mini && (
       <div className="flex items-center gap-1.5 pt-0.5 pr-1 pl-2 text-[0.62rem] tabular-nums text-text-muted">
         <button type="button" aria-label="Back 10 seconds" title="Back 10 s" onClick={() => store.skipBy(-10)} className="grid size-6 place-items-center rounded-full hover:bg-black-700 hover:text-white-soft">
           <RotateCcw aria-hidden="true" size={12} />
@@ -350,6 +398,7 @@ export function MusicBar({ me, onEmote }) {
           <RotateCw aria-hidden="true" size={12} />
         </button>
       </div>
+      )}
     </div>
   );
 }

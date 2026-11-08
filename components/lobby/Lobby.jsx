@@ -173,7 +173,7 @@ function LivingRoom({ me, partner, couple }) {
           </header>
 
           <div className="hud-corner-left flex flex-col items-start gap-2">
-            {touch ? !inGame && !atLane && <Joystick input={runtime.input} /> : <Wordmark size="sm" className="opacity-80" />}
+            {touch ? !inGame && !atLane && <Joystick input={runtime.input} /> : !inGame && <Wordmark size="sm" className="opacity-80" />}
           </div>
 
           {/* Hidden while chatting: the chat panel covers the middle on most screens. */}
@@ -202,7 +202,7 @@ function LivingRoom({ me, partner, couple }) {
 
           {/* Right edge: the floating game menu (reserved for it since Phase 3). */}
           <div className="music-bar-anchor flex flex-col items-center gap-1.5">
-            <MusicBar me={me.id} onEmote={triggerEmote} />
+            <MusicBar me={me.id} onEmote={triggerEmote} compact={inGame} />
             <BedroomHud me={me.id} partner={partner.id} partnerName={partnerName} />
           </div>
           <GameMenu disabled={inGame} />
