@@ -12,7 +12,8 @@ import { MUSIC_AREAS, useMusicStore } from "./musicStore";
  * room, read under RLS and kept fresh by the database's announcements on the
  * couple's `lobby` topic (supabase/migrations/20261013000000_room_features.sql):
  *
- *   streak         { current, best, todayBoth } — days in a row you were BOTH here
+ *   streak         { current, best, todayBoth, lastBoth } — days in a row you were BOTH here
+ *                  (lastBoth: your latest day together, "YYYY-MM-DD" or null)
  *   partnerSeenAt  when your partner was last in Our Place (ISO) or null
  *   notes          message-board notes, newest first; unseenNotes = partner's notes you haven't opened
  *   memories       memory-wall photos { id, url, caption, takenOn, uploaderId, createdAt }
@@ -44,7 +45,7 @@ const SIGNED_URL_SECONDS = 3600;
 
 const initialState = {
   ready: false,
-  streak: { current: 0, best: 0, todayBoth: false },
+  streak: { current: 0, best: 0, todayBoth: false, lastBoth: null },
   partnerSeenAt: null,
   notes: [],
   unseenNotes: 0,
@@ -202,7 +203,7 @@ export const useRoomStore = create((set, get) => ({
       if (area === "streak") {
         const { data } = await supabase.rpc("couple_streak");
         const row = Array.isArray(data) ? data[0] : data;
-        if (row && here === ctx) set({ streak: { current: row.current_days ?? 0, best: row.best_days ?? 0, todayBoth: Boolean(row.today_both) } });
+        if (row && here === ctx) set({ streak: { current: row.current_days ?? 0, best: row.best_days ?? 0, todayBoth: Boolean(row.today_both), lastBoth: row.last_both ?? null } });
       } else if (area === "seen") {
         const { data } = await supabase.from("couple_visits").select("last_at").eq("user_id", partnerId).order("last_at", { ascending: false }).limit(1);
         if (here === ctx) set({ partnerSeenAt: data?.[0]?.last_at ?? null });
@@ -293,6 +294,15 @@ export const useRoomStore = create((set, get) => ({
   },
 
   /** The day you got together ("YYYY-MM-DD"); returns an error code or null. */
+  /** Fills in the days you missed since your last day together. → { filled } or { error } */
+  async restoreStreak() {
+    if (!ctx) return { error: "unavailable" };
+    const { data, error } = await ctx.supabase.rpc("restore_streak", { tz: zone() });
+    if (error) return { error: error.message.match(/(?:streak|room):([a-z_]+)/)?.[1] ?? "unknown" };
+    await Promise.all(["streak", "trophies", "hearts"].map((area) => get().refresh(area)));
+    return { filled: data };
+  },
+
   async setTogetherSince(day) {
     if (!ctx) return "unavailable";
     const { error } = await ctx.supabase.rpc("set_together_since", { day });
